@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation'
 import { useRouter } from 'next/navigation'
 import { useLayout } from '@/context/layout-provider'
 import { useI18n } from '@/context/i18n-provider'
+import { getDefaultRouteForRole, isStaffAreaPath } from '@/lib/auth'
+import { useAuthStore } from '@/stores/auth-store'
 import { usePortalStore } from '@/stores/portal-store'
 import {
   Sidebar,
@@ -31,8 +33,23 @@ export function AppSidebar() {
   const { locale } = useI18n()
   const pathname = usePathname()
   const router = useRouter()
+  const { auth } = useAuthStore()
   const teams = useMemo(() => getSidebarTeams(locale), [locale])
-  const [selectedTeam, setSelectedTeam] = useState<Team>(teams[0])
+  const visibleTeams = useMemo(() => {
+    if (auth.user?.vai_tro === 'nguoi_dung') {
+      return teams.filter((team) => team.id === 'nutrition-user')
+    }
+
+    if (
+      auth.user?.vai_tro === 'chuyen_gia_dinh_duong' ||
+      auth.user?.vai_tro === 'quan_tri'
+    ) {
+      return teams.filter((team) => team.id === 'nutrition-staff')
+    }
+
+    return teams
+  }, [auth.user?.vai_tro, teams])
+  const [selectedTeam, setSelectedTeam] = useState<Team>(visibleTeams[0] ?? teams[0])
   const { staffRole, hydrate } = usePortalStore()
 
   useEffect(() => {
@@ -42,24 +59,24 @@ export function AppSidebar() {
   useEffect(() => {
     queueMicrotask(() => {
       const savedTeamId = window.localStorage.getItem(ACTIVE_TEAM_STORAGE_KEY)
-      const savedTeam = teams.find((team) => team.id === savedTeamId)
+      const savedTeam = visibleTeams.find((team) => team.id === savedTeamId)
       if (savedTeam) {
         setSelectedTeam(savedTeam)
       }
     })
-  }, [teams])
+  }, [visibleTeams])
 
   const activeTeam = useMemo(() => {
-    if (pathname.startsWith('/staff')) {
-      return teams.find((team) => team.id === 'nutrition-staff') ?? selectedTeam
+    if (isStaffAreaPath(pathname)) {
+      return visibleTeams.find((team) => team.id === 'nutrition-staff') ?? selectedTeam
     }
 
     if (pathname.startsWith('/nutrition')) {
-      return teams.find((team) => team.id === 'nutrition-user') ?? selectedTeam
+      return visibleTeams.find((team) => team.id === 'nutrition-user') ?? selectedTeam
     }
 
-    return selectedTeam
-  }, [pathname, selectedTeam, teams])
+    return visibleTeams.find((team) => team.id === selectedTeam.id) ?? visibleTeams[0] ?? teams[0]
+  }, [pathname, selectedTeam, teams, visibleTeams])
 
   useEffect(() => {
     window.localStorage.setItem(ACTIVE_TEAM_STORAGE_KEY, activeTeam.id)
@@ -68,17 +85,29 @@ export function AppSidebar() {
   const handleTeamChange = (team: Team) => {
     setSelectedTeam(team)
     window.localStorage.setItem(ACTIVE_TEAM_STORAGE_KEY, team.id)
-    router.push(team.defaultUrl)
+    const nextUrl =
+      team.id === 'nutrition-staff' && auth.user
+        ? getDefaultRouteForRole(auth.user.vai_tro)
+        : team.defaultUrl
+
+    router.push(nextUrl)
   }
 
   const navGroups = getSidebarNavGroups(activeTeam.id, locale, staffRole)
-  const sidebarUser = getSidebarUser(activeTeam.id, staffRole)
+  const fallbackSidebarUser = getSidebarUser(activeTeam.id, staffRole)
+  const sidebarUser = auth.user
+    ? {
+        name: auth.user.ho_ten,
+        email: auth.user.email,
+        avatar: fallbackSidebarUser.avatar,
+      }
+    : fallbackSidebarUser
 
   return (
     <Sidebar collapsible={collapsible} variant={variant}>
       <SidebarHeader>
         <TeamSwitcher
-          teams={teams}
+          teams={visibleTeams}
           activeTeam={activeTeam}
           onTeamChange={handleTeamChange}
         />

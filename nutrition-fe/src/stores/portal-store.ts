@@ -14,6 +14,7 @@ type PortalState = {
   staffRole: StaffPortalRole
   hydrate: () => void
   setStaffRole: (role: StaffPortalRole) => void
+  reset: () => void
 }
 
 export const usePortalStore = create<PortalState>()((set) => ({
@@ -27,5 +28,12 @@ export const usePortalStore = create<PortalState>()((set) => ({
     }
 
     set({ staffRole: role })
+  },
+  reset: () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(STAFF_ROLE_STORAGE_KEY)
+    }
+
+    set({ staffRole: 'nutritionist' })
   },
 }))

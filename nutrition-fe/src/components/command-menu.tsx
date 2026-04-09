@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { usePathname } from 'next/navigation'
+import { isStaffAreaPath } from '@/lib/auth'
 import { useNavigate } from '@/lib/router'
 import { ArrowRight, ChevronRight, Laptop, Moon, Sun } from 'lucide-react'
 import { useSearch } from '@/context/search-provider'
@@ -40,7 +41,7 @@ export function CommandMenu() {
     [setOpen]
   )
 
-  const teamId = pathname.startsWith('/staff')
+  const teamId = isStaffAreaPath(pathname)
     ? 'nutrition-staff'
     : 'nutrition-user'
   const navGroups = React.useMemo(

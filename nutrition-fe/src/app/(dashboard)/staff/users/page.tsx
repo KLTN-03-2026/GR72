@@ -1,5 +1,5 @@
-import { NutritionStaffUsers } from '@/features/nutrition-staff/users'
+import { redirect } from 'next/navigation'
 
 export default function StaffUsersPage() {
-  return <NutritionStaffUsers />
+  redirect('/admin/users')
 }

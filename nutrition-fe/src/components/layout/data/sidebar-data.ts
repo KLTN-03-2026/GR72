@@ -60,7 +60,7 @@ function getTeams(locale: AppLocale): Team[] {
       name: copy.teams.staff.name,
       logo: NutritionStaffLogo,
       plan: copy.teams.staff.plan,
-      defaultUrl: '/staff/dashboard',
+      defaultUrl: '/nutritionist/dashboard',
     },
   ]
 }
@@ -159,7 +159,7 @@ function getStaffNavGroups(
       items: [
         {
           title: copy.dashboard,
-          url: '/staff/dashboard',
+          url: '/nutritionist/dashboard',
           icon: LayoutDashboard,
         },
       ],
@@ -169,22 +169,22 @@ function getStaffNavGroups(
       items: [
         {
           title: copy.foods,
-          url: '/staff/foods',
+          url: '/nutritionist/foods',
           icon: Apple,
         },
         {
           title: copy.foodReviewRequests,
-          url: '/staff/food-review-requests',
+          url: '/nutritionist/food-review-requests',
           icon: FileSearch,
         },
         {
           title: copy.recipes,
-          url: '/staff/recipes',
+          url: '/nutritionist/recipes',
           icon: Salad,
         },
         {
           title: copy.mealTemplates,
-          url: '/staff/meal-templates',
+          url: '/nutritionist/meal-templates',
           icon: NotebookPen,
         },
       ],
@@ -194,7 +194,7 @@ function getStaffNavGroups(
       items: [
         {
           title: copy.articles,
-          url: '/staff/articles',
+          url: '/nutritionist/articles',
           icon: BookOpenText,
         },
       ],
@@ -206,14 +206,14 @@ function getStaffNavGroups(
           ? [
               {
                 title: copy.users,
-                url: '/staff/users',
+                url: '/admin/users',
                 icon: Users,
               } as const,
             ]
           : []),
         {
           title: copy.notifications,
-          url: '/staff/notifications',
+          url: '/nutritionist/notifications',
           icon: Bell,
         },
       ],

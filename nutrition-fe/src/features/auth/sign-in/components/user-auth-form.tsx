@@ -7,8 +7,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from '@/lib/router'
 import { Loader2, LogIn } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  getStaffPortalRoleForUserRole,
+  resolvePostLoginPath,
+} from '@/lib/auth'
+import { ApiError, login } from '@/services/auth/api'
 import { useAuthStore } from '@/stores/auth-store'
-import { sleep, cn } from '@/lib/utils'
+import { usePortalStore } from '@/stores/portal-store'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -43,6 +49,7 @@ export function UserAuthForm({
   const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
   const { auth } = useAuthStore()
+  const setStaffRole = usePortalStore((state) => state.setStaffRole)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -55,30 +62,29 @@ export function UserAuthForm({
   function onSubmit(data: z.infer<typeof formSchema>) {
     setIsLoading(true)
 
-    toast.promise(sleep(2000), {
-      loading: 'Đang đăng nhập...',
-      success: () => {
-        setIsLoading(false)
+    const loginPromise = login(data)
+      .then((user) => {
+        auth.setUser(user)
+        auth.setHydrated(true)
+        setStaffRole(getStaffPortalRoleForUserRole(user.vai_tro))
 
-        // Mock successful authentication with expiry computed at success time
-        const mockUser = {
-          accountNo: 'ACC001',
-          email: data.email,
-          role: ['user'],
-          exp: Date.now() + 24 * 60 * 60 * 1000, // 24 hours from now
-        }
+        const targetPath = resolvePostLoginPath(user.vai_tro, redirectTo)
 
-        // Set user and access token
-        auth.setUser(mockUser)
-        auth.setAccessToken('mock-access-token')
-
-        // Redirect to the stored location or default to dashboard
-        const targetPath = redirectTo || '/nutrition/dashboard'
         navigate({ to: targetPath, replace: true })
 
-        return `Chào mừng quay lại, ${data.email}!`
+        return user
+      })
+      .finally(() => {
+        setIsLoading(false)
+      })
+
+    toast.promise(loginPromise, {
+      loading: 'Đang đăng nhập...',
+      success: (user) => {
+        return `Chào mừng quay lại, ${user.ho_ten || user.email}!`
       },
-      error: 'Đăng nhập thất bại',
+      error: (error) =>
+        error instanceof ApiError ? error.message : 'Đăng nhập thất bại',
     })
   }
 

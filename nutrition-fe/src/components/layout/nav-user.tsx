@@ -1,6 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
+import { isStaffAreaPath } from '@/lib/auth'
 import { Link } from '@/lib/router'
 import {
   BadgeCheck,
@@ -43,11 +44,12 @@ export function NavUser({ user }: NavUserProps) {
   const [open, setOpen] = useDialogState()
   const pathname = usePathname()
   const { nutrition } = useI18n()
-  const profileLink = pathname.startsWith('/staff')
-    ? '/staff/dashboard'
+  const isStaffArea = isStaffAreaPath(pathname)
+  const profileLink = isStaffArea
+    ? '/nutritionist/dashboard'
     : '/nutrition/profile'
-  const notificationLink = pathname.startsWith('/staff')
-    ? '/staff/notifications'
+  const notificationLink = isStaffArea
+    ? '/nutritionist/notifications'
     : '/nutrition/notifications'
 
   return (

@@ -1,6 +1,8 @@
 import { join } from 'node:path';
-import { TaiKhoanEntity } from '../Api/User/entities/tai-khoan.entity';
-import { HoSoEntity } from '../Api/User/entities/ho-so.entity';
+import { NhomThucPhamEntity } from '../Api/Admin/Food/entities/nhom-thuc-pham.entity';
+import { ThucPhamEntity } from '../Api/Admin/Food/entities/thuc-pham.entity';
+import { TaiKhoanEntity } from '../Api/Admin/User/entities/tai-khoan.entity';
+import { HoSoEntity } from '../Api/Admin/User/entities/ho-so.entity';
 import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import type { DataSourceOptions } from 'typeorm';
 
@@ -12,7 +14,7 @@ export function getTypeOrmConfig(): TypeOrmModuleOptions & DataSourceOptions {
     username: process.env.DB_USERNAME ?? 'root',
     password: process.env.DB_PASSWORD ?? '',
     database: process.env.DB_DATABASE ?? 'do_an',
-    entities: [TaiKhoanEntity, HoSoEntity],
+    entities: [TaiKhoanEntity, HoSoEntity, NhomThucPhamEntity, ThucPhamEntity],
     migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
     synchronize: false,
     autoLoadEntities: true,

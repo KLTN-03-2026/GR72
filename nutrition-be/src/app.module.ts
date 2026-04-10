@@ -3,9 +3,10 @@ import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthModule } from './Api/Auth/auth.module';
+import { AdminFoodModule } from './Api/Admin/Food/food.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { UserModule } from './Api/User/user.module';
+import { AdminUserModule } from './Api/Admin/User/user.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { getTypeOrmConfig } from './database/typeorm.config';
@@ -15,7 +16,8 @@ import { getTypeOrmConfig } from './database/typeorm.config';
     TypeOrmModule.forRoot(getTypeOrmConfig()),
     JwtModule.register({}),
     AuthModule,
-    UserModule,
+    AdminFoodModule,
+    AdminUserModule,
   ],
   controllers: [AppController],
   providers: [

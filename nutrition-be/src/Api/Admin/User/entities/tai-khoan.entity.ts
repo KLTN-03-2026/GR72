@@ -1,9 +1,11 @@
 import {
   Column,
   Entity,
+  OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import type { UserRole, UserStatus } from '../user.types';
+import { HoSoEntity } from './ho-so.entity';
 
 @Entity({ name: 'tai_khoan' })
 export class TaiKhoanEntity {
@@ -89,4 +91,7 @@ export class TaiKhoanEntity {
     nullable: true,
   })
   xoa_luc!: Date | null;
+
+  @OneToOne(() => HoSoEntity, (hoSo) => hoSo.tai_khoan)
+  ho_so!: HoSoEntity | null;
 }

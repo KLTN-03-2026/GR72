@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { TaiKhoanEntity } from './tai-khoan.entity';
 
 export type GioiTinh = 'nam' | 'nu' | 'khac';
 
@@ -24,6 +25,10 @@ export class HoSoEntity {
     unique: true,
   })
   tai_khoan_id!: number;
+
+  @OneToOne(() => TaiKhoanEntity, (taiKhoan) => taiKhoan.ho_so)
+  @JoinColumn({ name: 'tai_khoan_id' })
+  tai_khoan!: TaiKhoanEntity;
 
   @Column({
     name: 'gioi_tinh',

@@ -29,6 +29,22 @@ export type AdminUser = {
   cap_nhat_luc: string
 }
 
+export type AdminUserHoSo = {
+  gioi_tinh: string | null
+  ngay_sinh: string | null
+  chieu_cao_cm: number | null
+  can_nang_hien_tai_kg: number | null
+  muc_do_van_dong: string | null
+  che_do_an_uu_tien: string[] | null
+  di_ung: string[] | null
+  thuc_pham_khong_thich: string[] | null
+  anh_dai_dien_url: string | null
+}
+
+export type AdminUserDetail = AdminUser & {
+  ho_so: AdminUserHoSo | null
+}
+
 export type AdminUsersQuery = {
   keyword?: string
   vaiTro?: AdminUserRole
@@ -46,11 +62,11 @@ export type AdminUsersListResponse = {
   }
 }
 
+// Spec "quan-ly-tai-khoan.md": PATCH /:id chỉ cho sửa hoTen và email
+// Đổi role/status dùng endpoint riêng: PATCH /:id/role, PATCH /:id/status
 type UpdateAdminUserPayload = {
   hoTen?: string
   email?: string
-  vaiTro?: AdminUserRole
-  trangThai?: AdminUserStatus
 }
 
 function buildQueryString(params: Record<string, string | number | undefined>) {
@@ -107,7 +123,7 @@ export async function getAdminUsers(query: AdminUsersQuery) {
 }
 
 export async function getAdminUserDetail(id: number) {
-  const response = await request<AdminUser>(`/admin/users/${id}`)
+  const response = await request<AdminUserDetail>(`/admin/users/${id}`)
   return response.data
 }
 

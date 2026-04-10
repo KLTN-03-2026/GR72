@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { compare } from 'bcrypt';
 import type { SignOptions } from 'jsonwebtoken';
 import { IsNull, Repository } from 'typeorm';
-import { TaiKhoanEntity } from '../User/entities/tai-khoan.entity';
+import { TaiKhoanEntity } from '../Admin/User/entities/tai-khoan.entity';
 import { LoginDto } from './dto/login.dto';
 
 @Injectable()

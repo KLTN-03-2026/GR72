@@ -9,5 +9,6 @@ import { UserService } from './user.service';
   imports: [TypeOrmModule.forFeature([TaiKhoanEntity, HoSoEntity])],
   controllers: [UserController],
   providers: [UserService],
+  exports: [TypeOrmModule],
 })
-export class UserModule {}
+export class AdminUserModule {}

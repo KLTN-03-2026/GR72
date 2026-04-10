@@ -82,6 +82,10 @@ export function mapLegacyStaffPath(pathname: string) {
     return '/admin/users'
   }
 
+  if (pathname === '/staff/foods') {
+    return '/admin/foods'
+  }
+
   return pathname.replace(/^\/staff/, '/nutritionist')
 }
 

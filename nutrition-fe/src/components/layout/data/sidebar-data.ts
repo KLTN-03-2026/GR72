@@ -9,6 +9,7 @@ import {
   Goal,
   HeartPulse,
   LayoutDashboard,
+  Layers3,
   NotebookPen,
   Salad,
   ShieldPlus,
@@ -204,6 +205,16 @@ function getStaffNavGroups(
       items: [
         ...(staffRole === 'admin'
           ? [
+              {
+                title: copy.foods,
+                url: '/admin/foods',
+                icon: Apple,
+              } as const,
+              {
+                title: 'Nhóm thực phẩm',
+                url: '/admin/food-groups',
+                icon: Layers3,
+              } as const,
               {
                 title: copy.users,
                 url: '/admin/users',

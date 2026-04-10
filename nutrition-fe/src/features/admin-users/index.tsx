@@ -10,17 +10,20 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { DotsHorizontalIcon } from '@radix-ui/react-icons'
-import { Eye, KeyRound, ShieldCheck, ShieldX, Trash2 } from 'lucide-react'
+import { Eye, KeyRound, Pencil, ShieldCheck, ShieldX, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ApiError } from '@/services/auth/api'
+import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
 import {
   type AdminUser,
+  type AdminUserDetail,
   type AdminUserRole,
   type AdminUserStatus,
   deleteAdminUser,
   getAdminUserDetail,
   getAdminUsers,
   resetAdminUserPassword,
+  updateAdminUser,
   updateAdminUserRole,
   updateAdminUserStatus,
 } from '@/services/admin/api'
@@ -70,8 +73,6 @@ const FIELD_CLASSNAME = 'h-10 rounded-sm'
 type AdminUserFormState = {
   hoTen: string
   email: string
-  vaiTro: AdminUserRole
-  trangThai: AdminUserStatus
 }
 
 function getRoleLabel(role: AdminUserRole) {
@@ -114,26 +115,36 @@ function UserDetailDialog({
   open,
   user,
   form,
+  editMode,
   loading,
   saving,
   onOpenChange,
+  onEditModeChange,
+  onFormChange,
   onResetPassword,
+  onSubmit,
 }: {
   open: boolean
-  user: AdminUser | null
+  user: AdminUserDetail | null
   form: AdminUserFormState
+  editMode: boolean
   loading: boolean
   saving: boolean
   onOpenChange: (open: boolean) => void
+  onEditModeChange: (value: boolean) => void
+  onFormChange: (patch: Partial<AdminUserFormState>) => void
   onResetPassword: () => void
+  onSubmit: () => void
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='rounded-sm p-4 sm:max-w-2xl'>
         <DialogHeader>
-          <DialogTitle>Chi tiết tài khoản</DialogTitle>
+          <DialogTitle>{editMode ? 'Chỉnh sửa tài khoản' : 'Chi tiết tài khoản'}</DialogTitle>
           <DialogDescription>
-            Xem nhanh dữ liệu người dùng. Cập nhật role được thực hiện trực tiếp trên từng dòng của bảng.
+            {editMode
+              ? 'Cập nhật thông tin tài khoản rồi lưu thay đổi trực tiếp qua API.'
+              : 'Xem nhanh dữ liệu người dùng. Bạn có thể chuyển sang chế độ chỉnh sửa từ menu thao tác.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -158,15 +169,28 @@ function UserDetailDialog({
               </div>
               <div className='space-y-2'>
                 <Label>Họ tên</Label>
-                <Input value={form.hoTen} disabled className={FIELD_CLASSNAME} />
+                <Input
+                  value={form.hoTen}
+                  disabled={!editMode || saving}
+                  onChange={(event) => onFormChange({ hoTen: event.target.value })}
+                  className={FIELD_CLASSNAME}
+                />
               </div>
               <div className='space-y-2'>
                 <Label>Email</Label>
-                <Input value={form.email} disabled className={FIELD_CLASSNAME} />
+                <Input
+                  value={form.email}
+                  disabled={!editMode || saving}
+                  onChange={(event) => onFormChange({ email: event.target.value })}
+                  className={FIELD_CLASSNAME}
+                />
               </div>
               <div className='space-y-2'>
                 <Label>Role</Label>
-                <Select value={form.vaiTro} disabled>
+                <Select
+                  value={user.vai_tro}
+                  disabled
+                >
                   <SelectTrigger className={FIELD_CLASSNAME}>
                     <SelectValue />
                   </SelectTrigger>
@@ -179,7 +203,10 @@ function UserDetailDialog({
               </div>
               <div className='space-y-2'>
                 <Label>Trạng thái</Label>
-                <Select value={form.trangThai} disabled>
+                <Select
+                  value={user.trang_thai}
+                  disabled
+                >
                   <SelectTrigger className={FIELD_CLASSNAME}>
                     <SelectValue />
                   </SelectTrigger>
@@ -202,9 +229,41 @@ function UserDetailDialog({
                 <KeyRound />
                 Reset mật khẩu
               </Button>
-              <Button variant='outline' onClick={() => onOpenChange(false)} className='rounded-sm'>
-                Đóng
-              </Button>
+              <div className='flex gap-2'>
+                {editMode ? (
+                  <>
+                    <Button
+                      variant='outline'
+                      onClick={() => onEditModeChange(false)}
+                      disabled={saving}
+                      className='rounded-sm'
+                    >
+                      Hủy
+                    </Button>
+                    <Button onClick={onSubmit} disabled={saving} className='rounded-sm'>
+                      Lưu thay đổi
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant='outline'
+                      onClick={() => onEditModeChange(true)}
+                      className='rounded-sm'
+                    >
+                      <Pencil />
+                      Chỉnh sửa
+                    </Button>
+                    <Button
+                      variant='outline'
+                      onClick={() => onOpenChange(false)}
+                      className='rounded-sm'
+                    >
+                      Đóng
+                    </Button>
+                  </>
+                )}
+              </div>
             </DialogFooter>
           </>
         ) : (
@@ -221,9 +280,11 @@ export function AdminUsers() {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
-  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
+  const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null)
+  const [isEditMode, setIsEditMode] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null)
   const [keyword, setKeyword] = useState('')
   const [roleFilter, setRoleFilter] = useState<'all' | AdminUserRole>('all')
   const [statusFilter, setStatusFilter] = useState<'all' | AdminUserStatus>('all')
@@ -235,8 +296,6 @@ export function AdminUsers() {
   const [form, setForm] = useState<AdminUserFormState>({
     hoTen: '',
     email: '',
-    vaiTro: 'nguoi_dung',
-    trangThai: 'hoat_dong',
   })
 
   const loadUsers = useCallback(async () => {
@@ -279,8 +338,6 @@ export function AdminUsers() {
         setForm({
           hoTen: user.ho_ten,
           email: user.email,
-          vaiTro: user.vai_tro,
-          trangThai: user.trang_thai,
         })
       })
       .catch((error) => {
@@ -303,7 +360,9 @@ export function AdminUsers() {
     setUsers((current) =>
       current.map((item) => (item.id === user.id ? { ...item, ...user } : item))
     )
-    setSelectedUser(user)
+    setSelectedUser((current) =>
+      current && current.id === user.id ? { ...current, ...user } : current
+    )
   }
 
   const handleResetPassword = async () => {
@@ -320,13 +379,28 @@ export function AdminUsers() {
     }
   }
 
+  const handleUpdateUser = async () => {
+    if (!selectedUser) return
+
+    setSaving(true)
+    try {
+      const updatedUser = await updateAdminUser(selectedUser.id, {
+        hoTen: form.hoTen.trim(),
+        email: form.email.trim(),
+      })
+
+      updateListItem(updatedUser)
+      setIsEditMode(false)
+      toast.success('Đã cập nhật thông tin tài khoản.')
+      await loadUsers()
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : 'Cập nhật tài khoản thất bại')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const handleDeleteUser = useCallback(async (user: AdminUser) => {
-    const accepted = window.confirm(
-      `Xóa tài khoản "${user.ho_ten}"? Hành động này sẽ xóa mềm người dùng.`
-    )
-
-    if (!accepted) return
-
     try {
       await deleteAdminUser(user.id)
       setUsers((current) => current.filter((item) => item.id !== user.id))
@@ -335,6 +409,7 @@ export function AdminUsers() {
         setSelectedUserId(null)
       }
       toast.success('Đã xóa tài khoản.')
+      setDeleteTarget(null)
       await loadUsers()
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : 'Xóa tài khoản thất bại')
@@ -418,9 +493,23 @@ export function AdminUsers() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end' className='w-52'>
-              <DropdownMenuItem onClick={() => setSelectedUserId(row.original.id)}>
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedUserId(row.original.id)
+                  setIsEditMode(false)
+                }}
+              >
                 <Eye />
                 Xem chi tiết
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedUserId(row.original.id)
+                  setIsEditMode(true)
+                }}
+              >
+                <Pencil />
+                Chỉnh sửa
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={async () => {
@@ -460,7 +549,7 @@ export function AdminUsers() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 variant='destructive'
-                onClick={() => void handleDeleteUser(row.original)}
+                onClick={() => setDeleteTarget(row.original)}
               >
                 <Trash2 />
                 Xóa tài khoản
@@ -599,15 +688,50 @@ export function AdminUsers() {
         open={selectedUserId !== null}
         user={selectedUser}
         form={form}
+        editMode={isEditMode}
         loading={detailLoading}
         saving={saving}
         onOpenChange={(open) => {
           if (!open) {
             setSelectedUserId(null)
             setSelectedUser(null)
+            setIsEditMode(false)
           }
         }}
+        onEditModeChange={(value) => {
+          setIsEditMode(value)
+          if (!value && selectedUser) {
+            setForm({
+              hoTen: selectedUser.ho_ten,
+              email: selectedUser.email,
+            })
+          }
+        }}
+        onFormChange={(patch) => setForm((current) => ({ ...current, ...patch }))}
         onResetPassword={handleResetPassword}
+        onSubmit={handleUpdateUser}
+      />
+
+      <ConfirmActionDialog
+        open={deleteTarget !== null}
+        title='Xóa tài khoản'
+        description={
+          deleteTarget
+            ? `Bạn có chắc muốn xóa tài khoản "${deleteTarget.ho_ten}"? Hành động này sẽ xóa mềm người dùng.`
+            : ''
+        }
+        confirmLabel='Xóa tài khoản'
+        loading={saving}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null)
+          }
+        }}
+        onConfirm={() => {
+          if (deleteTarget) {
+            void handleDeleteUser(deleteTarget)
+          }
+        }}
       />
     </>
   )

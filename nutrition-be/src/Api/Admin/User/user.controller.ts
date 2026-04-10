@@ -14,7 +14,7 @@ import { UpdateRoleDto } from './dto/update-role.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { ResetPasswordDto, UpdateUserDto } from './dto/update-user.dto';
 import { UsersQueryDto } from './dto/users-query.dto';
-import { Roles } from '../../common/decorators/roles.decorator';
+import { Roles } from '../../../common/decorators/roles.decorator';
 import { UserService } from './user.service';
 
 @Roles('quan_tri')

@@ -19,7 +19,7 @@ import { ResetPasswordDto, UpdateUserDto } from './dto/update-user.dto';
 import { HoSoEntity } from './entities/ho-so.entity';
 import { UsersQueryDto } from './dto/users-query.dto';
 import { TaiKhoanEntity } from './entities/tai-khoan.entity';
-import { PublicUser, UserRole, UserStatus } from './user.types';
+import { PublicUser, PublicUserDetail, UserRole, UserStatus } from './user.types';
 
 type SuccessResponse<T> = {
   success: true;
@@ -161,16 +161,28 @@ export class UserService {
     };
   }
 
-  async findOne(id: number): Promise<SuccessResponse<PublicUser>> {
-    const user = await this.findUserById(id);
+  // Fix #2: GET /:id giờ join ho_so để hiển thị thông tin mở rộng theo spec
+  async findOne(id: number): Promise<SuccessResponse<PublicUserDetail>> {
+    const user = await this.userRepository.findOne({
+      where: {
+        id,
+        xoa_luc: IsNull(),
+      },
+      relations: ['ho_so'],
+    });
+
+    if (!user) {
+      throw new NotFoundException('Nguoi dung khong ton tai');
+    }
 
     return {
       success: true,
       message: 'Lay chi tiet nguoi dung thanh cong',
-      data: this.toPublicUser(user),
+      data: this.toPublicUserDetail(user),
     };
   }
 
+  // Fix #1: PATCH /:id chỉ cho sửa hoTen và email, không sửa vaiTro/trangThai
   async update(
     id: number,
     dto: UpdateUserDto,
@@ -185,14 +197,6 @@ export class UserService {
       const email = dto.email.trim().toLowerCase();
       await this.ensureEmailNotTaken(email, id);
       user.email = email;
-    }
-
-    if (dto.vaiTro !== undefined) {
-      user.vai_tro = dto.vaiTro as UserRole;
-    }
-
-    if (dto.trangThai !== undefined) {
-      user.trang_thai = dto.trangThai as UserStatus;
     }
 
     user.cap_nhat_luc = new Date();
@@ -318,6 +322,30 @@ export class UserService {
       dang_nhap_cuoi_luc: user.dang_nhap_cuoi_luc?.toISOString() ?? null,
       tao_luc: user.tao_luc.toISOString(),
       cap_nhat_luc: user.cap_nhat_luc.toISOString(),
+    };
+  }
+
+  // Fix #2: Thêm mapper cho chi tiết kèm hồ sơ
+  private toPublicUserDetail(user: TaiKhoanEntity): PublicUserDetail {
+    return {
+      ...this.toPublicUser(user),
+      ho_so: user.ho_so
+        ? {
+            gioi_tinh: user.ho_so.gioi_tinh,
+            ngay_sinh: user.ho_so.ngay_sinh,
+            chieu_cao_cm: user.ho_so.chieu_cao_cm
+              ? Number(user.ho_so.chieu_cao_cm)
+              : null,
+            can_nang_hien_tai_kg: user.ho_so.can_nang_hien_tai_kg
+              ? Number(user.ho_so.can_nang_hien_tai_kg)
+              : null,
+            muc_do_van_dong: user.ho_so.muc_do_van_dong,
+            che_do_an_uu_tien: user.ho_so.che_do_an_uu_tien,
+            di_ung: user.ho_so.di_ung,
+            thuc_pham_khong_thich: user.ho_so.thuc_pham_khong_thich,
+            anh_dai_dien_url: user.ho_so.anh_dai_dien_url,
+          }
+        : null,
     };
   }
 }

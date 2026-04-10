@@ -1,12 +1,13 @@
 import {
   IsEmail,
-  IsIn,
   IsOptional,
   IsString,
   MinLength,
 } from 'class-validator';
-import { USER_ROLES, USER_STATUSES } from '../user.types';
 
+// Spec "quan-ly-tai-khoan.md" nói rõ:
+// "Không bao gồm đổi role, đổi trạng thái và reset mật khẩu thủ công, vì đó là chức năng riêng."
+// → Đã loại bỏ vaiTro và trangThai khỏi DTO này.
 export class UpdateUserDto {
   @IsOptional()
   @IsString()
@@ -15,16 +16,6 @@ export class UpdateUserDto {
   @IsOptional()
   @IsEmail()
   email?: string;
-
-  @IsOptional()
-  @IsString()
-  @IsIn(USER_ROLES)
-  vaiTro?: string;
-
-  @IsOptional()
-  @IsString()
-  @IsIn(USER_STATUSES)
-  trangThai?: string;
 }
 
 export class ResetPasswordDto {

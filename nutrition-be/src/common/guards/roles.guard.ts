@@ -7,7 +7,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { ROLES_KEY } from '../constants/auth.constants';
-import type { UserRole } from '../../Api/User/user.types';
+import type { UserRole } from '../../Api/Admin/User/user.types';
 
 type AuthenticatedRequest = Request & {
   user?: {

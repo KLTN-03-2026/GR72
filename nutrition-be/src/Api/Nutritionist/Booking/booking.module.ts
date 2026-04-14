@@ -5,7 +5,7 @@ import { NutritionistBookingService } from './booking.service';
 import { LichHenEntity } from '../../Admin/Booking/entities/lich-hen.entity';
 import { ThanhToanTuVanEntity } from '../../Admin/Booking/entities/thanh-toan-tu-van.entity';
 import { ThongBaoEntity } from '../../Admin/FoodReview/entities/thong-bao.entity';
-import { TaiKhoanEntity } from '../../Admin/User/entities/tai-khoan.entity';
+import { ChuyenGiaDinhDuongEntity } from '../../Admin/ChuyenGiaDinhDuong/entities/chuyen-gia-dinh-duong.entity';
 
 @Module({
   imports: [
@@ -13,7 +13,7 @@ import { TaiKhoanEntity } from '../../Admin/User/entities/tai-khoan.entity';
       LichHenEntity,
       ThanhToanTuVanEntity,
       ThongBaoEntity,
-      TaiKhoanEntity,
+      ChuyenGiaDinhDuongEntity,
     ]),
   ],
   controllers: [NutritionistBookingController],

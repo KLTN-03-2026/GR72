@@ -10,7 +10,6 @@ import {
   Query,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateRoleDto } from './dto/update-role.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { ResetPasswordDto, UpdateUserDto } from './dto/update-user.dto';
 import { UsersQueryDto } from './dto/users-query.dto';
@@ -45,14 +44,6 @@ export class UserController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.userService.remove(id);
-  }
-
-  @Patch(':id/role')
-  updateRole(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: UpdateRoleDto,
-  ) {
-    return this.userService.updateRole(id, body);
   }
 
   @Patch(':id/status')

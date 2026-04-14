@@ -25,11 +25,16 @@ async function hashPassword(password: string): Promise<string> {
   return hash(password, saltRounds);
 }
 
+function getSeedDefaultPassword(): string {
+  const fromEnv = process.env.SEED_DEFAULT_PASSWORD?.trim();
+  return fromEnv && fromEnv.length > 0 ? fromEnv : 'password123';
+}
+
 async function seedUsers() {
   const userRepository = AppDataSource.getRepository(TaiKhoanEntity);
   const profileRepository = AppDataSource.getRepository(HoSoEntity);
   const now = new Date();
-  const defaultPassword = process.env.SEED_DEFAULT_PASSWORD ?? 'password123';
+  const defaultPassword = getSeedDefaultPassword();
   const passwordHash = await hashPassword(defaultPassword);
 
   await userRepository.upsert(
@@ -786,41 +791,42 @@ async function seedNutritionistProfiles() {
   const profileRepository = AppDataSource.getRepository(HoSoEntity);
   const now = new Date();
 
-  const existing = await cgRepo.count();
-  if (existing > 0) { console.log(`Nutritionist profiles already seeded (${existing} found)`); return; }
-
   const nutri = await userRepo.findOne({ where: { email: 'nutritionist@nutriwise.vn' } });
   if (!nutri) { console.log('Nutritionist user not found, skipping nutritionist profiles'); return; }
 
   // Seed 1 Nutritionist hoat_dong (A15 test), 1 Nutritionist cho_duyet (A14 test)
-  await cgRepo.save([
-    {
-      tai_khoan_id: nutri.id,
-      chuyen_mon: 'Dinh dưỡng lâm sàng, Giảm cân, Dinh dưỡng thể thao',
-      mo_ta: 'Chuyên gia dinh dưỡng với 5 năm kinh nghiệm tư vấn cho người Việt. Tốt nghiệp Đại học Y Hà Nội, chứng chỉ Dinh dưỡng lâm sàng quốc tế.',
-      kinh_nghiem: '5 năm kinh nghiệm tư vấn dinh dưỡng cho người trưởng thành và trẻ em',
-      hoc_vi: 'Thạc sĩ Dinh dưỡng',
-      chung_chi: 'Chứng chỉ Dinh dưỡng lâm sàng quốc tế, Chứng chỉ tư vấn giảm cân',
-      gio_lam_viec: 'T2-T6: 8:00-17:00, T7: 8:00-12:00',
-      trang_thai: 'hoat_dong' as const,
-      diem_danh_gia_trung_binh: '4.7',
-      so_luot_danh_gia: 23,
-      ngay_duyet: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-      tao_luc: now, cap_nhat_luc: now,
-    },
-  ]);
-  console.log('Seeded 1 active nutritionist profile');
+  const activeProfile = await cgRepo.findOne({ where: { tai_khoan_id: nutri.id } });
+  await cgRepo.save(cgRepo.create({
+    id: activeProfile?.id,
+    tai_khoan_id: nutri.id,
+    chuyen_mon: 'Dinh dưỡng lâm sàng, Giảm cân, Dinh dưỡng thể thao',
+    mo_ta: 'Chuyên gia dinh dưỡng với 5 năm kinh nghiệm tư vấn cho người Việt. Tốt nghiệp Đại học Y Hà Nội, chứng chỉ Dinh dưỡng lâm sàng quốc tế.',
+    kinh_nghiem: '5 năm kinh nghiệm tư vấn dinh dưỡng cho người trưởng thành và trẻ em',
+    hoc_vi: 'Thạc sĩ Dinh dưỡng',
+    chung_chi: 'Chứng chỉ Dinh dưỡng lâm sàng quốc tế, Chứng chỉ tư vấn giảm cân',
+    gio_lam_viec: 'T2-T6: 8:00-17:00, T7: 8:00-12:00',
+    trang_thai: 'hoat_dong' as const,
+    trang_thai_thanh_toan: 'thanh_cong' as const,
+    ngay_thanh_toan: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000),
+    lan_thanh_toan: 1,
+    diem_danh_gia_trung_binh: '4.7',
+    so_luot_danh_gia: 23,
+    ngay_duyet: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    tao_luc: activeProfile?.tao_luc ?? now,
+    cap_nhat_luc: now,
+  }));
+  console.log('Seeded/updated 1 active nutritionist profile');
 
   // Seed thêm 1 user đang chờ duyệt (A14 test)
   // Tạo user test mới thay vì thay đổi user@nutriwise.vn
-  const pendingUser = await userRepo.findOne({ where: { email: 'pending_nutri@nutriwise.vn' } });
+  let pendingUser = await userRepo.findOne({ where: { email: 'pending_nutri@nutriwise.vn' } });
   if (!pendingUser) {
-    const passwordHash = await hashPassword(process.env.SEED_DEFAULT_PASSWORD ?? 'password123');
-    const newUser = userRepo.create({
+    const passwordHash = await hashPassword(getSeedDefaultPassword());
+    pendingUser = userRepo.create({
       email: 'pending_nutri@nutriwise.vn',
       ho_ten: 'Ung Vien Cho Duyet',
-      vai_tro: 'nguoi_dung',
-      trang_thai: 'hoat_dong',
+      vai_tro: 'chuyen_gia_dinh_duong',
+      trang_thai: 'khong_hoat_dong',
       mat_khau_ma_hoa: passwordHash,
       ma_dat_lai_mat_khau: null,
       het_han_ma_dat_lai: null,
@@ -829,11 +835,11 @@ async function seedNutritionistProfiles() {
       cap_nhat_luc: now,
       xoa_luc: null,
     });
-    await userRepo.save(newUser);
+    pendingUser = await userRepo.save(pendingUser);
     // Tạo ho_so cho user mới
     await profileRepository.upsert(
       {
-        tai_khoan_id: newUser.id,
+        tai_khoan_id: pendingUser.id,
         gioi_tinh: null,
         ngay_sinh: null,
         chieu_cao_cm: null,
@@ -848,33 +854,50 @@ async function seedNutritionistProfiles() {
       },
       ['tai_khoan_id'],
     );
-    await cgRepo.save(cgRepo.create({
-      tai_khoan_id: newUser.id,
-      chuyen_mon: 'Dinh dưỡng cho bệnh nhân tiểu đường',
-      mo_ta: 'Chuyên gia dinh dưỡng cho bệnh nhân tiểu đường type 2 và tim mạch.',
-      kinh_nghiem: '3 năm kinh nghiệm tại bệnh viện',
-      hoc_vi: 'Bác sĩ chuyên khoa 1',
-      chung_chi: 'Chứng chỉ dinh dưỡng bệnh lý',
-      trang_thai: 'cho_duyet' as const,
-      tao_luc: now, cap_nhat_luc: now,
-    }));
-    console.log('Seeded 1 pending nutritionist (pending_nutri@nutriwise.vn) for A14 test');
-  } else {
-    // Nếu user đã tồn tại, đảm bảo profile ở trạng thái cho_duyet
-    const existingCg = await cgRepo.findOne({ where: { tai_khoan_id: pendingUser.id } });
-    if (!existingCg) {
-      await cgRepo.save(cgRepo.create({
-        tai_khoan_id: pendingUser.id,
-        chuyen_mon: 'Dinh dưỡng cho bệnh nhân tiểu đường',
-        mo_ta: 'Chuyên gia dinh dưỡng cho bệnh nhân tiểu đường type 2 và tim mạch.',
-        kinh_nghiem: '3 năm kinh nghiệm tại bệnh viện',
-        hoc_vi: 'Bác sĩ chuyên khoa 1',
-        chung_chi: 'Chứng chỉ dinh dưỡng bệnh lý',
-        trang_thai: 'cho_duyet' as const,
-        tao_luc: now, cap_nhat_luc: now,
-      }));
-    }
   }
+
+  await userRepo.save(userRepo.create({
+    ...pendingUser,
+    vai_tro: 'chuyen_gia_dinh_duong',
+    trang_thai: 'khong_hoat_dong',
+    cap_nhat_luc: now,
+  }));
+
+  await profileRepository.upsert(
+    {
+      tai_khoan_id: pendingUser.id,
+      gioi_tinh: null,
+      ngay_sinh: null,
+      chieu_cao_cm: null,
+      can_nang_hien_tai_kg: null,
+      muc_do_van_dong: null,
+      che_do_an_uu_tien: null,
+      di_ung: null,
+      thuc_pham_khong_thich: null,
+      anh_dai_dien_url: null,
+      tao_luc: now,
+      cap_nhat_luc: now,
+    },
+    ['tai_khoan_id'],
+  );
+
+  const pendingProfile = await cgRepo.findOne({ where: { tai_khoan_id: pendingUser.id } });
+  await cgRepo.save(cgRepo.create({
+    id: pendingProfile?.id,
+    tai_khoan_id: pendingUser.id,
+    chuyen_mon: 'Dinh dưỡng cho bệnh nhân tiểu đường',
+    mo_ta: 'Chuyên gia dinh dưỡng cho bệnh nhân tiểu đường type 2 và tim mạch.',
+    kinh_nghiem: '3 năm kinh nghiệm tại bệnh viện',
+    hoc_vi: 'Bác sĩ chuyên khoa 1',
+    chung_chi: 'Chứng chỉ dinh dưỡng bệnh lý',
+    trang_thai: 'cho_duyet' as const,
+    trang_thai_thanh_toan: 'thanh_cong' as const,
+    ngay_thanh_toan: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+    lan_thanh_toan: 1,
+    tao_luc: pendingProfile?.tao_luc ?? now,
+    cap_nhat_luc: now,
+  }));
+  console.log('Seeded/updated 1 pending nutritionist (pending_nutri@nutriwise.vn) for A14 test');
 }
 
 async function seedGoiTuVan() {

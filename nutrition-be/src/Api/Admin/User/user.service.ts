@@ -13,7 +13,6 @@ import {
   Repository,
 } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateRoleDto } from './dto/update-role.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { ResetPasswordDto, UpdateUserDto } from './dto/update-user.dto';
 import { HoSoEntity } from './entities/ho-so.entity';
@@ -225,23 +224,6 @@ export class UserService {
       success: true,
       message: 'Xoa mem nguoi dung thanh cong',
       data: { id },
-    };
-  }
-
-  async updateRole(
-    id: number,
-    dto: UpdateRoleDto,
-  ): Promise<SuccessResponse<{ id: number; vai_tro: UserRole }>> {
-    const user = await this.findUserById(id);
-
-    user.vai_tro = dto.vaiTro as UserRole;
-    user.cap_nhat_luc = new Date();
-    await this.userRepository.save(user);
-
-    return {
-      success: true,
-      message: 'Cap nhat vai tro thanh cong',
-      data: { id, vai_tro: user.vai_tro },
     };
   }
 

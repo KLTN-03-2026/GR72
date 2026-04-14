@@ -62,8 +62,8 @@ export type AdminUsersListResponse = {
   }
 }
 
-// Spec "quan-ly-tai-khoan.md": PATCH /:id chỉ cho sửa hoTen và email
-// Đổi role/status dùng endpoint riêng: PATCH /:id/role, PATCH /:id/status
+// Spec "quan-ly-tai-khoan.md": PATCH /:id chỉ cho sửa hoTen và email.
+// Chức năng đổi vai trò đã bị loại bỏ; admin chỉ còn đổi trạng thái và reset mật khẩu.
 type UpdateAdminUserPayload = {
   hoTen?: string
   email?: string
@@ -132,18 +132,6 @@ export async function updateAdminUser(id: number, payload: UpdateAdminUserPayloa
     method: 'PATCH',
     body: JSON.stringify(payload),
   })
-
-  return response.data
-}
-
-export async function updateAdminUserRole(id: number, vaiTro: AdminUserRole) {
-  const response = await request<{ id: number; vai_tro: AdminUserRole }>(
-    `/admin/users/${id}/role`,
-    {
-      method: 'PATCH',
-      body: JSON.stringify({ vaiTro }),
-    }
-  )
 
   return response.data
 }

@@ -24,7 +24,6 @@ import {
   getAdminUsers,
   resetAdminUserPassword,
   updateAdminUser,
-  updateAdminUserRole,
   updateAdminUserStatus,
 } from '@/services/admin/api'
 import { DataTablePagination } from '@/components/data-table'
@@ -441,30 +440,7 @@ export function AdminUsers() {
       {
         accessorKey: 'vai_tro',
         header: 'Vai trò',
-        cell: ({ row }) => (
-          <Select
-            value={row.original.vai_tro}
-            onValueChange={async (value) => {
-              try {
-                await updateAdminUserRole(row.original.id, value as AdminUserRole)
-                const updatedUser = await getAdminUserDetail(row.original.id)
-                updateListItem(updatedUser)
-                toast.success(`Đã cập nhật vai trò sang ${getRoleLabel(updatedUser.vai_tro)}.`)
-              } catch (error) {
-                toast.error(error instanceof ApiError ? error.message : 'Đổi vai trò thất bại')
-              }
-            }}
-          >
-            <SelectTrigger className='h-9 min-w-[180px] rounded-sm'>
-              <SelectValue placeholder='Chọn vai trò' />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='nguoi_dung'>Người dùng</SelectItem>
-              <SelectItem value='chuyen_gia_dinh_duong'>Chuyên gia dinh dưỡng</SelectItem>
-              <SelectItem value='quan_tri'>Quản trị</SelectItem>
-            </SelectContent>
-          </Select>
-        ),
+        cell: ({ row }) => <Badge variant='outline'>{getRoleLabel(row.original.vai_tro)}</Badge>,
       },
       {
         accessorKey: 'trang_thai',
@@ -559,7 +535,7 @@ export function AdminUsers() {
         ),
       },
     ],
-    [handleDeleteUser, loadUsers]
+    [loadUsers]
   )
 
   const table = useReactTable({
@@ -581,7 +557,7 @@ export function AdminUsers() {
       <Main fluid className='flex flex-1 flex-col gap-5 px-3 py-5 sm:px-4'>
         <PageHeading
           title='Quản lý người dùng'
-          description='Bảng quản trị tài khoản dùng API thật, modal chi tiết ở chế độ chỉ xem và cập nhật vai trò trực tiếp ngay trên từng dòng.'
+          description='Bảng quản trị tài khoản dùng API thật, hỗ trợ tra cứu, cập nhật thông tin cơ bản, trạng thái và reset mật khẩu an toàn.'
         />
 
         <div className='space-y-4'>

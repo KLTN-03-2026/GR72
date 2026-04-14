@@ -4,7 +4,7 @@ import { Repository, FindOptionsWhere } from 'typeorm';
 import { LichHenEntity } from '../../Admin/Booking/entities/lich-hen.entity';
 import { ThanhToanTuVanEntity } from '../../Admin/Booking/entities/thanh-toan-tu-van.entity';
 import { ThongBaoEntity } from '../../Admin/FoodReview/entities/thong-bao.entity';
-import { TaiKhoanEntity } from '../../Admin/User/entities/tai-khoan.entity';
+import { ChuyenGiaDinhDuongEntity } from '../../Admin/ChuyenGiaDinhDuong/entities/chuyen-gia-dinh-duong.entity';
 import {
   BookingQueryDto,
   BookingResponseDto,
@@ -21,27 +21,18 @@ export class NutritionistBookingService {
     private readonly paymentRepo: Repository<ThanhToanTuVanEntity>,
     @InjectRepository(ThongBaoEntity)
     private readonly notifRepo: Repository<ThongBaoEntity>,
-    @InjectRepository(TaiKhoanEntity)
-    private readonly userRepo: Repository<TaiKhoanEntity>,
+    @InjectRepository(ChuyenGiaDinhDuongEntity)
+    private readonly expertRepo: Repository<ChuyenGiaDinhDuongEntity>,
   ) {}
 
   async findAll(userId: number, query: BookingQueryDto) {
     const page = Math.max(1, Number(query.page ?? 1));
     const limit = Math.max(1, Math.min(50, Number(query.limit ?? 10)));
 
-    const expert = await this.bookingRepo
-      .createQueryBuilder('lh')
-      .innerJoin('lh.chuyen_gia_dinh_duong', 'cg')
-      .where('cg.tai_khoan_id = :userId', { userId })
-      .select('cg.id')
-      .getRawOne();
-
-    if (!expert) {
-      throw new NotFoundException('Khong tim thay chuyen gia');
-    }
+    const expert = await this.getExpertByUser(userId);
 
     const where: FindOptionsWhere<LichHenEntity> = {
-      chuyen_gia_dinh_duong_id: expert.cg_id,
+      chuyen_gia_dinh_duong_id: expert.id,
     } as any;
 
     if (query.trangThai) {
@@ -63,21 +54,12 @@ export class NutritionistBookingService {
   }
 
   async findOne(userId: number, id: number) {
-    const expert = await this.bookingRepo
-      .createQueryBuilder('lh')
-      .innerJoin('lh.chuyen_gia_dinh_duong', 'cg')
-      .where('cg.tai_khoan_id = :userId', { userId })
-      .select('cg.id')
-      .getRawOne();
-
-    if (!expert) {
-      throw new NotFoundException('Khong tim thay chuyen gia');
-    }
+    const expert = await this.getExpertByUser(userId);
 
     const booking = await this.bookingRepo.findOne({
       where: {
         id,
-        chuyen_gia_dinh_duong_id: expert.cg_id,
+        chuyen_gia_dinh_duong_id: expert.id,
       } as any,
       relations: ['tai_khoan', 'goi_tu_van'],
     });
@@ -182,19 +164,10 @@ export class NutritionistBookingService {
   }
 
   private async getBookingByUser(userId: number, id: number) {
-    const expert = await this.bookingRepo
-      .createQueryBuilder('lh')
-      .innerJoin('lh.chuyen_gia_dinh_duong', 'cg')
-      .where('cg.tai_khoan_id = :userId', { userId })
-      .select('cg.id')
-      .getRawOne();
-
-    if (!expert) {
-      throw new NotFoundException('Khong tim thay chuyen gia');
-    }
+    const expert = await this.getExpertByUser(userId);
 
     const booking = await this.bookingRepo.findOne({
-      where: { id, chuyen_gia_dinh_duong_id: expert.cg_id } as any,
+      where: { id, chuyen_gia_dinh_duong_id: expert.id } as any,
       relations: ['tai_khoan', 'goi_tu_van'],
     });
 
@@ -203,6 +176,18 @@ export class NutritionistBookingService {
     }
 
     return booking;
+  }
+
+  private async getExpertByUser(userId: number) {
+    const expert = await this.expertRepo.findOne({
+      where: { tai_khoan_id: userId },
+    });
+
+    if (!expert) {
+      throw new NotFoundException('Khong tim thay chuyen gia');
+    }
+
+    return expert;
   }
 
   private async createNotification(

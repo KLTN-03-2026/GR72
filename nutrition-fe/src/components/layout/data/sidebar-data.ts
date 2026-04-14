@@ -1,9 +1,13 @@
 import * as React from 'react'
 import {
   Apple,
+  BarChart3,
   Bell,
   BookOpenText,
   Bot,
+  CalendarRange,
+  CalendarCheck,
+  CheckSquare,
   ClipboardList,
   FileSearch,
   Goal,
@@ -11,9 +15,11 @@ import {
   LayoutDashboard,
   Layers3,
   NotebookPen,
+  Package,
   Salad,
   ShieldPlus,
   Soup,
+  Star,
   Users,
 } from 'lucide-react'
 import { nutritionMessages } from '@/lib/i18n/nutrition'
@@ -154,6 +160,104 @@ function getStaffNavGroups(
 ): NavGroup[] {
   const copy = nutritionMessages[locale].sidebar.staff
 
+  // === ADMIN-ONLY MENU ===
+  if (staffRole === 'admin') {
+    return [
+      {
+        title: copy.overview,
+        items: [
+          {
+            title: 'Dashboard',
+            url: '/admin/dashboard',
+            icon: LayoutDashboard,
+          },
+        ],
+      },
+      {
+        title: copy.nutritionData,
+        items: [
+          {
+            title: copy.foods,
+            url: '/admin/foods',
+            icon: Apple,
+          },
+          {
+            title: 'Nhóm thực phẩm',
+            url: '/admin/food-groups',
+            icon: Layers3,
+          },
+          {
+            title: 'Duyệt dữ liệu',
+            url: '/admin/food-review-requests',
+            icon: FileSearch,
+          },
+        ],
+      },
+      {
+        title: copy.administration,
+        items: [
+          {
+            title: copy.users,
+            url: '/admin/users',
+            icon: Users,
+          },
+          {
+            title: 'Đơn đăng ký N.',
+            url: '/admin/nutritionist-registrations',
+            icon: CheckSquare,
+          },
+          {
+            title: 'Nutritionist',
+            url: '/admin/nutritionists',
+            icon: Star,
+          },
+          {
+            title: 'Bài viết',
+            url: '/admin/articles',
+            icon: BookOpenText,
+          },
+          {
+            title: 'Thực đơn mẫu',
+            url: '/admin/meal-templates',
+            icon: Soup,
+          },
+          // === TEMPORARILY HIDDEN (out of spec) ===
+          // {
+          //   title: 'Gói dịch vụ',
+          //   url: '/admin/packages',
+          //   icon: Package,
+          // },
+          // {
+          //   title: 'Đăng ký gói',
+          //   url: '/admin/subscriptions',
+          //   icon: CreditCard,
+          // },
+          // {
+          //   title: 'Thanh toán',
+          //   url: '/admin/payments',
+          //   icon: Banknote,
+          // },
+          {
+            title: 'Báo cáo booking',
+            url: '/admin/booking-reports',
+            icon: CalendarRange,
+          },
+          {
+            title: 'Báo cáo',
+            url: '/admin/reports',
+            icon: BarChart3,
+          },
+          {
+            title: 'Thông báo',
+            url: '/admin/notifications',
+            icon: Bell,
+          },
+        ],
+      },
+    ]
+  }
+
+  // === NUTRITIONIST-ONLY MENU ===
   return [
     {
       title: copy.overview,
@@ -162,6 +266,11 @@ function getStaffNavGroups(
           title: copy.dashboard,
           url: '/nutritionist/dashboard',
           icon: LayoutDashboard,
+        },
+        {
+          title: copy.profile,
+          url: '/nutritionist/profile',
+          icon: HeartPulse,
         },
       ],
     },
@@ -191,37 +300,33 @@ function getStaffNavGroups(
       ],
     },
     {
-      title: copy.professionalContent,
-      items: [
+        title: copy.professionalContent,
+        items: [
+          {
+            title: copy.articles,
+            url: '/nutritionist/articles',
+            icon: BookOpenText,
+          },
+          {
+            title: copy.mealTemplates,
+            url: '/nutritionist/meal-templates',
+            icon: Soup,
+          },
+          {
+            title: copy.consultationPackages,
+            url: '/nutritionist/consultation-packages',
+            icon: Package,
+          },
         {
-          title: copy.articles,
-          url: '/nutritionist/articles',
-          icon: BookOpenText,
+          title: copy.bookings,
+          url: '/nutritionist/bookings',
+          icon: CalendarCheck,
         },
       ],
     },
     {
       title: copy.administration,
       items: [
-        ...(staffRole === 'admin'
-          ? [
-              {
-                title: copy.foods,
-                url: '/admin/foods',
-                icon: Apple,
-              } as const,
-              {
-                title: 'Nhóm thực phẩm',
-                url: '/admin/food-groups',
-                icon: Layers3,
-              } as const,
-              {
-                title: copy.users,
-                url: '/admin/users',
-                icon: Users,
-              } as const,
-            ]
-          : []),
         {
           title: copy.notifications,
           url: '/nutritionist/notifications',

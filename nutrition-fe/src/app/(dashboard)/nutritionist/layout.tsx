@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { ForbiddenError } from '@/features/errors/forbidden'
 import { getServerSessionUser } from '@/lib/server-auth'
 
@@ -8,14 +9,13 @@ export default async function NutritionistAreaLayout({
 }) {
   const user = await getServerSessionUser()
 
-  if (
-    !user ||
-    user.vai_tro === 'chuyen_gia_dinh_duong' ||
-    user.vai_tro === 'quan_tri'
-  ) {
-    return children
+  if (!user) {
+    redirect('/sign-in')
   }
 
-  return <ForbiddenError />
-}
+  if (user.vai_tro !== 'chuyen_gia_dinh_duong') {
+    return <ForbiddenError />
+  }
 
+  return children
+}

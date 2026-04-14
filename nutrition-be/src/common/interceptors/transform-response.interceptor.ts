@@ -7,20 +7,21 @@ import {
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
-type StandardResponse<T> = {
+/** Envelope already produced by a controller — do not wrap again */
+type StandardResponseEnvelope = {
   success: boolean;
-  message: string;
-  data: T;
+  message?: string;
+  data?: unknown;
 };
 
 @Injectable()
 export class TransformResponseInterceptor<T>
-  implements NestInterceptor<T, StandardResponse<T> | T>
+  implements NestInterceptor<T, StandardResponseEnvelope | T>
 {
   intercept(
     _context: ExecutionContext,
     next: CallHandler,
-  ): Observable<StandardResponse<T> | T> {
+  ): Observable<StandardResponseEnvelope | T> {
     return next.handle().pipe(
       map((data) => {
         if (this.isStandardResponse(data)) {
@@ -36,16 +37,18 @@ export class TransformResponseInterceptor<T>
     );
   }
 
-  private isStandardResponse(data: unknown): data is StandardResponse<T> {
+  private isStandardResponse(data: unknown): data is StandardResponseEnvelope {
     if (!data || typeof data !== 'object') {
       return false;
     }
 
-    return (
-      'success' in data &&
-      'message' in data &&
-      'data' in data &&
-      typeof (data as { success?: unknown }).success === 'boolean'
-    );
+    const o = data as Record<string, unknown>;
+    if (typeof o.success !== 'boolean') {
+      return false;
+    }
+
+    // Controllers often return { success, data } without message (lists),
+    // or { success, message } without data (e.g. delete). Require at least one payload field.
+    return 'data' in o || 'message' in o;
   }
 }

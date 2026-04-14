@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useNavigate } from '@/lib/router'
-import { showSubmittedData } from '@/lib/show-submitted-data'
+import { Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,7 +14,6 @@ import {
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from '@/components/ui/form'
 import {
@@ -26,39 +26,73 @@ import {
 const formSchema = z.object({
   otp: z
     .string()
-    .min(6, 'Please enter the 6-digit code.')
-    .max(6, 'Please enter the 6-digit code.'),
+    .min(6, 'Vui lòng nhập đủ 6 chữ số')
+    .max(6, 'Vui lòng nhập đủ 6 chữ số'),
 })
 
-type OtpFormProps = React.HTMLAttributes<HTMLFormElement>
+interface OtpFormProps extends React.HTMLAttributes<HTMLFormElement> {
+  email: string
+  onVerified?: (email: string) => void
+  onResend?: () => Promise<void>
+}
 
-export function OtpForm({ className, ...props }: OtpFormProps) {
-  const navigate = useNavigate()
+export function OtpForm({
+  className,
+  email,
+  onVerified,
+  onResend,
+  ...props
+}: OtpFormProps) {
   const [isLoading, setIsLoading] = useState(false)
+  const [isResending, setIsResending] = useState(false)
+  const [countdown, setCountdown] = useState(0)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: { otp: '' },
   })
 
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const otp = form.watch('otp')
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  const otp = form.watch('otp') ?? ''
 
-  function onSubmit(data: z.infer<typeof formSchema>) {
+  async function onSubmit(data: z.infer<typeof formSchema>) {
     setIsLoading(true)
-    showSubmittedData(data)
-
-    setTimeout(() => {
+    try {
+      const { verifyOtp } = await import('@/services/auth/api')
+      await verifyOtp({ email, maOtp: data.otp.trim() })
+      toast.success('Xác thực thành công!')
+      onVerified?.(email)
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Mã OTP không hợp lệ'
+      )
+    } finally {
       setIsLoading(false)
-      navigate({ to: '/' })
-    }, 1000)
+    }
+  }
+
+  async function handleResend() {
+    setIsResending(true)
+    try {
+      const { resendOtp } = await import('@/services/auth/api')
+      await resendOtp(email)
+      toast.success('Đã gửi lại mã OTP')
+      setCountdown(60)
+      onResend?.()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Không thể gửi lại mã OTP'
+      )
+    } finally {
+      setIsResending(false)
+    }
   }
 
   return (
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className={cn('grid gap-2', className)}
+        className={cn('grid gap-3', className)}
         {...props}
       >
         <FormField
@@ -66,7 +100,6 @@ export function OtpForm({ className, ...props }: OtpFormProps) {
           name='otp'
           render={({ field }) => (
             <FormItem>
-              <FormLabel className='sr-only'>One-Time Password</FormLabel>
               <FormControl>
                 <InputOTP
                   maxLength={6}
@@ -93,9 +126,35 @@ export function OtpForm({ className, ...props }: OtpFormProps) {
             </FormItem>
           )}
         />
-        <Button className='mt-2' disabled={otp.length < 6 || isLoading}>
-          Verify
+        <Button
+          className='mt-2'
+          disabled={otp.length < 6 || isLoading}
+          type='submit'
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+              Đang xác thực...
+            </>
+          ) : (
+            'Xác thực'
+          )}
         </Button>
+        <div className='text-center text-sm text-muted-foreground'>
+          Không nhận được mã?{' '}
+          <button
+            type='button'
+            disabled={isResending || countdown > 0}
+            onClick={handleResend}
+            className='font-medium text-primary underline underline-offset-4 hover:text-primary/80 disabled:cursor-not-allowed disabled:opacity-50'
+          >
+            {isResending
+              ? 'Đang gửi...'
+              : countdown > 0
+                ? `Gửi lại sau ${countdown}s`
+                : 'Gửi lại mã'}
+          </button>
+        </div>
       </form>
     </Form>
   )

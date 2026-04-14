@@ -56,7 +56,7 @@ import {
   updateAdminFood,
 } from '@/services/admin-foods/api'
 import { PageHeading } from '@/features/nutrition/components/page-heading'
-import { NutritionTopbar } from '@/features/nutrition/components/topbar'
+import { AdminTopbar } from '@/components/layout/admin-topbar'
 
 const PAGE_SIZE = 10
 const FIELD_CLASSNAME = 'w-full rounded-sm'
@@ -718,7 +718,7 @@ export function AdminFoods() {
 
   return (
     <>
-      <NutritionTopbar staff />
+      <AdminTopbar />
       <Main fluid className='flex flex-1 flex-col gap-5 px-3 py-5 sm:px-4'>
         <PageHeading
           title='Catalog thực phẩm nội bộ'

@@ -1,0 +1,2 @@
+import { AdminReports } from '@/features/admin-reports'
+export default function ReportsPage() { return <AdminReports /> }

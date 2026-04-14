@@ -1,231 +1,188 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { type ColumnDef, type PaginationState, flexRender, getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table'
+import { Eye, Search } from 'lucide-react'
 import { toast } from 'sonner'
-import { Input } from '@/components/ui/input'
+import { ApiError } from '@/services/auth/api'
+import { type NFood, getNutriFoods } from '@/services/nutritionist/api'
+import { Link } from '@/lib/router'
+import { DataTablePagination } from '@/components/data-table'
+import { Main } from '@/components/layout/main'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Main } from '@/components/layout/main'
-import { DetailCard } from '@/features/nutrition/components/detail-card'
-import { PaginationControls } from '@/features/nutrition/components/pagination-controls'
+import { Input } from '@/components/ui/input'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { NutritionTopbar } from '@/features/nutrition/components/topbar'
 import { PageHeading } from '@/features/nutrition/components/page-heading'
-import { useNutritionStore } from '@/stores/nutrition-store'
-
-const PAGE_SIZE = 4
 
 export function NutritionStaffFoods() {
-  const foods = useNutritionStore((state) => state.foods)
-  const saveFood = useNutritionStore((state) => state.saveFood)
-  const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [sortKey, setSortKey] = useState<'name' | 'calories'>('name')
-  const [page, setPage] = useState(1)
-  const [selectedId, setSelectedId] = useState(foods[0]?.id ?? '')
+  const [foods, setFoods] = useState<NFood[]>([])
+  const [loading, setLoading] = useState(true)
+  const [keyword, setKeyword] = useState('')
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
+  const [pageCount, setPageCount] = useState(0)
 
-  const filteredFoods = useMemo(() => {
-    let result = foods.filter((food) => {
-      const matchesQuery =
-        food.name.toLowerCase().includes(query.toLowerCase()) ||
-        food.group.toLowerCase().includes(query.toLowerCase()) ||
-        food.source.toLowerCase().includes(query.toLowerCase())
-      const matchesStatus = statusFilter === 'all' || food.status === statusFilter
-      return matchesQuery && matchesStatus
-    })
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await getNutriFoods({
+        keyword: keyword || undefined,
+        page: pagination.pageIndex + 1,
+        limit: pagination.pageSize,
+      })
+      setFoods(res?.items ?? [])
+      setPageCount(
+        Math.max(Math.ceil((res?.pagination?.total ?? 0) / (res?.pagination?.limit || 10)), 1),
+      )
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Lỗi tải dữ liệu')
+    } finally {
+      setLoading(false)
+    }
+  }, [keyword, pagination.pageIndex, pagination.pageSize])
 
-    result = result.sort((a, b) =>
-      sortKey === 'calories' ? b.calories - a.calories : a.name.localeCompare(b.name)
-    )
+  useEffect(() => {
+    void loadData()
+  }, [loadData])
 
-    return result
-  }, [foods, query, sortKey, statusFilter])
+  const columns = useMemo<ColumnDef<NFood>[]>(
+    () => [
+      {
+        accessorKey: 'ten',
+        header: 'Tên thực phẩm',
+        cell: ({ row }) => <span className='font-medium'>{row.original.ten}</span>,
+      },
+      {
+        id: 'nhom',
+        header: 'Nhóm',
+        cell: ({ row }) => <span className='text-sm'>{row.original.nhom_thuc_pham?.ten ?? '—'}</span>,
+      },
+      {
+        id: 'cal',
+        header: 'Kcal/100g',
+        cell: ({ row }) => <span className='text-sm tabular-nums'>{row.original.calories_100g ?? '—'}</span>,
+      },
+      {
+        id: 'protein',
+        header: 'Protein',
+        cell: ({ row }) => (
+          <span className='text-sm tabular-nums'>{row.original.protein_100g ?? '—'}g</span>
+        ),
+      },
+      {
+        id: 'status',
+        header: 'Trạng thái',
+        cell: ({ row }) => (
+          <Badge variant={row.original.da_xac_minh ? 'secondary' : 'outline'}>
+            {row.original.da_xac_minh ? 'Đã xác minh' : 'Chưa xác minh'}
+          </Badge>
+        ),
+      },
+      {
+        id: 'actions',
+        header: '',
+        cell: ({ row }) => (
+          <div className='flex justify-end'>
+            <Button variant='ghost' size='sm' className='h-8 w-8 p-0' asChild title='Xem chi tiết'>
+              <Link to={`/nutritionist/foods/${row.original.id}`}>
+                <Eye className='size-4' />
+              </Link>
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [],
+  )
 
-  const totalPages = Math.max(Math.ceil(filteredFoods.length / PAGE_SIZE), 1)
-  const paginatedFoods = filteredFoods.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  const selectedFood =
-    filteredFoods.find((food) => food.id === selectedId) ??
-    paginatedFoods[0] ??
-    foods[0]
-
-  function handleVerifyFood() {
-    if (!selectedFood) return
-    saveFood({ ...selectedFood, status: 'Đã xác minh', source: 'Nội bộ' })
-    toast.success(`Đã xác minh ${selectedFood.name}.`)
-  }
+  const table = useReactTable({
+    data: foods,
+    columns,
+    state: { pagination },
+    manualPagination: true,
+    pageCount,
+    onPaginationChange: setPagination,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  })
+  const rows = (() => {
+    try {
+      return table.getRowModel().rows
+    } catch {
+      return []
+    }
+  })()
 
   return (
     <>
       <NutritionTopbar staff />
-      <Main className='flex flex-1 flex-col gap-6'>
+      <Main className='flex flex-1 flex-col gap-5'>
         <PageHeading
           title='Quản lý thực phẩm'
-          description='Catalog trung tâm dùng cho user, recipes, meal templates và nhật ký ăn uống.'
-          actions={[{ label: 'Thêm thực phẩm' }, { label: 'Import dữ liệu' }]}
+          description='Tra cứu catalog thực phẩm; xem chi tiết từng mục hoặc tạo yêu cầu chỉnh sửa qua luồng duyệt.'
         />
-
-        <div className='grid gap-6 xl:grid-cols-[1.15fr_0.85fr]'>
-          <Card>
-            <CardHeader>
-              <CardTitle>Danh sách thực phẩm</CardTitle>
-              <CardDescription>
-                Staff có thể lọc, cập nhật trạng thái xác minh và chuẩn hóa dữ liệu dinh dưỡng tại đây.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className='space-y-4'>
-              <div className='grid gap-3 md:grid-cols-[1fr_180px_180px]'>
-                <Input
-                  placeholder='Tìm theo tên thực phẩm, nhóm hoặc nguồn dữ liệu...'
-                  value={query}
-                  onChange={(event) => {
-                    setQuery(event.target.value)
-                    setPage(1)
-                  }}
-                />
-                <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value)}>
-                  <SelectTrigger className='w-full'>
-                    <SelectValue placeholder='Trạng thái' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='all'>Tất cả trạng thái</SelectItem>
-                    <SelectItem value='Đã xác minh'>Đã xác minh</SelectItem>
-                    <SelectItem value='Từ nguồn ngoài'>Từ nguồn ngoài</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={sortKey} onValueChange={(value) => setSortKey(value as typeof sortKey)}>
-                  <SelectTrigger className='w-full'>
-                    <SelectValue placeholder='Sắp xếp' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='name'>Theo tên</SelectItem>
-                    <SelectItem value='calories'>Theo calories</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className='md:hidden space-y-3'>
-                {paginatedFoods.map((food) => (
-                  <button
-                    key={food.id}
-                    className='w-full text-left'
-                    onClick={() => setSelectedId(food.id)}
-                    type='button'
-                  >
-                    <Card className={food.id === selectedFood?.id ? 'border-primary/40' : ''}>
-                      <CardContent className='space-y-2 p-4'>
-                        <div className='flex items-center justify-between gap-3'>
-                          <p className='font-medium'>{food.name}</p>
-                          <Badge variant={food.status === 'Đã xác minh' ? 'secondary' : 'outline'}>
-                            {food.status}
-                          </Badge>
-                        </div>
-                        <p className='text-sm text-muted-foreground'>{food.group}</p>
-                        <p className='text-sm text-muted-foreground'>{food.calories} kcal / {food.serving}</p>
-                      </CardContent>
-                    </Card>
-                  </button>
-                ))}
-              </div>
-
-              <div className='hidden md:block overflow-x-auto'>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tên thực phẩm</TableHead>
-                      <TableHead>Nhóm</TableHead>
-                      <TableHead>Calories</TableHead>
-                      <TableHead>Nguồn</TableHead>
-                      <TableHead>Trạng thái</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedFoods.map((food) => (
-                      <TableRow
-                        key={food.id}
-                        className='cursor-pointer'
-                        onClick={() => setSelectedId(food.id)}
-                      >
-                        <TableCell className='font-medium'>{food.name}</TableCell>
-                        <TableCell>{food.group}</TableCell>
-                        <TableCell>{food.calories} kcal / {food.serving}</TableCell>
-                        <TableCell>{food.source}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              food.status === 'Đã xác minh' ? 'secondary' : 'outline'
-                            }
-                          >
-                            {food.status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
+        <div className='space-y-4'>
+          <div className='flex flex-wrap items-center gap-3'>
+            <div className='relative min-w-[200px] max-w-md flex-1'>
+              <Search className='absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground' />
+              <Input
+                placeholder='Tìm theo tên...'
+                value={keyword}
+                onChange={(e) => {
+                  setKeyword(e.target.value)
+                  setPagination((c) => ({ ...c, pageIndex: 0 }))
+                }}
+                className='rounded-sm pl-9'
+              />
+            </div>
+            <div className='ml-auto'>
+              <Button variant='outline' className='rounded-sm' asChild>
+                <Link to='/nutritionist/food-review-requests'>Yêu cầu chỉnh sửa</Link>
+              </Button>
+            </div>
+          </div>
+          <div className='overflow-hidden rounded-sm border bg-card'>
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((hg) => (
+                  <TableRow key={hg.id}>
+                    {hg.headers.map((h) => (
+                      <TableHead key={h.id}>
+                        {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
+                      </TableHead>
                     ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <PaginationControls page={page} totalPages={totalPages} onPageChange={setPage} />
-            </CardContent>
-          </Card>
-
-          {selectedFood ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Chi tiết và chuẩn hóa dữ liệu</CardTitle>
-                <CardDescription>
-                  Khu vực staff dùng để rà giá trị dinh dưỡng trước khi lưu chính thức.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className='space-y-4'>
-                <div>
-                  <p className='text-xl font-semibold'>{selectedFood.name}</p>
-                  <p className='mt-1 text-sm text-muted-foreground'>
-                    Nhóm {selectedFood.group} • nguồn {selectedFood.source}
-                  </p>
-                </div>
-                <div className='grid gap-3 sm:grid-cols-2'>
-                  <DetailCard label='Khẩu phần' value={selectedFood.serving} />
-                  <DetailCard label='Calories' value={`${selectedFood.calories} kcal`} />
-                  <DetailCard label='Protein' value={`${selectedFood.protein} g`} />
-                  <DetailCard label='Carb' value={`${selectedFood.carbs} g`} />
-                  <DetailCard label='Fat' value={`${selectedFood.fat} g`} />
-                  <DetailCard label='Trạng thái' value={selectedFood.status} />
-                </div>
-                <div className='flex flex-wrap gap-3'>
-                  <Button onClick={() => toast.success('Đã lưu chỉnh sửa thực phẩm.')}>
-                    Lưu chỉnh sửa
-                  </Button>
-                  <Button variant='outline' onClick={handleVerifyFood}>
-                    Gửi duyệt / xác minh
-                  </Button>
-                  <Button variant='outline' onClick={() => toast.success('Đã nhân bản thực phẩm.')}>
-                    Nhân bản
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : null}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className='h-24 text-center'>
+                      Đang tải...
+                    </TableCell>
+                  </TableRow>
+                ) : rows.length > 0 ? (
+                  rows.map((row) => (
+                    <TableRow key={row.id}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className='h-24 text-center text-muted-foreground'>
+                      Không có dữ liệu.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          <DataTablePagination table={table} />
         </div>
       </Main>
     </>

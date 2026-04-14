@@ -31,7 +31,7 @@ const formSchema = z.object({
   email: z.email({
     error: (iss) => (iss.input === '' ? 'Vui lòng nhập email' : undefined),
   }),
-  password: z
+  matKhau: z
     .string()
     .min(1, 'Vui lòng nhập mật khẩu')
     .min(7, 'Mật khẩu phải có ít nhất 7 ký tự'),
@@ -55,7 +55,7 @@ export function UserAuthForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: '',
-      password: '',
+      matKhau: '',
     },
   })
 
@@ -110,7 +110,7 @@ export function UserAuthForm({
         />
         <FormField
           control={form.control}
-          name='password'
+          name='matKhau'
           render={({ field }) => (
             <FormItem className='relative'>
               <FormLabel>Mật khẩu</FormLabel>

@@ -63,7 +63,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { NutritionTopbar } from '@/features/nutrition/components/topbar'
+import { AdminTopbar } from '@/components/layout/admin-topbar'
 import { PageHeading } from '@/features/nutrition/components/page-heading'
 
 const PAGE_SIZE = 10
@@ -577,7 +577,7 @@ export function AdminUsers() {
 
   return (
     <>
-      <NutritionTopbar staff />
+      <AdminTopbar />
       <Main fluid className='flex flex-1 flex-col gap-5 px-3 py-5 sm:px-4'>
         <PageHeading
           title='Quản lý người dùng'

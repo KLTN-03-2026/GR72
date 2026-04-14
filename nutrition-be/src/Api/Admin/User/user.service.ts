@@ -41,7 +41,11 @@ export class UserService {
     const email = dto.email.trim().toLowerCase();
     await this.ensureEmailNotTaken(email);
     const now = new Date();
-    const passwordHash = await this.hashPassword(dto.matKhau.trim());
+    const password = dto.password?.trim();
+    if (!password || password.length < 8) {
+      throw new BadRequestException('Mật khẩu phải có ít nhất 8 ký tự');
+    }
+    const passwordHash = await this.hashPassword(password);
 
     const savedUser = await this.dataSource.transaction(async (manager) => {
       const user = manager.create(TaiKhoanEntity, {

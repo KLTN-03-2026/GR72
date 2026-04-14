@@ -53,6 +53,9 @@ export const nutritionMessages: Record<
         articles: string
         users: string
         notifications: string
+        profile: string
+        consultationPackages: string
+        bookings: string
       }
     }
     command: {
@@ -123,6 +126,9 @@ export const nutritionMessages: Record<
         articles: 'Bài viết',
         users: 'Quản lý user',
         notifications: 'Thông báo hệ thống',
+        profile: 'Profile chuyên môn',
+        consultationPackages: 'Gói tư vấn',
+        bookings: 'Quản lý booking',
       },
     },
     command: {
@@ -192,6 +198,9 @@ export const nutritionMessages: Record<
         articles: 'Articles',
         users: 'Users',
         notifications: 'System Notifications',
+        profile: 'Professional Profile',
+        consultationPackages: 'Consultation Packages',
+        bookings: 'Bookings',
       },
     },
     command: {

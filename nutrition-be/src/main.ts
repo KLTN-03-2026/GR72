@@ -25,6 +25,6 @@ async function bootstrap() {
   );
   app.useGlobalInterceptors(new TransformResponseInterceptor());
   app.useGlobalFilters(new HttpExceptionFilter());
-  await app.listen(process.env.PORT ?? 3009, '127.0.0.1');
+  await app.listen(process.env.PORT ?? 8009, '127.0.0.1');
 }
 bootstrap();

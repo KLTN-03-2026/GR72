@@ -4,10 +4,9 @@ import { useState } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useNavigate } from '@/lib/router'
 import { ArrowRight, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { sleep, cn } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -21,15 +20,19 @@ import { Input } from '@/components/ui/input'
 
 const formSchema = z.object({
   email: z.email({
-    error: (iss) => (iss.input === '' ? 'Please enter your email' : undefined),
+    error: (iss) => (iss.input === '' ? 'Vui lòng nhập email' : undefined),
   }),
 })
 
+interface ForgotPasswordFormProps extends React.HTMLAttributes<HTMLFormElement> {
+  onSuccess?: (email: string) => void
+}
+
 export function ForgotPasswordForm({
   className,
+  onSuccess,
   ...props
-}: React.HTMLAttributes<HTMLFormElement>) {
-  const navigate = useNavigate()
+}: ForgotPasswordFormProps) {
   const [isLoading, setIsLoading] = useState(false)
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -37,27 +40,28 @@ export function ForgotPasswordForm({
     defaultValues: { email: '' },
   })
 
-  function onSubmit(data: z.infer<typeof formSchema>) {
+  async function onSubmit(data: z.infer<typeof formSchema>) {
     setIsLoading(true)
-    console.log(data)
 
-    toast.promise(sleep(2000), {
-      loading: 'Sending email...',
-      success: () => {
-        setIsLoading(false)
-        form.reset()
-        navigate({ to: '/otp' })
-        return `Email sent to ${data.email}`
-      },
-      error: 'Error',
-    })
+    try {
+      const { forgotPassword } = await import('@/services/auth/api')
+      await forgotPassword({ email: data.email.trim().toLowerCase() })
+      toast.success('Đã gửi mã đặt lại mật khẩu đến email của bạn')
+      onSuccess?.(data.email)
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Không thể gửi yêu cầu'
+      )
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className={cn('grid gap-2', className)}
+        className={cn('grid gap-3', className)}
         {...props}
       >
         <FormField
@@ -73,9 +77,18 @@ export function ForgotPasswordForm({
             </FormItem>
           )}
         />
-        <Button className='mt-2' disabled={isLoading}>
-          Continue
-          {isLoading ? <Loader2 className='animate-spin' /> : <ArrowRight />}
+        <Button className='mt-2' disabled={isLoading} type='submit'>
+          {isLoading ? (
+            <>
+              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+              Đang gửi...
+            </>
+          ) : (
+            <>
+              Gửi mã đặt lại
+              <ArrowRight className='ml-2 h-4 w-4' />
+            </>
+          )}
         </Button>
       </form>
     </Form>

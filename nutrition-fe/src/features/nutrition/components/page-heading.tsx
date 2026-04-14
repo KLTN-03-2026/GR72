@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 
 type ActionConfig = {
   label: string
+  disabled?: boolean
   onClick?: () => void
 }
 
@@ -31,6 +32,7 @@ export function PageHeading({
           {actions.map((action) => (
             <Button
               key={action.label}
+              disabled={action.disabled}
               onClick={() => {
                 if (action.onClick) {
                   action.onClick()

@@ -1,5 +1,6 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
 import { Link } from '@/lib/router'
 import {
   Card,
@@ -13,6 +14,9 @@ import { AuthLayout } from '../auth-layout'
 import { ResetPasswordForm } from './components/reset-password-form'
 
 export function ResetPassword() {
+  const searchParams = useSearchParams()
+  const email = searchParams.get('email') ?? ''
+
   return (
     <AuthLayout>
       <Card className='w-full gap-4 border-border/80 shadow-sm'>
@@ -21,7 +25,8 @@ export function ResetPassword() {
             Đặt lại mật khẩu
           </CardTitle>
           <CardDescription>
-            Nhập mật khẩu mới để hoàn tất quá trình khôi phục tài khoản và quay lại đăng nhập.
+            Nhập mã đặt lại từ email{' '}
+            <strong>{email || 'của bạn'}</strong> và mật khẩu mới để hoàn tất.
           </CardDescription>
         </CardHeader>
 
@@ -38,7 +43,6 @@ export function ResetPassword() {
             >
               Quay lại đăng nhập
             </Link>
-            .
           </p>
         </CardFooter>
       </Card>

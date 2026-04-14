@@ -7,7 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { hash } from 'bcrypt';
 import type { SignOptions } from 'jsonwebtoken';
-import { IsNull, Repository } from 'typeorm';
+import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
 import { OtpEntity } from './entities/otp.entity';
 import { HoSoEntity } from '../Admin/User/entities/ho-so.entity';
 import { TaiKhoanEntity } from '../Admin/User/entities/tai-khoan.entity';
@@ -41,7 +41,9 @@ function generateMaDangKy(): string {
 @Injectable()
 export class AuthService {
   private readonly saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS ?? 10);
-  private readonly registrationFee = Number(process.env.NUTRITIONIST_REGISTRATION_FEE ?? 500000);
+  private readonly registrationFee = Number(
+    process.env.NUTRITIONIST_REGISTRATION_FEE ?? 500000,
+  );
 
   constructor(
     @InjectRepository(TaiKhoanEntity)
@@ -58,6 +60,7 @@ export class AuthService {
     private readonly subscriptionRepo: Repository<DangKyGoiDichVuEntity>,
     @InjectRepository(GoiDichVuEntity)
     private readonly packageRepo: Repository<GoiDichVuEntity>,
+    private readonly dataSource: DataSource,
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
   ) {}
@@ -77,7 +80,10 @@ export class AuthService {
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
 
-    const isPasswordMatched = await this.comparePassword(password, user.mat_khau_ma_hoa);
+    const isPasswordMatched = await this.comparePassword(
+      password,
+      user.mat_khau_ma_hoa,
+    );
 
     if (!isPasswordMatched) {
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
@@ -123,6 +129,7 @@ export class AuthService {
     const email = dto.email.trim().toLowerCase();
     const hoTen = dto.hoTen.trim();
     const matKhau = dto.matKhau.trim();
+    const isNutritionistRegistration = dto.vaiTro === 'chuyen_gia_dinh_duong';
 
     const existing = await this.userRepository.findOne({
       where: { email, xoa_luc: IsNull() },
@@ -135,53 +142,74 @@ export class AuthService {
     const now = new Date();
     const passwordHash = await this.hashPassword(matKhau);
 
-    const savedUser = await this.userRepository.save(
-      this.userRepository.create({
-        email,
-        ho_ten: hoTen,
-        mat_khau_ma_hoa: passwordHash,
-        vai_tro: dto.vaiTro,
-        trang_thai: 'hoat_dong',
-        ma_dat_lai_mat_khau: null,
-        het_han_ma_dat_lai: null,
-        dang_nhap_cuoi_luc: null,
-        tao_luc: now,
-        cap_nhat_luc: now,
-        xoa_luc: null,
-      }),
+    const registrationResult = await this.dataSource.transaction(
+      async (manager) => {
+        const savedUser = await manager.save(
+          TaiKhoanEntity,
+          manager.create(TaiKhoanEntity, {
+            email,
+            ho_ten: hoTen,
+            mat_khau_ma_hoa: passwordHash,
+            vai_tro: dto.vaiTro,
+            trang_thai: isNutritionistRegistration
+              ? 'khong_hoat_dong'
+              : 'hoat_dong',
+            ma_dat_lai_mat_khau: null,
+            het_han_ma_dat_lai: null,
+            dang_nhap_cuoi_luc: null,
+            tao_luc: now,
+            cap_nhat_luc: now,
+            xoa_luc: null,
+          }),
+        );
+
+        await manager.save(
+          HoSoEntity,
+          manager.create(HoSoEntity, {
+            tai_khoan_id: savedUser.id,
+            tao_luc: now,
+            cap_nhat_luc: now,
+          }),
+        );
+
+        let paymentUrl: string | null = null;
+
+        if (isNutritionistRegistration) {
+          const savedProfile = await manager.save(
+            ChuyenGiaDinhDuongEntity,
+            manager.create(ChuyenGiaDinhDuongEntity, {
+              tai_khoan_id: savedUser.id,
+              chuyen_mon: dto.chuyenMon ?? null,
+              mo_ta: dto.moTa ?? null,
+              kinh_nghiem: dto.kinhNghiem ?? null,
+              hoc_vi: dto.hocVi ?? null,
+              chung_chi: dto.chungChi ?? null,
+              gio_lam_viec: dto.gioLamViec ?? null,
+              anh_dai_dien_url: dto.anhDaiDienUrl ?? null,
+              trang_thai: 'cho_duyet',
+              trang_thai_thanh_toan:
+                'dang_cho_thanh_toan' as RegistrationPaymentStatus,
+              tao_luc: now,
+              cap_nhat_luc: now,
+            }),
+          );
+
+          const payment = this.createPaymentUrl(savedProfile.id);
+          savedProfile.vnp_txn_ref = payment.txnRef;
+          savedProfile.cap_nhat_luc = now;
+          await manager.save(ChuyenGiaDinhDuongEntity, savedProfile);
+          paymentUrl = payment.paymentUrl;
+        } else {
+          await this.grantFreePackage(savedUser.id, manager, now);
+        }
+
+        return { savedUser, paymentUrl };
+      },
     );
 
-    await this.hoSoRepository.save(
-      this.hoSoRepository.create({
-        tai_khoan_id: savedUser.id,
-        tao_luc: now,
-        cap_nhat_luc: now,
-      }),
-    );
+    const { savedUser, paymentUrl } = registrationResult;
 
-    // Tự động cấp gói miễn phí cho user mới
-    await this.grantFreePackage(savedUser.id);
-
-    // Nếu đăng ký làm Nutritionist → tạo hồ sơ + redirect thanh toán
-    let paymentUrl: string | null = null;
-    if (dto.vaiTro === 'chuyen_gia_dinh_duong') {
-      const profile = this.cgRepo.create({
-        tai_khoan_id: savedUser.id,
-        chuyen_mon: dto.chuyenMon ?? null,
-        mo_ta: dto.moTa ?? null,
-        kinh_nghiem: dto.kinhNghiem ?? null,
-        hoc_vi: dto.hocVi ?? null,
-        chung_chi: dto.chungChi ?? null,
-        gio_lam_viec: dto.gioLamViec ?? null,
-        anh_dai_dien_url: dto.anhDaiDienUrl ?? null,
-        trang_thai: 'cho_duyet',
-        trang_thai_thanh_toan: 'chua_thanh_toan' as RegistrationPaymentStatus,
-        tao_luc: now,
-        cap_nhat_luc: now,
-      });
-      const savedProfile = await this.cgRepo.save(profile);
-      paymentUrl = this.createPaymentUrl(savedProfile.id);
-    } else {
+    if (!isNutritionistRegistration) {
       try {
         await this.emailService.sendWelcome(email, hoTen);
       } catch {
@@ -191,7 +219,7 @@ export class AuthService {
 
     return {
       success: true,
-      message: dto.vaiTro === 'chuyen_gia_dinh_duong'
+      message: isNutritionistRegistration
         ? 'Đăng ký tài khoản thành công. Vui lòng thanh toán phí đăng ký.'
         : 'Đăng ký tài khoản thành công',
       data: {
@@ -200,7 +228,7 @@ export class AuthService {
         ho_ten: savedUser.ho_ten,
         vai_tro: savedUser.vai_tro,
         trang_thai: savedUser.trang_thai,
-        trang_thai_thanh_toan: dto.vaiTro === 'chuyen_gia_dinh_duong'
+        trang_thai_thanh_toan: isNutritionistRegistration
           ? 'dang_cho_thanh_toan'
           : undefined,
       },
@@ -273,7 +301,9 @@ export class AuthService {
     });
 
     if (!otp) {
-      throw new BadRequestException('Mã đặt lại không hợp lệ hoặc đã được sử dụng');
+      throw new BadRequestException(
+        'Mã đặt lại không hợp lệ hoặc đã được sử dụng',
+      );
     }
 
     if (new Date() > otp.het_han_luc) {
@@ -304,7 +334,10 @@ export class AuthService {
   // =============================================
   // SEND OTP
   // =============================================
-  async sendOtp(email: string, loai: 'xac_thuc' | 'dat_lai_mat_khau' = 'xac_thuc') {
+  async sendOtp(
+    email: string,
+    loai: 'xac_thuc' | 'dat_lai_mat_khau' = 'xac_thuc',
+  ) {
     const normalizedEmail = email.trim().toLowerCase();
 
     await this.otpRepository.update(
@@ -389,7 +422,8 @@ export class AuthService {
       },
       {
         secret: process.env.JWT_SECRET ?? 'nutrition-secret',
-        expiresIn: (process.env.JWT_EXPIRES_IN ?? '7d') as SignOptions['expiresIn'],
+        expiresIn: (process.env.JWT_EXPIRES_IN ??
+          '7d') as SignOptions['expiresIn'],
       },
     );
   }
@@ -398,24 +432,35 @@ export class AuthService {
     return hash(password, this.saltRounds);
   }
 
-  private async comparePassword(plain: string, hashed: string): Promise<boolean> {
+  private async comparePassword(
+    plain: string,
+    hashed: string,
+  ): Promise<boolean> {
     const { compare } = await import('bcrypt');
     return compare(plain, hashed);
   }
 
-  private createPaymentUrl(profileId: number): string {
-    return generatePaymentUrl(
-      {
+  private createPaymentUrl(profileId: number): {
+    paymentUrl: string;
+    txnRef: string;
+  } {
+    const txnRef = `${profileId}_${Date.now()}`;
+
+    return {
+      txnRef,
+      paymentUrl: generatePaymentUrl({
         amount: this.registrationFee,
         orderDescription: `Phi dang ky Chuyen gia Dinh duong #${profileId}`,
         orderType: 'billpayment',
-      },
-      profileId,
-    );
+        txnRef,
+      }),
+    };
   }
 
   private async notifyAdminsForRegistration(profileId: number, hoTen: string) {
-    const admins = await this.userRepository.find({ where: { vai_tro: 'quan_tri' as any } });
+    const admins = await this.userRepository.find({
+      where: { vai_tro: 'quan_tri' as any },
+    });
     const now = new Date();
     const notifications = admins.map((admin) =>
       this.notifRepo.create({
@@ -434,22 +479,25 @@ export class AuthService {
     }
   }
 
-  private async grantFreePackage(userId: number) {
+  private async grantFreePackage(
+    userId: number,
+    manager: EntityManager = this.dataSource.manager,
+    now: Date = new Date(),
+  ) {
     try {
-      const freePackage = await this.packageRepo.findOne({
+      const freePackage = await manager.findOne(GoiDichVuEntity, {
         where: { la_goi_mien_phi: true, xoa_luc: IsNull() },
       });
       if (!freePackage) return;
 
-      const existingActive = await this.subscriptionRepo.findOne({
+      const existingActive = await manager.findOne(DangKyGoiDichVuEntity, {
         where: { tai_khoan_id: userId, trang_thai: 'dang_hoat_dong' as any },
       });
       if (existingActive) return;
 
-      const now = new Date();
-
-      await this.subscriptionRepo.save(
-        this.subscriptionRepo.create({
+      await manager.save(
+        DangKyGoiDichVuEntity,
+        manager.create(DangKyGoiDichVuEntity, {
           tai_khoan_id: userId,
           goi_dich_vu_id: freePackage.id,
           ma_dang_ky: generateMaDangKy(),

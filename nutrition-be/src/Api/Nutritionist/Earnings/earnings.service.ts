@@ -10,8 +10,6 @@ export class NutritionistEarningsService {
   constructor(
     @InjectRepository(LichHenEntity)
     private readonly lichHenRepo: Repository<LichHenEntity>,
-    @InjectRepository(ThanhToanTuVanEntity)
-    private readonly paymentRepo: Repository<ThanhToanTuVanEntity>,
     @InjectRepository(ChuyenGiaDinhDuongEntity)
     private readonly cgRepo: Repository<ChuyenGiaDinhDuongEntity>,
   ) {}
@@ -28,48 +26,56 @@ export class NutritionistEarningsService {
       return { success: false, message: 'Khong tim thay chuyen gia' };
     }
 
-    // Tổng thu nhập + số booking hoàn thành trong khoảng
+    // Chỉ tính booking đã hoàn thành và có thanh toán thành công.
     const overview = await this.lichHenRepo
       .createQueryBuilder('lh')
-      .innerJoin('lh.chuyen_gia_dinh_duong', 'cg')
-      .innerJoin('lh.goi_tu_van', 'gtv')
-      .where('cg.id = :cgId', { cgId: expert.id })
-      .andWhere('lh.trang_thai = :status', { status: 'hoan_thanh' })
+      .innerJoin(
+        ThanhToanTuVanEntity,
+        'tt',
+        'tt.lich_hen_id = lh.id AND tt.trang_thai = :paymentStatus',
+        { paymentStatus: 'thanh_cong' },
+      )
+      .where('lh.chuyen_gia_dinh_duong_id = :cgId', { cgId: expert.id })
+      .andWhere('lh.trang_thai = :bookingStatus', { bookingStatus: 'hoan_thanh' })
       .andWhere('lh.ngay_hen >= :start', { start })
       .andWhere('lh.ngay_hen <= :end', { end })
       .select([
-        'COUNT(lh.id) as so_booking',
-        'SUM(gtv.gia) as tong_thu_nhap',
+        'COUNT(DISTINCT lh.id) as so_booking',
+        'COALESCE(SUM(tt.so_tien), 0) as tong_thu_nhap',
       ])
       .getRawOne();
 
     // Thu nhập theo tháng
     const byMonth = await this.lichHenRepo
       .createQueryBuilder('lh')
-      .innerJoin('lh.chuyen_gia_dinh_duong', 'cg')
-      .innerJoin('lh.goi_tu_van', 'gtv')
-      .where('cg.id = :cgId', { cgId: expert.id })
-      .andWhere('lh.trang_thai = :status', { status: 'hoan_thanh' })
+      .innerJoin(
+        ThanhToanTuVanEntity,
+        'tt',
+        'tt.lich_hen_id = lh.id AND tt.trang_thai = :paymentStatus',
+        { paymentStatus: 'thanh_cong' },
+      )
+      .where('lh.chuyen_gia_dinh_duong_id = :cgId', { cgId: expert.id })
+      .andWhere('lh.trang_thai = :bookingStatus', { bookingStatus: 'hoan_thanh' })
       .andWhere('lh.ngay_hen >= :start', { start })
       .andWhere('lh.ngay_hen <= :end', { end })
       .select([
         "DATE_FORMAT(lh.ngay_hen, '%Y-%m') as thang",
-        'COUNT(lh.id) as so_booking',
-        'SUM(gtv.gia) as thu_nhap',
+        'COUNT(DISTINCT lh.id) as so_booking',
+        'COALESCE(SUM(tt.so_tien), 0) as thu_nhap',
       ])
       .groupBy('thang')
       .orderBy('thang', 'ASC')
       .getRawMany();
 
-    // Chi tiết từng giao dịch (booking + payment)
+    // Chi tiết từng giao dịch đã thanh toán thành công.
     const transactions = await this.lichHenRepo
       .createQueryBuilder('lh')
-      .innerJoin('lh.chuyen_gia_dinh_duong', 'cg')
+      .innerJoin(ThanhToanTuVanEntity, 'tt', 'tt.lich_hen_id = lh.id')
       .innerJoin('lh.tai_khoan', 'tk')
       .innerJoin('lh.goi_tu_van', 'gtv')
-      .leftJoin('lh.thanh_toan_tu_van', 'tt')
-      .where('cg.id = :cgId', { cgId: expert.id })
-      .andWhere('lh.trang_thai = :status', { status: 'hoan_thanh' })
+      .where('lh.chuyen_gia_dinh_duong_id = :cgId', { cgId: expert.id })
+      .andWhere('lh.trang_thai = :bookingStatus', { bookingStatus: 'hoan_thanh' })
+      .andWhere('tt.trang_thai = :paymentStatus', { paymentStatus: 'thanh_cong' })
       .andWhere('lh.ngay_hen >= :start', { start })
       .andWhere('lh.ngay_hen <= :end', { end })
       .select([
@@ -78,7 +84,7 @@ export class NutritionistEarningsService {
         'lh.ngay_hen as ngay',
         'tk.ho_ten as ten_user',
         'gtv.ten as ten_goi',
-        'gtv.gia as so_tien',
+        'tt.so_tien as so_tien',
         'tt.trang_thai as trang_thai_thanh_toan',
         'tt.thanh_toan_luc as ngay_thanh_toan',
       ])

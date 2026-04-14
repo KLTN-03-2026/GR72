@@ -59,6 +59,42 @@ function getStatusVariant(status: string) {
   }
 }
 
+function getPaymentStatusLabel(status?: string | null) {
+  switch (status) {
+    case 'dang_cho_thanh_toan': return 'Đang chờ thanh toán'
+    case 'thanh_cong': return 'Đã thanh toán'
+    case 'that_bai': return 'Thanh toán thất bại'
+    case 'da_hoan': return 'Đã hoàn'
+    case 'chua_thanh_toan': return 'Chưa thanh toán'
+    default: return status ?? '—'
+  }
+}
+
+function getPaymentStatusVariant(status?: string | null) {
+  switch (status) {
+    case 'thanh_cong': return 'default'
+    case 'that_bai': return 'destructive'
+    default: return 'outline'
+  }
+}
+
+function getAccountStatusLabel(status?: string | null) {
+  switch (status) {
+    case 'hoat_dong': return 'Hoạt động'
+    case 'khong_hoat_dong': return 'Chưa hoạt động'
+    case 'bi_khoa': return 'Bị khóa'
+    default: return status ?? '—'
+  }
+}
+
+function getAccountStatusVariant(status?: string | null) {
+  switch (status) {
+    case 'hoat_dong': return 'default'
+    case 'bi_khoa': return 'destructive'
+    default: return 'outline'
+  }
+}
+
 function formatDateTime(value: string | null) {
   if (!value) return '—'
   return new Intl.DateTimeFormat('vi-VN', {
@@ -73,6 +109,7 @@ export function AdminNutritionistRegistrations() {
   const [detail, setDetail] = useState<NutritionistRegistrationDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [statusFilter, setStatusFilter] = useState<'all' | string>('all')
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<'all' | string>('all')
   const [search, setSearch] = useState('')
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: PAGE_SIZE })
   const [pageCount, setPageCount] = useState(0)
@@ -86,6 +123,7 @@ export function AdminNutritionistRegistrations() {
     try {
       const res = await getRegistrations({
         trang_thai: statusFilter === 'all' ? undefined : statusFilter,
+        trang_thai_thanh_toan: paymentStatusFilter === 'all' ? undefined : paymentStatusFilter,
         search: search || undefined,
         page: pagination.pageIndex + 1,
         limit: pagination.pageSize,
@@ -98,7 +136,7 @@ export function AdminNutritionistRegistrations() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, search, pagination.pageIndex, pagination.pageSize])
+  }, [statusFilter, paymentStatusFilter, search, pagination.pageIndex, pagination.pageSize])
 
   useEffect(() => { void loadData() }, [loadData])
 
@@ -113,7 +151,7 @@ export function AdminNutritionistRegistrations() {
     return () => { mounted = false }
   }, [selectedId])
 
-  const handleApprove = async (id: number) => {
+  const handleApprove = useCallback(async (id: number) => {
     setActionLoading(true)
     try {
       await approveRegistration(id)
@@ -125,7 +163,7 @@ export function AdminNutritionistRegistrations() {
     } finally {
       setActionLoading(false)
     }
-  }
+  }, [loadData])
 
   const handleReject = async () => {
     if (!rejectingId || !rejectReason.trim()) return
@@ -151,19 +189,29 @@ export function AdminNutritionistRegistrations() {
     { id: 'email', header: 'Email', cell: ({ row }) => <span className='text-sm'>{row.original.tai_khoan?.email ?? '—'}</span> },
     { accessorKey: 'chuyen_mon', header: 'Chuyên môn', cell: ({ row }) => <span className='text-sm line-clamp-1 max-w-[200px]'>{row.original.chuyen_mon ?? '—'}</span> },
     { id: 'status', header: 'Trạng thái', cell: ({ row }) => <Badge variant={getStatusVariant(row.original.trang_thai) as 'default' | 'outline' | 'destructive'}>{getStatusLabel(row.original.trang_thai)}</Badge> },
+    { id: 'payment_status', header: 'Thanh toán', cell: ({ row }) => <Badge variant={getPaymentStatusVariant(row.original.trang_thai_thanh_toan) as 'default' | 'outline' | 'destructive'}>{getPaymentStatusLabel(row.original.trang_thai_thanh_toan)}</Badge> },
+    { id: 'account_status', header: 'Tài khoản', cell: ({ row }) => <Badge variant={getAccountStatusVariant(row.original.tai_khoan?.trang_thai) as 'default' | 'outline' | 'destructive'}>{getAccountStatusLabel(row.original.tai_khoan?.trang_thai)}</Badge> },
     { id: 'tao_luc', header: 'Ngày đăng ký', cell: ({ row }) => <span className='text-xs text-muted-foreground'>{formatDateTime(row.original.tao_luc)}</span> },
     { id: 'actions', header: '', enableSorting: false, cell: ({ row }) => (
       <div className='flex gap-1 justify-end'>
         <Button variant='ghost' size='sm' onClick={() => { setSelectedId(row.original.id); setDetail(null) }}><Eye className='size-4' /></Button>
         {row.original.trang_thai === 'cho_duyet' && (
           <>
-            <Button variant='outline' size='sm' className='text-emerald-600' onClick={() => void handleApprove(row.original.id)}><Check className='size-4' /></Button>
+            <Button
+              variant='outline'
+              size='sm'
+              className='text-emerald-600'
+              onClick={() => void handleApprove(row.original.id)}
+              disabled={row.original.trang_thai_thanh_toan !== 'thanh_cong'}
+            >
+              <Check className='size-4' />
+            </Button>
             <Button variant='ghost' size='sm' className='text-red-600' onClick={() => { setRejectingId(row.original.id); setRejectDialogOpen(true) }}><X className='size-4' /></Button>
           </>
         )}
       </div>
     )},
-  ], [loadData])
+  ], [handleApprove])
 
   const table = useReactTable({
     data: items, columns,
@@ -189,6 +237,15 @@ export function AdminNutritionistRegistrations() {
                 <SelectItem value='cho_duyet'>Chờ duyệt</SelectItem>
                 <SelectItem value='hoat_dong'>Đã duyệt</SelectItem>
                 <SelectItem value='tu_choi'>Từ chối</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={paymentStatusFilter} onValueChange={(v) => { setPaymentStatusFilter(v); setPagination((c) => ({ ...c, pageIndex: 0 })) }}>
+              <SelectTrigger className='w-[220px] rounded-sm'><SelectValue placeholder='Lọc thanh toán' /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value='all'>Mọi trạng thái thanh toán</SelectItem>
+                <SelectItem value='dang_cho_thanh_toan'>Đang chờ thanh toán</SelectItem>
+                <SelectItem value='thanh_cong'>Đã thanh toán</SelectItem>
+                <SelectItem value='that_bai'>Thanh toán thất bại</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -220,6 +277,9 @@ export function AdminNutritionistRegistrations() {
                 <div className='space-y-2'><Label>Ngày đăng ký</Label><Input value={formatDateTime(detail.tao_luc)} disabled className={FIELD_CLASSNAME} /></div>
                 <div className='space-y-2'><Label>Họ tên</Label><Input value={detail.tai_khoan?.ho_ten ?? '—'} disabled className={FIELD_CLASSNAME} /></div>
                 <div className='space-y-2'><Label>Email</Label><Input value={detail.tai_khoan?.email ?? '—'} disabled className={FIELD_CLASSNAME} /></div>
+                <div className='space-y-2'><Label>Trạng thái đơn</Label><Input value={getStatusLabel(detail.trang_thai)} disabled className={FIELD_CLASSNAME} /></div>
+                <div className='space-y-2'><Label>Trạng thái thanh toán</Label><Input value={getPaymentStatusLabel(detail.trang_thai_thanh_toan)} disabled className={FIELD_CLASSNAME} /></div>
+                <div className='space-y-2 sm:col-span-2'><Label>Trạng thái tài khoản</Label><Input value={getAccountStatusLabel(detail.tai_khoan?.trang_thai)} disabled className={FIELD_CLASSNAME} /></div>
                 <div className='space-y-2 sm:col-span-2'><Label>Chuyên môn</Label><Input value={detail.chuyen_mon ?? '—'} disabled className={FIELD_CLASSNAME} /></div>
                 <div className='space-y-2 sm:col-span-2'><Label>Mô tả</Label><Textarea value={detail.mo_ta ?? '—'} disabled rows={3} className='rounded-sm' /></div>
                 <div className='space-y-2 sm:col-span-2'><Label>Kinh nghiệm</Label><Textarea value={detail.kinh_nghiem ?? '—'} disabled rows={3} className='rounded-sm' /></div>
@@ -233,7 +293,7 @@ export function AdminNutritionistRegistrations() {
                 {detail.trang_thai === 'cho_duyet' && (
                   <>
                     <Button variant='outline' className='rounded-sm text-red-600' onClick={() => { setRejectingId(detail.id); setRejectDialogOpen(true); setSelectedId(null) }}><X className='mr-1 size-4' />Từ chối</Button>
-                    <Button className='rounded-sm' onClick={() => void handleApprove(detail.id)} disabled={actionLoading}><Check className='mr-1 size-4' />Duyệt</Button>
+                    <Button className='rounded-sm' onClick={() => void handleApprove(detail.id)} disabled={actionLoading || detail.trang_thai_thanh_toan !== 'thanh_cong'}><Check className='mr-1 size-4' />Duyệt</Button>
                   </>
                 )}
               </DialogFooter>

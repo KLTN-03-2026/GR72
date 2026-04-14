@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { type ColumnDef, type PaginationState, flexRender, getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table'
-import { CheckCircle, Clock, Plus, XCircle } from 'lucide-react'
+import { CheckCircle, Clock, Eye, Plus, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { ApiError } from '@/services/auth/api'
 import { type NFoodReview, createNutriFoodReview, getNutriFoodReviews } from '@/services/nutritionist/api'
+import { Link } from '@/lib/router'
 import { DataTablePagination } from '@/components/data-table'
 import { Main } from '@/components/layout/main'
 import { Badge } from '@/components/ui/badge'
@@ -70,6 +71,18 @@ export function NutritionStaffFoodReviewRequests() {
     { id: 'reason', header: 'Lý do', cell: ({ row }) => <span className='text-sm line-clamp-1'>{row.original.ly_do ?? '—'}</span> },
     { id: 'note', header: 'Ghi chú duyệt', cell: ({ row }) => <span className='text-sm line-clamp-1 text-muted-foreground'>{row.original.ghi_chu_duyet ?? '—'}</span> },
     { id: 'date', header: 'Ngày tạo', cell: ({ row }) => <span className='text-xs text-muted-foreground'>{new Date(row.original.tao_luc).toLocaleDateString('vi-VN')}</span> },
+    {
+      id: 'actions',
+      header: 'Thao tác',
+      cell: ({ row }) => (
+        <Button variant='outline' size='sm' className='rounded-sm' asChild>
+          <Link to={`/nutritionist/food-review-requests/${row.original.id}`}>
+            <Eye className='mr-1 size-4' />
+            Xem chi tiết
+          </Link>
+        </Button>
+      ),
+    },
   ], [])
 
   const table = useReactTable({ data: items, columns, state: { pagination }, manualPagination: true, pageCount, onPaginationChange: setPagination, getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel() })

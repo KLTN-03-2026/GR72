@@ -86,12 +86,14 @@ export type NutritionistDetail = NutritionistRegistration & {
 // =============================================
 export async function getRegistrations(query: {
   trang_thai?: string
+  trang_thai_thanh_toan?: string
   search?: string
   page?: number
   limit?: number
 }) {
   const qs = buildQueryString({
     trang_thai: query.trang_thai,
+    trang_thai_thanh_toan: query.trang_thai_thanh_toan,
     search: query.search,
     page: query.page ?? 1,
     limit: query.limit ?? 10,

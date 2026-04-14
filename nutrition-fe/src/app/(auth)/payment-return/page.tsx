@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { CheckCircle, XCircle, Loader2, LogIn } from 'lucide-react'
 import Link from 'next/link'
@@ -10,24 +9,18 @@ import { Button } from '@/components/ui/button'
 
 export default function PaymentReturnPage() {
   const searchParams = useSearchParams()
-  const [status, setStatus] = useState<'loading' | 'success' | 'failed'>('loading')
-  const [message, setMessage] = useState('')
+  const paramStatus = searchParams.get('status')
+  const rawMessage = searchParams.get('message')
 
-  useEffect(() => {
-    const paramStatus = searchParams.get('status')
-    if (paramStatus === 'success') {
-      setStatus('success')
-      setMessage('Thanh toán thành công! Đơn đăng ký của bạn đang chờ admin duyệt.')
-    } else if (paramStatus === 'failed') {
-      setStatus('failed')
-      const msg = searchParams.get('message')
-      setMessage(msg ? decodeURIComponent(msg) : 'Thanh toán không thành công.')
-    } else {
-      setStatus('failed')
-      setMessage('Thanh toán đang được xử lý. Vui lòng đăng nhập để kiểm tra trạng thái.')
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams])
+  const status: 'loading' | 'success' | 'failed' =
+    paramStatus === 'success' ? 'success' : 'failed'
+
+  const message =
+    rawMessage
+      ? decodeURIComponent(rawMessage)
+      : status === 'success'
+        ? 'Thanh toán thành công. Tài khoản của bạn hiện vẫn ở trạng thái chưa hoạt động cho đến khi admin duyệt đơn.'
+        : 'Thanh toán không thành công. Hồ sơ đăng ký đã được hoàn tác.'
 
   return (
     <AuthLayout>
@@ -50,8 +43,8 @@ export default function PaymentReturnPage() {
           {status === 'success' && (
             <div className='space-y-3'>
               <p className='text-center text-sm text-muted-foreground'>
-                Phí đăng ký đã được thanh toán. Đơn của bạn đang được admin xem xét và sẽ có thông
-                báo khi có kết quả.
+                Phí đăng ký đã được thanh toán. Đơn của bạn đang được admin xem xét. Sau khi được
+                duyệt, tài khoản sẽ được kích hoạt và bạn có thể đăng nhập vào khu vực Nutritionist.
               </p>
               <Button variant='default' className='w-full' asChild>
                 <Link href='/sign-in'>
@@ -64,15 +57,9 @@ export default function PaymentReturnPage() {
 
           {status === 'failed' && (
             <div className='space-y-3'>
-              <Button variant='outline' className='w-full' asChild>
-                <Link href='/sign-in'>
-                  <LogIn className='size-4 mr-1' />
-                  Đăng nhập
-                </Link>
-              </Button>
               <Button variant='default' className='w-full' asChild>
                 <Link href='/sign-up'>
-                  Quay lại trang đăng ký
+                  Quay lại đăng ký
                 </Link>
               </Button>
             </div>

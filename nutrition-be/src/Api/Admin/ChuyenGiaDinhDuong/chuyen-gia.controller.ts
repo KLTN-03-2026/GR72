@@ -22,12 +22,14 @@ export class ChuyenGiaController {
   @Get('nutritionist-registrations')
   findRegistrations(
     @Query('trang_thai') trang_thai?: string,
+    @Query('trang_thai_thanh_toan') trang_thai_thanh_toan?: string,
     @Query('search') search?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
     return this.service.findRegistrations({
       trang_thai,
+      trang_thai_thanh_toan,
       search,
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,

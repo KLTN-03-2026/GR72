@@ -72,6 +72,25 @@ export type NFoodReview = {
   tao_luc: string; cap_nhat_luc: string
 }
 
+export type NFoodReviewDetail = NFoodReview & {
+  ten_nguon: string | null
+  ma_nguon: string | null
+  nguoi_de_xuat: {
+    id: number
+    ho_ten: string | null
+  } | null
+  thuc_pham: {
+    id: number
+    ten: string
+    nhom_thuc_pham_id: number
+    calories_100g: number | null
+    protein_100g: number | null
+    carb_100g: number | null
+    fat_100g: number | null
+    da_xac_minh: boolean
+  } | null
+}
+
 export async function getNutriFoodReviews(q?: { trangThai?: string; page?: number; limit?: number }) {
   const p = new URLSearchParams()
   if (q?.trangThai) p.set('trangThai', q.trangThai)
@@ -79,6 +98,10 @@ export async function getNutriFoodReviews(q?: { trangThai?: string; page?: numbe
   if (q?.limit) p.set('limit', String(q.limit))
   const qs = p.toString()
   return request<Paginated<NFoodReview>>(`/nutritionist/food-review-requests${qs ? `?${qs}` : ''}`)
+}
+
+export async function getNutriFoodReview(id: number) {
+  return request<NFoodReviewDetail>(`/nutritionist/food-review-requests/${id}`)
 }
 
 export async function createNutriFoodReview(payload: {
@@ -241,7 +264,7 @@ export type NProfile = {
   diemDanhGiaTrungBinh: number
   soLuotDanhGia: number
   tongBooking: number
-  taLuc: string
+  taoLuc: string
   capNhatLuc: string
 }
 

@@ -1,8 +1,15 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
 import { IsNull, Like, Repository } from 'typeorm';
-import { ChuyenGiaDinhDuongEntity, ChuyenGiaStatus } from './entities/chuyen-gia-dinh-duong.entity';
+import {
+  ChuyenGiaDinhDuongEntity,
+  ChuyenGiaStatus,
+} from './entities/chuyen-gia-dinh-duong.entity';
 import { TaiKhoanEntity } from '../User/entities/tai-khoan.entity';
 import { ThongBaoEntity } from '../FoodReview/entities/thong-bao.entity';
 import { DangKyGoiDichVuEntity } from '../Subscription/entities/dang-ky-goi-dich-vu.entity';
@@ -28,6 +35,7 @@ export class ChuyenGiaService {
   // =========================================================
   async findRegistrations(query: {
     trang_thai?: string;
+    trang_thai_thanh_toan?: string;
     search?: string;
     page?: number;
     limit?: number;
@@ -45,7 +53,15 @@ export class ChuyenGiaService {
       .leftJoinAndSelect('cg.tai_khoan', 'tai_khoan')
       .where('tai_khoan.xoa_luc IS NULL');
 
-    if (query.trang_thai) qb.andWhere('cg.trang_thai = :trang_thai', { trang_thai: query.trang_thai });
+    if (query.trang_thai)
+      qb.andWhere('cg.trang_thai = :trang_thai', {
+        trang_thai: query.trang_thai,
+      });
+    if (query.trang_thai_thanh_toan) {
+      qb.andWhere('cg.trang_thai_thanh_toan = :trang_thai_thanh_toan', {
+        trang_thai_thanh_toan: query.trang_thai_thanh_toan,
+      });
+    }
     if (query.search) {
       qb.andWhere(
         '(tai_khoan.ho_ten LIKE :search OR tai_khoan.email LIKE :search)',
@@ -75,7 +91,11 @@ export class ChuyenGiaService {
       relations: ['tai_khoan'],
     });
     if (!entity) throw new NotFoundException('Don dang ky khong ton tai');
-    return { success: true, message: 'Lay chi tiet thanh cong', data: this.toPublic(entity) };
+    return {
+      success: true,
+      message: 'Lay chi tiet thanh cong',
+      data: this.toPublic(entity),
+    };
   }
 
   async approveRegistration(id: number, adminId: number) {
@@ -85,10 +105,14 @@ export class ChuyenGiaService {
     });
     if (!entity) throw new NotFoundException('Don dang ky khong ton tai');
     if (entity.trang_thai !== 'cho_duyet') {
-      throw new BadRequestException('Chi co the duyet don dang o trang thai cho duyet');
+      throw new BadRequestException(
+        'Chi co the duyet don dang o trang thai cho duyet',
+      );
     }
     if (entity.trang_thai_thanh_toan !== 'thanh_cong') {
-      throw new BadRequestException('Don dang ky chua duoc thanh toan. Vui long kiem tra thanh toan truoc khi duyet.');
+      throw new BadRequestException(
+        'Don dang ky chua duoc thanh toan. Vui long kiem tra thanh toan truoc khi duyet.',
+      );
     }
 
     const now = new Date();
@@ -100,6 +124,7 @@ export class ChuyenGiaService {
     // Update tai_khoan role
     await this.userRepository.update(entity.tai_khoan_id, {
       vai_tro: 'chuyen_gia_dinh_duong',
+      trang_thai: 'hoat_dong',
       cap_nhat_luc: now,
     });
 
@@ -115,7 +140,11 @@ export class ChuyenGiaService {
       null,
     );
 
-    return { success: true, message: 'Duyet don dang ky thanh cong', data: this.toPublic(entity) };
+    return {
+      success: true,
+      message: 'Duyet don dang ky thanh cong',
+      data: this.toPublic(entity),
+    };
   }
 
   async rejectRegistration(id: number, dto: { ly_do_tu_choi: string }) {
@@ -129,13 +158,20 @@ export class ChuyenGiaService {
     });
     if (!entity) throw new NotFoundException('Don dang ky khong ton tai');
     if (entity.trang_thai !== 'cho_duyet') {
-      throw new BadRequestException('Chi co the tu choi don dang o trang thai cho duyet');
+      throw new BadRequestException(
+        'Chi co the tu choi don dang o trang thai cho duyet',
+      );
     }
 
     entity.trang_thai = 'tu_choi' as typeof entity.trang_thai;
     entity.ly_do_tu_choi = dto.ly_do_tu_choi.trim();
     entity.cap_nhat_luc = new Date();
     await this.cgRepository.save(entity);
+
+    await this.userRepository.update(entity.tai_khoan_id, {
+      trang_thai: 'khong_hoat_dong',
+      cap_nhat_luc: entity.cap_nhat_luc,
+    });
 
     await this.createNotification(
       entity.tai_khoan_id,
@@ -145,7 +181,11 @@ export class ChuyenGiaService {
       null,
     );
 
-    return { success: true, message: 'Tu choi don dang ky thanh cong', data: this.toPublic(entity) };
+    return {
+      success: true,
+      message: 'Tu choi don dang ky thanh cong',
+      data: this.toPublic(entity),
+    };
   }
 
   // =========================================================
@@ -169,7 +209,10 @@ export class ChuyenGiaService {
         statuses: ['hoat_dong', 'bi_khoa'],
       });
 
-    if (query.trang_thai) qb.andWhere('cg.trang_thai = :trang_thai', { trang_thai: query.trang_thai });
+    if (query.trang_thai)
+      qb.andWhere('cg.trang_thai = :trang_thai', {
+        trang_thai: query.trang_thai,
+      });
     if (query.search) {
       qb.andWhere(
         '(tai_khoan.ho_ten LIKE :search OR tai_khoan.email LIKE :search)',
@@ -220,10 +263,14 @@ export class ChuyenGiaService {
     });
     if (!entity) throw new NotFoundException('Nutritionist khong ton tai');
     if (entity.trang_thai !== 'hoat_dong' && entity.trang_thai !== 'tu_choi') {
-      throw new BadRequestException('Chi co the bi khoa nutritionist dang hoat dong');
+      throw new BadRequestException(
+        'Chi co the bi khoa nutritionist dang hoat dong',
+      );
     }
     if (entity.trang_thai === 'tu_choi') {
-      throw new BadRequestException('Khong the bi khoa tai khoan da bi tu choi');
+      throw new BadRequestException(
+        'Khong the bi khoa tai khoan da bi tu choi',
+      );
     }
 
     const now = new Date();
@@ -233,6 +280,11 @@ export class ChuyenGiaService {
     entity.cap_nhat_luc = now;
     await this.cgRepository.save(entity);
 
+    await this.userRepository.update(entity.tai_khoan_id, {
+      trang_thai: 'bi_khoa',
+      cap_nhat_luc: now,
+    });
+
     await this.createNotification(
       entity.tai_khoan_id,
       'bi_khoa_nutritionist',
@@ -241,7 +293,11 @@ export class ChuyenGiaService {
       null,
     );
 
-    return { success: true, message: 'Bi khoa nutritionist thanh cong', data: this.toPublic(entity) };
+    return {
+      success: true,
+      message: 'Bi khoa nutritionist thanh cong',
+      data: this.toPublic(entity),
+    };
   }
 
   async activateNutritionist(id: number) {
@@ -251,7 +307,9 @@ export class ChuyenGiaService {
     });
     if (!entity) throw new NotFoundException('Nutritionist khong ton tai');
     if (entity.trang_thai === 'tu_choi') {
-      throw new BadRequestException('Khong the kich hoat tai khoan da bi tu choi');
+      throw new BadRequestException(
+        'Khong the kich hoat tai khoan da bi tu choi',
+      );
     }
     if (entity.trang_thai === 'hoat_dong') {
       throw new BadRequestException('Tai khoan dang hoat dong');
@@ -264,6 +322,11 @@ export class ChuyenGiaService {
     entity.cap_nhat_luc = now;
     await this.cgRepository.save(entity);
 
+    await this.userRepository.update(entity.tai_khoan_id, {
+      trang_thai: 'hoat_dong',
+      cap_nhat_luc: now,
+    });
+
     await this.createNotification(
       entity.tai_khoan_id,
       'kich_hoat_nutritionist',
@@ -272,14 +335,19 @@ export class ChuyenGiaService {
       null,
     );
 
-    return { success: true, message: 'Kich hoat nutritionist thanh cong', data: this.toPublic(entity) };
+    return {
+      success: true,
+      message: 'Kich hoat nutritionist thanh cong',
+      data: this.toPublic(entity),
+    };
   }
 
   // =========================================================
   // PRIVATE HELPERS
   // =========================================================
   private async getNutritionistStats(cgId: number) {
-    const stats = await this.cgRepository.manager.query(`
+    const stats = await this.cgRepository.manager.query(
+      `
       SELECT
         COUNT(DISTINCT lh.id) as so_booking,
         COUNT(DISTINCT CASE WHEN lh.trang_thai = 'hoan_thanh' THEN lh.id END) as so_booking_hoan_thanh,
@@ -288,7 +356,9 @@ export class ChuyenGiaService {
       LEFT JOIN lich_hen lh ON lh.chuyen_gia_dinh_duong_id = cg.id
       LEFT JOIN danh_gia d ON d.chuyen_gia_dinh_duong_id = cg.id AND d.lich_hen_id = lh.id
       WHERE cg.id = ?
-    `, [cgId]);
+    `,
+      [cgId],
+    );
 
     return {
       so_booking: Number(stats[0]?.so_booking ?? 0),
@@ -314,7 +384,9 @@ export class ChuyenGiaService {
       const maDangKy = `SUB-Nutri-${Date.now()}-${randomBytes(4).toString('hex').toUpperCase()}`;
       let ngayHetHan: Date | null = null;
       if (premiumPackage.thoi_han_ngay) {
-        ngayHetHan = new Date(now.getTime() + premiumPackage.thoi_han_ngay * 24 * 60 * 60 * 1000);
+        ngayHetHan = new Date(
+          now.getTime() + premiumPackage.thoi_han_ngay * 24 * 60 * 60 * 1000,
+        );
       }
 
       await this.subscriptionRepo.save(

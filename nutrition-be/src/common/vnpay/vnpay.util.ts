@@ -12,6 +12,7 @@ export interface VnpayPaymentParams {
   orderDescription: string;
   orderType: string;
   language?: string;
+  txnRef: string;
 }
 
 export interface VnpayIpnParams {
@@ -43,7 +44,9 @@ export interface VnpayReturnParams {
   vnp_SecureHash: string;
 }
 
-function sortObject(obj: Record<string, string | number>): Record<string, string> {
+function sortObject(
+  obj: Record<string, string | number>,
+): Record<string, string> {
   const sorted: Record<string, string> = {};
   const keys = Object.keys(obj).sort();
   for (const k of keys) {
@@ -56,7 +59,10 @@ function sortObject(obj: Record<string, string | number>): Record<string, string
 }
 
 function hmacSHA512(data: string): string {
-  return crypto.createHmac('sha512', VNPAY_HASH_SECRET).update(data).digest('hex');
+  return crypto
+    .createHmac('sha512', VNPAY_HASH_SECRET)
+    .update(data)
+    .digest('hex');
 }
 
 function buildSignData(sorted: Record<string, string>): string {
@@ -65,7 +71,7 @@ function buildSignData(sorted: Record<string, string>): string {
     .join('&');
 }
 
-export function generatePaymentUrl(params: VnpayPaymentParams, profileId: number): string {
+export function generatePaymentUrl(params: VnpayPaymentParams): string {
   const date = new Date();
   const createDate = formatDate(date);
   const expireDate = formatDate(new Date(date.getTime() + 15 * 60 * 1000));
@@ -78,7 +84,7 @@ export function generatePaymentUrl(params: VnpayPaymentParams, profileId: number
     vnp_TmnCode: VNPAY_TMN_CODE,
     vnp_Locale: params.language || 'vn',
     vnp_CurrCode: 'VND',
-    vnp_TxnRef: `${profileId}_${Date.now()}`,
+    vnp_TxnRef: params.txnRef,
     vnp_OrderInfo: params.orderDescription,
     vnp_OrderType: params.orderType,
     vnp_Amount: String(amountInCents),

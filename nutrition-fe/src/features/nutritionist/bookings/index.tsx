@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from '@/lib/router'
 import {
   type ColumnDef,
   type PaginationState,
@@ -13,8 +14,6 @@ import { CalendarRange, CheckCircle, Eye, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   getNutriBookings,
-  getNutriBooking,
-  confirmNutriBooking,
   completeNutriBooking,
   cancelNutriBooking,
   type NBooking,
@@ -85,16 +84,12 @@ export function NutritionistBookings() {
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: PAGE_SIZE })
   const [statusFilter, setStatusFilter] = useState<string>('')
 
-  const [detailId, setDetailId] = useState<number | null>(null)
-  const [detail, setDetail] = useState<NBooking | null>(null)
-  const [detailLoading, setDetailLoading] = useState(false)
-
   const [actionId, setActionId] = useState<number | null>(null)
   const [actionType, setActionType] = useState<'complete' | 'cancel' | null>(null)
   const [note, setNote] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
       const params: any = {
@@ -111,46 +106,20 @@ export function NutritionistBookings() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [pagination.pageIndex, pagination.pageSize, statusFilter])
 
-  useEffect(() => { loadData() }, [pagination, statusFilter])
-
-  async function openDetail(id: number) {
-    setDetailId(id)
-    setDetailLoading(true)
-    setDetail(null)
-    try {
-      const data = await getNutriBooking(id)
-      setDetail(data)
-    } catch {
-      toast.error('Không thể tải chi tiết booking')
-    } finally {
-      setDetailLoading(false)
-    }
-  }
-
-  async function handleConfirm(id: number) {
-    try {
-      const data = await confirmNutriBooking(id)
-      toast.success('Đã xác nhận booking')
-      loadData()
-      if (detailId === id) setDetail(data)
-    } catch {
-      toast.error('Không thể xác nhận booking')
-    }
-  }
+  useEffect(() => { void loadData() }, [loadData])
 
   async function handleComplete() {
     if (!actionId || actionType !== 'complete') return
     setActionLoading(true)
     try {
-      const data = await completeNutriBooking(actionId, { ghiChu: note.trim() || undefined })
+      await completeNutriBooking(actionId, { ghiChu: note.trim() || undefined })
       toast.success('Đã hoàn thành tư vấn')
       setActionId(null)
       setActionType(null)
       setNote('')
-      loadData()
-      if (detailId === actionId) setDetail(data)
+      await loadData()
     } catch {
       toast.error('Không thể hoàn thành')
     } finally {
@@ -163,13 +132,12 @@ export function NutritionistBookings() {
     if (!note.trim()) { toast.error('Vui lòng nhập lý do hủy'); return }
     setActionLoading(true)
     try {
-      const data = await cancelNutriBooking(actionId, { lyDoHuy: note.trim() })
+      await cancelNutriBooking(actionId, { lyDoHuy: note.trim() })
       toast.success('Đã hủy booking')
       setActionId(null)
       setActionType(null)
       setNote('')
-      loadData()
-      if (detailId === actionId) setDetail(data)
+      await loadData()
     } catch {
       toast.error('Không thể hủy booking')
     } finally {
@@ -227,8 +195,10 @@ export function NutritionistBookings() {
         const canAct = booking.trangThai === 'da_checkin' || booking.trangThai === 'dang_tu_van'
         return (
           <div className='flex items-center gap-1'>
-            <Button size='icon' variant='ghost' onClick={() => openDetail(booking.id)}>
-              <Eye className='size-4' />
+            <Button size='icon' variant='ghost' asChild>
+              <Link to={`/nutritionist/bookings/${booking.id}`}>
+                <Eye className='size-4' />
+              </Link>
             </Button>
             {canAct && (
               <>
@@ -332,71 +302,6 @@ export function NutritionistBookings() {
 
         <DataTablePagination table={table} />
       </Main>
-
-      {/* Detail Dialog */}
-      <Dialog open={detailId !== null} onOpenChange={(v) => { if (!v) setDetailId(null) }}>
-        <DialogContent className='max-w-lg'>
-          <DialogHeader>
-            <DialogTitle>Chi tiết Booking</DialogTitle>
-          </DialogHeader>
-          {detailLoading ? (
-            <div className='flex justify-center py-8'><div className='size-6 animate-spin rounded-full border-2 border-primary border-t-transparent' /></div>
-          ) : detail ? (
-            <div className='space-y-4'>
-              <div className='grid grid-cols-2 gap-4'>
-                <div>
-                  <Label className='text-muted-foreground'>Ngày hẹn</Label>
-                  <p>{formatDateVN(detail.ngayHen)}</p>
-                </div>
-                <div>
-                  <Label className='text-muted-foreground'>Thời gian</Label>
-                  <p>{formatTime(detail.gioBatDau)} - {formatTime(detail.gioKetThuc)}</p>
-                </div>
-                <div>
-                  <Label className='text-muted-foreground'>User</Label>
-                  <p>{detail.tenUser}</p>
-                </div>
-                <div>
-                  <Label className='text-muted-foreground'>Gói tư vấn</Label>
-                  <p>{detail.tenGoiTuVan}</p>
-                </div>
-                <div>
-                  <Label className='text-muted-foreground'>Trạng thái</Label>
-                  <p>{getStatusBadge(detail.trangThai)}</p>
-                </div>
-                {detail.diaDiem && (
-                  <div className='col-span-2'>
-                    <Label className='text-muted-foreground'>Địa điểm / Link</Label>
-                    <p>{detail.diaDiem}</p>
-                  </div>
-                )}
-                {detail.mucDich && (
-                  <div className='col-span-2'>
-                    <Label className='text-muted-foreground'>Mục đích</Label>
-                    <p>{detail.mucDich}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className='flex gap-2 pt-4 border-t'>
-                {detail.trangThai === 'da_xac_nhan' && (
-                  <Button onClick={() => handleConfirm(detail.id)}>Xác nhận đã nhận</Button>
-                )}
-                {(detail.trangThai === 'da_checkin' || detail.trangThai === 'dang_tu_van') && (
-                  <>
-                    <Button variant='outline' onClick={() => openCompleteDialog(detail.id)}>
-                      Hoàn thành
-                    </Button>
-                    <Button variant='destructive' onClick={() => openCancelDialog(detail.id)}>
-                      Hủy
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
 
       {/* Complete Action Dialog */}
       <Dialog open={actionType === 'complete' && actionId !== null} onOpenChange={(v) => { if (!v) { setActionId(null); setActionType(null) } }}>

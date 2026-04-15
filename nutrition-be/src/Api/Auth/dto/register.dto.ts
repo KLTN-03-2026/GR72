@@ -1,8 +1,21 @@
-import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, IsUrl, MaxLength, MinLength, ValidateIf } from 'class-validator';
+import {
+  IsEmail,
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUrl,
+  MaxLength,
+  MinLength,
+  ValidateIf,
+} from 'class-validator';
 
 export class RegisterDto {
   @IsString()
   @IsNotEmpty({ message: 'Loại tài khoản không được để trống' })
+  @IsIn(['nguoi_dung', 'chuyen_gia_dinh_duong'], {
+    message: 'Loại tài khoản không hợp lệ',
+  })
   vaiTro!: 'nguoi_dung' | 'chuyen_gia_dinh_duong';
 
   @IsString()

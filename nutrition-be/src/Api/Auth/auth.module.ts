@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EmailModule } from '../../common/email/email.module';
 import { HoSoEntity } from '../Admin/User/entities/ho-so.entity';
+import { MucTieuEntity } from '../Admin/User/entities/muc-tieu.entity';
 import { TaiKhoanEntity } from '../Admin/User/entities/tai-khoan.entity';
 import { OtpEntity } from './entities/otp.entity';
 import { ChuyenGiaDinhDuongEntity } from '../Admin/ChuyenGiaDinhDuong/entities/chuyen-gia-dinh-duong.entity';
@@ -19,6 +20,7 @@ import { VnpayCallbackService } from './vnpay-callback.service';
     TypeOrmModule.forFeature([
       TaiKhoanEntity,
       HoSoEntity,
+      MucTieuEntity,
       OtpEntity,
       ChuyenGiaDinhDuongEntity,
       ThongBaoEntity,

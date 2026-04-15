@@ -9,6 +9,7 @@ import { ChucNangGoiDichVuEntity } from '../../Api/Admin/PackageFeature/entities
 import { DangKyGoiDichVuEntity } from '../../Api/Admin/Subscription/entities/dang-ky-goi-dich-vu.entity';
 import AppDataSource from '../data-source';
 import { HoSoEntity } from '../../Api/Admin/User/entities/ho-so.entity';
+import { MucTieuEntity } from '../../Api/Admin/User/entities/muc-tieu.entity';
 import { TaiKhoanEntity } from '../../Api/Admin/User/entities/tai-khoan.entity';
 import { BaiVietEntity } from '../../Api/Nutritionist/Article/entities/bai-viet.entity';
 import { CongThucEntity } from '../../Api/Nutritionist/Recipe/entities/cong-thuc.entity';
@@ -19,6 +20,8 @@ import { GoiTuVanEntity } from '../../Api/Admin/ChuyenGiaDinhDuong/entities/goi-
 import { LichHenEntity } from '../../Api/Admin/Booking/entities/lich-hen.entity';
 import { ThanhToanTuVanEntity } from '../../Api/Admin/Booking/entities/thanh-toan-tu-van.entity';
 import { DanhGiaEntity } from '../../Api/Admin/Booking/entities/danh-gia.entity';
+import { ChiSoSucKhoeEntity } from '../../Api/User/HealthAssessment/entities/chi-so-suc-khoe.entity';
+import { DanhGiaSucKhoeEntity } from '../../Api/User/HealthAssessment/entities/danh-gia-suc-khoe.entity';
 
 async function hashPassword(password: string): Promise<string> {
   const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS ?? 10);
@@ -107,6 +110,164 @@ async function seedUsers() {
     })),
     ['tai_khoan_id'],
   );
+}
+
+async function seedUserHealthData() {
+  const userRepository = AppDataSource.getRepository(TaiKhoanEntity);
+  const profileRepository = AppDataSource.getRepository(HoSoEntity);
+  const goalRepository = AppDataSource.getRepository(MucTieuEntity);
+  const metricRepository = AppDataSource.getRepository(ChiSoSucKhoeEntity);
+  const assessmentRepository = AppDataSource.getRepository(DanhGiaSucKhoeEntity);
+
+  const user = await userRepository.findOne({
+    where: { email: 'user@nutriwise.vn' },
+  });
+
+  if (!user) {
+    console.log('User demo not found, skipping user health seed');
+    return;
+  }
+
+  const now = new Date();
+  const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+  const oneDayAgo = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000);
+
+  await profileRepository.upsert(
+    {
+      tai_khoan_id: user.id,
+      gioi_tinh: 'nam',
+      ngay_sinh: '2002-10-12',
+      chieu_cao_cm: '175.00',
+      can_nang_hien_tai_kg: '78.00',
+      muc_do_van_dong: 'van_dong_vua',
+      che_do_an_uu_tien: ['high_protein', 'it_duong'],
+      di_ung: ['hai_san_vo_cung'],
+      thuc_pham_khong_thich: ['noi_tang'],
+      anh_dai_dien_url: null,
+      tao_luc: now,
+      cap_nhat_luc: now,
+    },
+    ['tai_khoan_id'],
+  );
+
+  const existingGoal = await goalRepository.findOne({
+    where: {
+      tai_khoan_id: user.id,
+      trang_thai: 'dang_ap_dung',
+    },
+    order: {
+      cap_nhat_luc: 'DESC',
+      id: 'DESC',
+    },
+  });
+
+  await goalRepository.update(
+    { tai_khoan_id: user.id, trang_thai: 'dang_ap_dung' },
+    { trang_thai: 'luu_tru', cap_nhat_luc: now },
+  );
+
+  await goalRepository.save(
+    goalRepository.create({
+      id: existingGoal?.id,
+      tai_khoan_id: user.id,
+      loai_muc_tieu: 'giam_can',
+      trang_thai: 'dang_ap_dung',
+      can_nang_bat_dau_kg: '82.00',
+      can_nang_muc_tieu_kg: '72.00',
+      muc_tieu_calories_ngay: '2100.00',
+      muc_tieu_protein_g: '156.00',
+      muc_tieu_carb_g: '210.00',
+      muc_tieu_fat_g: '58.00',
+      ngay_bat_dau: twoDaysAgo.toISOString().slice(0, 10),
+      ngay_muc_tieu: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10),
+      tao_luc: existingGoal?.tao_luc ?? twoDaysAgo,
+      cap_nhat_luc: now,
+    }),
+  );
+
+  const currentGoal = await goalRepository.findOne({
+    where: {
+      tai_khoan_id: user.id,
+      trang_thai: 'dang_ap_dung',
+    },
+    order: {
+      cap_nhat_luc: 'DESC',
+      id: 'DESC',
+    },
+  });
+
+  if (!currentGoal) {
+    console.log('Current goal missing after seed, skipping metrics and assessment');
+    return;
+  }
+
+  const existingMetric = await metricRepository.findOne({
+    where: {
+      tai_khoan_id: user.id,
+    },
+    order: {
+      do_luc: 'DESC',
+      id: 'DESC',
+    },
+  });
+
+  await metricRepository.save(
+    metricRepository.create({
+      id: existingMetric?.id,
+      tai_khoan_id: user.id,
+      do_luc: oneDayAgo,
+      can_nang_kg: '78.00',
+      chieu_cao_cm: '175.00',
+      vong_eo_cm: '84.00',
+      vong_mong_cm: '96.00',
+      huyet_ap_tam_thu: 118,
+      huyet_ap_tam_truong: 76,
+      duong_huyet: '5.20',
+      ghi_chu: 'Chi so suc khoe demo cho user',
+      tao_luc: existingMetric?.tao_luc ?? oneDayAgo,
+      cap_nhat_luc: oneDayAgo,
+    }),
+  );
+
+  const latestMetric = await metricRepository.findOne({
+    where: { tai_khoan_id: user.id },
+    order: { do_luc: 'DESC', id: 'DESC' },
+  });
+
+  if (!latestMetric) {
+    console.log('Health metric missing after seed, skipping assessment');
+    return;
+  }
+
+  const existingAssessment = await assessmentRepository.findOne({
+    where: { tai_khoan_id: user.id },
+    order: { tao_luc: 'DESC', id: 'DESC' },
+  });
+
+  await assessmentRepository.save(
+    assessmentRepository.create({
+      id: existingAssessment?.id,
+      tai_khoan_id: user.id,
+      chi_so_suc_khoe_id: latestMetric.id,
+      muc_tieu_id: currentGoal.id,
+      bmi: '25.47',
+      phan_loai_bmi: 'thua_can',
+      bmr: '1738.75',
+      tdee: '2695.06',
+      calories_khuyen_nghi: '2195.06',
+      protein_khuyen_nghi_g: '156.00',
+      carb_khuyen_nghi_g: '210.00',
+      fat_khuyen_nghi_g: '58.00',
+      tom_tat:
+        'BMI hien tai: 25.5 (thua_can). Muc tieu dang ap dung: giam_can. Calories khuyen nghi moi ngay: 2195 kcal',
+      tao_luc: existingAssessment?.tao_luc ?? now,
+      cap_nhat_luc: now,
+    }),
+  );
+
+  console.log('Seeded user health profile, goal, metric, and assessment');
 }
 
 async function seedFoodCatalog() {
@@ -1109,6 +1270,7 @@ async function run() {
 
   try {
     await seedUsers();
+    await seedUserHealthData();
     await seedFoodCatalog();
     await seedFoodReviewRequests();
     await seedNotifications();

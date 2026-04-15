@@ -34,7 +34,7 @@ const formSchema = z.object({
   matKhau: z
     .string()
     .min(1, 'Vui lòng nhập mật khẩu')
-    .min(7, 'Mật khẩu phải có ít nhất 7 ký tự'),
+    .min(8, 'Mật khẩu phải có ít nhất 8 ký tự'),
 })
 
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLFormElement> {
@@ -68,7 +68,7 @@ export function UserAuthForm({
         auth.setHydrated(true)
         setStaffRole(getStaffPortalRoleForUserRole(user.vai_tro))
 
-        const targetPath = resolvePostLoginPath(user.vai_tro, redirectTo)
+        const targetPath = resolvePostLoginPath(user, redirectTo)
 
         navigate({ to: targetPath, replace: true })
 

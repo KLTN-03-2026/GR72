@@ -25,6 +25,9 @@ export interface AuthUser {
   ho_ten: string
   vai_tro: UserRole
   trang_thai?: UserStatus
+  onboarding_completed?: boolean
+  onboarding_step?: 'ho_so' | 'muc_tieu' | null
+  redirect_to?: string
 }
 
 export const ROLE_HOME_PATH: Record<UserRole, string> = {
@@ -89,11 +92,19 @@ export function mapLegacyStaffPath(pathname: string) {
   return pathname.replace(/^\/staff/, '/nutritionist')
 }
 
-export function resolvePostLoginPath(role: UserRole, redirectTo?: string | null) {
+export function resolvePostLoginPath(user: AuthUser | UserRole, redirectTo?: string | null) {
+  const role = typeof user === 'string' ? user : user.vai_tro
   const sanitizedRedirect = sanitizeRedirectPath(redirectTo)
 
   if (sanitizedRedirect && canAccessPath(role, sanitizedRedirect)) {
     return sanitizedRedirect
+  }
+
+  if (typeof user !== 'string') {
+    const onboardingRedirect = sanitizeRedirectPath(user.redirect_to)
+    if (onboardingRedirect && canAccessPath(role, onboardingRedirect)) {
+      return onboardingRedirect
+    }
   }
 
   return getDefaultRouteForRole(role)

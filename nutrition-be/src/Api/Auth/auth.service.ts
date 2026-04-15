@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -10,13 +11,14 @@ import type { SignOptions } from 'jsonwebtoken';
 import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
 import { OtpEntity } from './entities/otp.entity';
 import { HoSoEntity } from '../Admin/User/entities/ho-so.entity';
+import { MucTieuEntity } from '../Admin/User/entities/muc-tieu.entity';
 import { TaiKhoanEntity } from '../Admin/User/entities/tai-khoan.entity';
-import { ThongBaoEntity } from '../Admin/FoodReview/entities/thong-bao.entity';
 import { EmailService } from '../../common/email/email.service';
 import {
   ChuyenGiaDinhDuongEntity,
   RegistrationPaymentStatus,
 } from '../Admin/ChuyenGiaDinhDuong/entities/chuyen-gia-dinh-duong.entity';
+import type { PackageStatus } from '../Admin/Package/entities/goi-dich-vu.entity';
 import { DangKyGoiDichVuEntity } from '../Admin/Subscription/entities/dang-ky-goi-dich-vu.entity';
 import { GoiDichVuEntity } from '../Admin/Package/entities/goi-dich-vu.entity';
 import { generatePaymentUrl } from '../../common/vnpay/vnpay.util';
@@ -25,6 +27,19 @@ import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
+
+type OnboardingStep = 'ho_so' | 'muc_tieu' | null;
+
+type AuthenticatedUserPayload = {
+  id: number;
+  email: string;
+  ho_ten: string;
+  vai_tro: TaiKhoanEntity['vai_tro'];
+  trang_thai: TaiKhoanEntity['trang_thai'];
+  onboarding_completed: boolean;
+  onboarding_step: OnboardingStep;
+  redirect_to: string;
+};
 
 function generateOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -50,16 +65,10 @@ export class AuthService {
     private readonly userRepository: Repository<TaiKhoanEntity>,
     @InjectRepository(HoSoEntity)
     private readonly hoSoRepository: Repository<HoSoEntity>,
+    @InjectRepository(MucTieuEntity)
+    private readonly goalRepository: Repository<MucTieuEntity>,
     @InjectRepository(OtpEntity)
     private readonly otpRepository: Repository<OtpEntity>,
-    @InjectRepository(ChuyenGiaDinhDuongEntity)
-    private readonly cgRepo: Repository<ChuyenGiaDinhDuongEntity>,
-    @InjectRepository(ThongBaoEntity)
-    private readonly notifRepo: Repository<ThongBaoEntity>,
-    @InjectRepository(DangKyGoiDichVuEntity)
-    private readonly subscriptionRepo: Repository<DangKyGoiDichVuEntity>,
-    @InjectRepository(GoiDichVuEntity)
-    private readonly packageRepo: Repository<GoiDichVuEntity>,
     private readonly dataSource: DataSource,
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
@@ -98,16 +107,11 @@ export class AuthService {
     await this.userRepository.save(user);
 
     const accessToken = await this.signToken(user);
+    const sessionUser = await this.buildAuthenticatedUser(user);
 
     return {
       accessToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        ho_ten: user.ho_ten,
-        vai_tro: user.vai_tro,
-        trang_thai: user.trang_thai,
-      },
+      user: sessionUser,
     };
   }
 
@@ -122,6 +126,26 @@ export class AuthService {
     };
   }
 
+  async getMe(userId?: number) {
+    if (!userId) {
+      throw new UnauthorizedException('Ban chua dang nhap');
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { id: userId, xoa_luc: IsNull() },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Phien dang nhap khong hop le');
+    }
+
+    return {
+      success: true,
+      message: 'Lấy thông tin đăng nhập thành công',
+      data: await this.buildAuthenticatedUser(user),
+    };
+  }
+
   // =============================================
   // REGISTER
   // =============================================
@@ -129,7 +153,12 @@ export class AuthService {
     const email = dto.email.trim().toLowerCase();
     const hoTen = dto.hoTen.trim();
     const matKhau = dto.matKhau.trim();
-    const isNutritionistRegistration = dto.vaiTro === 'chuyen_gia_dinh_duong';
+    const requestedRole =
+      dto.vaiTro === 'chuyen_gia_dinh_duong'
+        ? 'chuyen_gia_dinh_duong'
+        : 'nguoi_dung';
+    const isNutritionistRegistration =
+      requestedRole === 'chuyen_gia_dinh_duong';
 
     const existing = await this.userRepository.findOne({
       where: { email, xoa_luc: IsNull() },
@@ -150,7 +179,7 @@ export class AuthService {
             email,
             ho_ten: hoTen,
             mat_khau_ma_hoa: passwordHash,
-            vai_tro: dto.vaiTro,
+            vai_tro: requestedRole,
             trang_thai: isNutritionistRegistration
               ? 'khong_hoat_dong'
               : 'hoat_dong',
@@ -254,27 +283,31 @@ export class AuthService {
       };
     }
 
+    const resetCode = generateResetCode();
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 15 * 60 * 1000);
+
+    user.ma_dat_lai_mat_khau = resetCode;
+    user.het_han_ma_dat_lai = expiresAt;
+    user.cap_nhat_luc = now;
+    await this.userRepository.save(user);
+
     await this.otpRepository.update(
       { email, loai: 'dat_lai_mat_khau', da_su_dung: false },
       { da_su_dung: true },
     );
 
-    const resetCode = generateResetCode();
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + 15 * 60 * 1000);
-
-    await this.otpRepository.save(
-      this.otpRepository.create({
-        email,
-        ma_otp: resetCode,
-        loai: 'dat_lai_mat_khau',
-        da_su_dung: false,
-        het_han_luc: expiresAt,
-        tao_luc: now,
-      }),
-    );
-
-    await this.emailService.sendPasswordReset(email, resetCode);
+    try {
+      await this.emailService.sendPasswordReset(email, resetCode);
+    } catch {
+      user.ma_dat_lai_mat_khau = null;
+      user.het_han_ma_dat_lai = null;
+      user.cap_nhat_luc = new Date();
+      await this.userRepository.save(user);
+      throw new InternalServerErrorException(
+        'Khong the gui email dat lai mat khau luc nay',
+      );
+    }
 
     return {
       success: true,
@@ -289,26 +322,7 @@ export class AuthService {
   async resetPassword(dto: ResetPasswordDto) {
     const email = dto.email.trim().toLowerCase();
     const matKhauMoi = dto.matKhauMoi.trim();
-    const maDatLai = dto.maDatLai.trim();
-
-    const otp = await this.otpRepository.findOne({
-      where: {
-        email,
-        ma_otp: maDatLai,
-        loai: 'dat_lai_mat_khau',
-        da_su_dung: false,
-      },
-    });
-
-    if (!otp) {
-      throw new BadRequestException(
-        'Mã đặt lại không hợp lệ hoặc đã được sử dụng',
-      );
-    }
-
-    if (new Date() > otp.het_han_luc) {
-      throw new BadRequestException('Mã đặt lại đã hết hạn');
-    }
+    const maDatLai = dto.maDatLai.trim().toUpperCase();
 
     const user = await this.userRepository.findOne({
       where: { email, xoa_luc: IsNull() },
@@ -318,11 +332,26 @@ export class AuthService {
       throw new BadRequestException('Tài khoản không tồn tại');
     }
 
+    if (!user.ma_dat_lai_mat_khau || user.ma_dat_lai_mat_khau !== maDatLai) {
+      throw new BadRequestException(
+        'Mã đặt lại không hợp lệ hoặc đã được sử dụng',
+      );
+    }
+
+    if (!user.het_han_ma_dat_lai || new Date() > user.het_han_ma_dat_lai) {
+      throw new BadRequestException('Mã đặt lại đã hết hạn');
+    }
+
     user.mat_khau_ma_hoa = await this.hashPassword(matKhauMoi);
+    user.ma_dat_lai_mat_khau = null;
+    user.het_han_ma_dat_lai = null;
     user.cap_nhat_luc = new Date();
     await this.userRepository.save(user);
 
-    await this.otpRepository.update(otp.id, { da_su_dung: true });
+    await this.otpRepository.update(
+      { email, loai: 'dat_lai_mat_khau', da_su_dung: false },
+      { da_su_dung: true },
+    );
 
     return {
       success: true,
@@ -457,62 +486,146 @@ export class AuthService {
     };
   }
 
-  private async notifyAdminsForRegistration(profileId: number, hoTen: string) {
-    const admins = await this.userRepository.find({
-      where: { vai_tro: 'quan_tri' as any },
-    });
-    const now = new Date();
-    const notifications = admins.map((admin) =>
-      this.notifRepo.create({
-        tai_khoan_id: admin.id,
-        loai: 'dang_ky_nutritionist',
-        tieu_de: 'Don dang ky chuyen gia dinh duong moi (dang ky tai khoan)',
-        noi_dung: `Co don dang ky chuyen gia dinh duong #${profileId} (${hoTen}) can duyet. Nguoi dang ky da thanh toan phi. Vui long kiem tra trang thai thanh toan truoc khi duyet.`,
-        trang_thai: 'chua_doc',
-        duong_dan_hanh_dong: '/admin/nutritionist-registrations',
-        tao_luc: now,
-        cap_nhat_luc: now,
-      }),
-    );
-    if (notifications.length > 0) {
-      await this.notifRepo.save(notifications);
-    }
-  }
-
   private async grantFreePackage(
     userId: number,
     manager: EntityManager = this.dataSource.manager,
     now: Date = new Date(),
   ) {
-    try {
-      const freePackage = await manager.findOne(GoiDichVuEntity, {
-        where: { la_goi_mien_phi: true, xoa_luc: IsNull() },
-      });
-      if (!freePackage) return;
+    const freePackage = await manager.findOne(GoiDichVuEntity, {
+      where: {
+        la_goi_mien_phi: true,
+        trang_thai: 'dang_kinh_doanh' as PackageStatus,
+        xoa_luc: IsNull(),
+      },
+      order: {
+        thu_tu_hien_thi: 'ASC',
+        id: 'ASC',
+      },
+    });
 
-      const existingActive = await manager.findOne(DangKyGoiDichVuEntity, {
-        where: { tai_khoan_id: userId, trang_thai: 'dang_hoat_dong' as any },
-      });
-      if (existingActive) return;
-
-      await manager.save(
-        DangKyGoiDichVuEntity,
-        manager.create(DangKyGoiDichVuEntity, {
-          tai_khoan_id: userId,
-          goi_dich_vu_id: freePackage.id,
-          ma_dang_ky: generateMaDangKy(),
-          trang_thai: 'dang_hoat_dong' as any,
-          ngay_bat_dau: now,
-          ngay_het_han: null,
-          tu_dong_gia_han: false,
-          nguon_dang_ky: 'nguoi_dung_tu_nang_cap' as any,
-          ghi_chu: 'Goi mac dinh khi dang ky tai khoan.',
-          tao_luc: now,
-          cap_nhat_luc: now,
-        }),
+    if (!freePackage) {
+      throw new BadRequestException(
+        'He thong chua cau hinh goi mien phi mac dinh',
       );
-    } catch {
-      // Không ảnh hưởng luồng đăng ký nếu cấp gói thất bại
+    }
+
+    await manager.save(
+      DangKyGoiDichVuEntity,
+      manager.create(DangKyGoiDichVuEntity, {
+        tai_khoan_id: userId,
+        goi_dich_vu_id: freePackage.id,
+        ma_dang_ky: generateMaDangKy(),
+        trang_thai: 'dang_hoat_dong' as any,
+        ngay_bat_dau: now,
+        ngay_het_han: this.resolveSubscriptionEndDate(
+          now,
+          freePackage.thoi_han_ngay,
+        ),
+        tu_dong_gia_han: false,
+        nguon_dang_ky: 'khuyen_mai' as any,
+        ghi_chu: 'Goi mien phi mac dinh duoc gan khi dang ky tai khoan.',
+        tao_luc: now,
+        cap_nhat_luc: now,
+      }),
+    );
+  }
+
+  private resolveSubscriptionEndDate(
+    startDate: Date,
+    durationDays: number | null,
+  ): Date | null {
+    if (!durationDays || durationDays <= 0) {
+      return null;
+    }
+
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + durationDays);
+    return endDate;
+  }
+
+  private async buildAuthenticatedUser(
+    user: TaiKhoanEntity,
+  ): Promise<AuthenticatedUserPayload> {
+    if (user.vai_tro !== 'nguoi_dung') {
+      return {
+        id: user.id,
+        email: user.email,
+        ho_ten: user.ho_ten,
+        vai_tro: user.vai_tro,
+        trang_thai: user.trang_thai,
+        onboarding_completed: true,
+        onboarding_step: null,
+        redirect_to: this.getDefaultRedirectForRole(user.vai_tro),
+      };
+    }
+
+    const [profile, activeGoal] = await Promise.all([
+      this.hoSoRepository.findOne({
+        where: { tai_khoan_id: user.id },
+      }),
+      this.goalRepository.findOne({
+        where: {
+          tai_khoan_id: user.id,
+          trang_thai: 'dang_ap_dung',
+        },
+        order: {
+          cap_nhat_luc: 'DESC',
+          id: 'DESC',
+        },
+      }),
+    ]);
+
+    const onboardingStep = this.resolveOnboardingStep(profile, activeGoal);
+
+    return {
+      id: user.id,
+      email: user.email,
+      ho_ten: user.ho_ten,
+      vai_tro: user.vai_tro,
+      trang_thai: user.trang_thai,
+      onboarding_completed: onboardingStep === null,
+      onboarding_step: onboardingStep,
+      redirect_to:
+        onboardingStep === 'ho_so'
+          ? '/nutrition/profile'
+          : onboardingStep === 'muc_tieu'
+            ? '/nutrition/goals'
+            : '/nutrition/dashboard',
+    };
+  }
+
+  private resolveOnboardingStep(
+    profile: HoSoEntity | null,
+    activeGoal: MucTieuEntity | null,
+  ): OnboardingStep {
+    const isProfileCompleted =
+      !!profile &&
+      profile.gioi_tinh !== null &&
+      profile.ngay_sinh !== null &&
+      profile.chieu_cao_cm !== null &&
+      profile.can_nang_hien_tai_kg !== null &&
+      profile.muc_do_van_dong !== null;
+
+    if (!isProfileCompleted) {
+      return 'ho_so';
+    }
+
+    if (!activeGoal) {
+      return 'muc_tieu';
+    }
+
+    return null;
+  }
+
+  private getDefaultRedirectForRole(role: TaiKhoanEntity['vai_tro']): string {
+    switch (role) {
+      case 'quan_tri':
+        return '/admin/users';
+      case 'chuyen_gia_dinh_duong':
+        return '/nutritionist/dashboard';
+      case 'nguoi_dung':
+      default:
+        return '/nutrition/dashboard';
     }
   }
 }

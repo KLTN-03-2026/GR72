@@ -99,58 +99,59 @@ function getUserNavGroups(locale: AppLocale): NavGroup[] {
           url: '/nutrition/goals',
           icon: Goal,
         },
-        {
-          title: copy.healthMetrics,
-          url: '/nutrition/health-metrics',
-          icon: ClipboardList,
-        },
+    // {
+    //   title: copy.healthMetrics,
+    //   url: '/nutrition/health-metrics',
+    //   icon: ClipboardList,
+    // },
       ],
     },
-    {
-      title: copy.nutrition,
-      items: [
-        {
-          title: copy.foods,
-          url: '/nutrition/foods',
-          icon: Apple,
-        },
-        {
-          title: copy.mealLogs,
-          url: '/nutrition/meal-logs',
-          icon: Soup,
-        },
-        {
-          title: copy.mealPlans,
-          url: '/nutrition/meal-plans',
-          icon: NotebookPen,
-        },
-      ],
-    },
-    {
-      title: copy.ai,
-      items: [
-        {
-          title: copy.aiAdvisor,
-          url: '/nutrition/ai-advisor',
-          icon: Bot,
-        },
-      ],
-    },
-    {
-      title: copy.content,
-      items: [
-        {
-          title: copy.articles,
-          url: '/nutrition/articles',
-          icon: BookOpenText,
-        },
-        {
-          title: copy.notifications,
-          url: '/nutrition/notifications',
-          icon: Bell,
-        },
-      ],
-    },
+    // === CHƯA CÓ API - TẠM ẨN ===
+    // {
+    //   title: copy.nutrition,
+    //   items: [
+    //     {
+    //       title: copy.foods,
+    //       url: '/nutrition/foods',
+    //       icon: Apple,
+    //     },
+    //     {
+    //       title: copy.mealLogs,
+    //       url: '/nutrition/meal-logs',
+    //       icon: Soup,
+    //     },
+    //     {
+    //       title: copy.mealPlans,
+    //       url: '/nutrition/meal-plans',
+    //       icon: NotebookPen,
+    //     },
+    //   ],
+    // },
+    // {
+    //   title: copy.ai,
+    //   items: [
+    //     {
+    //       title: copy.aiAdvisor,
+    //       url: '/nutrition/ai-advisor',
+    //       icon: Bot,
+    //     },
+    //   ],
+    // },
+    // {
+    //   title: copy.content,
+    //   items: [
+    //     {
+    //       title: copy.articles,
+    //       url: '/nutrition/articles',
+    //       icon: BookOpenText,
+    //     },
+    //     {
+    //       title: copy.notifications,
+    //       url: '/nutrition/notifications',
+    //       icon: Bell,
+    //     },
+    //   ],
+    // },
   ]
 }
 

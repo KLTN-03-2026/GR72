@@ -1,20 +1,27 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { CalendarRange, Dumbbell, Heart, ShieldAlert } from 'lucide-react'
+import {
+  Activity,
+  CalendarRange,
+  Camera,
+  CheckCircle2,
+  Circle,
+  Dumbbell,
+  Heart,
+  Mail,
+  ShieldAlert,
+  User,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Loader2 } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -26,283 +33,666 @@ import { Textarea } from '@/components/ui/textarea'
 import { Main } from '@/components/layout/main'
 import { NutritionTopbar } from '@/features/nutrition/components/topbar'
 import { PageHeading } from '@/features/nutrition/components/page-heading'
-import { useNutritionStore } from '@/stores/nutrition-store'
+import {
+  getUserProfile,
+  updateUserProfile,
+  type ProfileApiResponse,
+} from '@/services/profile/api'
 
+type GenderValue = 'female' | 'male' | 'other'
+type ActivityValue =
+  | 'it_van_dong'
+  | 'van_dong_nhe'
+  | 'van_dong_vua'
+  | 'nang_dong'
+  | 'rat_nang_dong'
+
+// ============================================
+// Helpers
+// ============================================
+function mapApiGenderToForm(
+  api: ProfileApiResponse['gioi_tinh']
+): GenderValue {
+  if (api === 'nam') return 'male'
+  if (api === 'nu') return 'female'
+  return 'other'
+}
+
+function mapFormGenderToApi(form: GenderValue): 'nam' | 'nu' | 'khac' {
+  if (form === 'male') return 'nam'
+  if (form === 'female') return 'nu'
+  return 'khac'
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return '—'
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date(dateStr))
+}
+
+function formatDateTime(dateStr: string | null): string {
+  if (!dateStr) return '—'
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(dateStr))
+}
+
+function mapActivityLabel(api: ActivityValue | null): string {
+  if (!api) return '—'
+  const map: Record<ActivityValue, string> = {
+    it_van_dong: 'Ít vận động',
+    van_dong_nhe: 'Vận động nhẹ',
+    van_dong_vua: 'Vận động vừa',
+    nang_dong: 'Nặng động',
+    rat_nang_dong: 'Rất nặng động',
+  }
+  return map[api] ?? '—'
+}
+
+function calcBmi(weightKg: number | null, heightCm: number | null): number | null {
+  if (!weightKg || !heightCm) return null
+  return weightKg / (heightCm / 100) ** 2
+}
+
+function classifyBmi(bmi: number | null): { label: string; tone: 'green' | 'yellow' | 'red' } {
+  if (bmi === null) return { label: '—', tone: 'green' }
+  if (bmi < 18.5) return { label: 'Thiếu cân', tone: 'yellow' }
+  if (bmi < 25) return { label: 'Bình thường', tone: 'green' }
+  if (bmi < 30) return { label: 'Thừa cân', tone: 'yellow' }
+  return { label: 'Béo phì', tone: 'red' }
+}
+
+type FormData = {
+  hoTen: string
+  ngaySinh: string
+  gender: GenderValue
+  mucDoVanDong: ActivityValue
+  chieuCaoCm: string
+  canNangHienTaiKg: string
+  diUng: string
+  thucPhamKhongThich: string
+  cheDoAnUuTien: string
+}
+
+function buildFormData(p: ProfileApiResponse): FormData {
+  return {
+    hoTen: p.ho_ten,
+    ngaySinh: p.ngay_sinh ?? '',
+    gender: mapApiGenderToForm(p.gioi_tinh),
+    mucDoVanDong: p.muc_do_van_dong ?? 'van_dong_vua',
+    chieuCaoCm: p.chieu_cao_cm != null ? String(p.chieu_cao_cm) : '',
+    canNangHienTaiKg:
+      p.can_nang_hien_tai_kg != null
+        ? String(p.can_nang_hien_tai_kg)
+        : '',
+    diUng: (p.di_ung ?? []).join(', '),
+    thucPhamKhongThich: (p.thuc_pham_khong_thich ?? []).join(', '),
+    cheDoAnUuTien: (p.che_do_an_uu_tien ?? []).join(', '),
+  }
+}
+
+// ============================================
+// Main Component
+// ============================================
 export function NutritionUserProfile() {
-  const profile = useNutritionStore((state) => state.profile)
-  const updateProfile = useNutritionStore((state) => state.updateProfile)
+  const searchParams = useSearchParams()
+  const isOnboarding = searchParams.get('onboarding') === 'true'
 
-  const [formData, setFormData] = useState({
-    fullName: profile.fullName,
-    birthDate: '2002-10-12',
-    gender: profile.gender === 'Nam' ? 'male' : profile.gender === 'Khác' ? 'other' : 'female',
-    activityLevel:
-      profile.activityLevel === 'Năng động'
-        ? 'active'
-        : profile.activityLevel === 'Vận động nhẹ'
-          ? 'light'
-          : 'moderate',
-    heightCm: String(profile.heightCm),
-    currentWeightKg: String(profile.currentWeightKg),
-    allergies: profile.allergies.join(', '),
-    dietaryPreferences: profile.dietaryPreferences.join(', '),
+  const [profile, setProfile] = useState<ProfileApiResponse | null>(null)
+  const [formData, setFormData] = useState<FormData>({
+    hoTen: '',
+    ngaySinh: '',
+    gender: 'female',
+    mucDoVanDong: 'van_dong_vua',
+    chieuCaoCm: '',
+    canNangHienTaiKg: '',
+    diUng: '',
+    thucPhamKhongThich: '',
+    cheDoAnUuTien: '',
   })
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
-  function handleSaveProfile() {
-    if (!formData.fullName.trim()) {
+  useEffect(() => {
+    getUserProfile()
+      .then((data) => {
+        setProfile(data)
+        setFormData(buildFormData(data))
+      })
+      .catch((err) => {
+        setLoadError(
+          err instanceof Error ? err.message : 'Không thể tải hồ sơ'
+        )
+        toast.error('Không thể tải hồ sơ người dùng')
+      })
+      .finally(() => setIsLoading(false))
+  }, [])
+
+  const handleSaveProfile = useCallback(async () => {
+    if (!formData.hoTen.trim()) {
       toast.error('Vui lòng nhập họ và tên.')
       return
     }
-
-    if (Number(formData.heightCm) <= 0 || Number(formData.currentWeightKg) <= 0) {
+    if (
+      Number(formData.chieuCaoCm) <= 0 ||
+      Number(formData.canNangHienTaiKg) <= 0
+    ) {
       toast.error('Chiều cao và cân nặng phải lớn hơn 0.')
       return
     }
 
-    updateProfile({
-      fullName: formData.fullName.trim(),
-      gender:
-        formData.gender === 'female'
-          ? 'Nữ'
-          : formData.gender === 'male'
-            ? 'Nam'
-            : 'Khác',
-      birthDate: new Intl.DateTimeFormat('vi-VN').format(new Date(formData.birthDate)),
-      heightCm: Number(formData.heightCm),
-      currentWeightKg: Number(formData.currentWeightKg),
-      activityLevel:
-        formData.activityLevel === 'light'
-          ? 'Vận động nhẹ'
-          : formData.activityLevel === 'active'
-            ? 'Năng động'
-            : 'Vận động vừa',
-      allergies: formData.allergies.split(',').map((item) => item.trim()).filter(Boolean),
-      dietaryPreferences: formData.dietaryPreferences
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean),
-    })
-    toast.success('Đã lưu hồ sơ sức khỏe.')
+    setIsSaving(true)
+    try {
+      const payload = {
+        hoTen: formData.hoTen.trim(),
+        gioiTinh: mapFormGenderToApi(formData.gender),
+        ngaySinh: formData.ngaySinh || undefined,
+        mucDoVanDong: formData.mucDoVanDong,
+        chieuCaoCm: Number(formData.chieuCaoCm),
+        canNangHienTaiKg: Number(formData.canNangHienTaiKg),
+        diUng: formData.diUng
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
+        thucPhamKhongThich: formData.thucPhamKhongThich
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
+        cheDoAnUuTien: formData.cheDoAnUuTien
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
+      }
+
+      const updated = await updateUserProfile(payload)
+      setProfile(updated)
+      setFormData(buildFormData(updated))
+      toast.success('Đã lưu hồ sơ sức khỏe.')
+
+      if (isOnboarding) {
+        window.location.href = '/nutrition/goals?onboarding=true'
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : 'Lưu hồ sơ thất bại'
+      )
+    } finally {
+      setIsSaving(false)
+    }
+  }, [formData, isOnboarding])
+
+  // Derived preview values
+  const weightKg = Number(formData.canNangHienTaiKg) || 0
+  const heightCm = Number(formData.chieuCaoCm) || 0
+  const bmi = calcBmi(weightKg || null, heightCm || null)
+  const bmiClass = classifyBmi(bmi)
+  const age =
+    formData.ngaySinh
+      ? Math.floor(
+          (Date.now() - new Date(formData.ngaySinh).getTime()) /
+            (365.25 * 24 * 60 * 60 * 1000)
+        )
+      : null
+
+  const parsedDiUng = formData.diUng
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const parsedKhongThich = formData.thucPhamKhongThich
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const parsedUuTien = formData.cheDoAnUuTien
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+  const isBasicOk = Boolean(
+    formData.hoTen.trim() && formData.ngaySinh && formData.gender
+  )
+  const isBodyOk = heightCm > 0 && weightKg > 0
+  const isPrefsOk = parsedDiUng.length > 0 || parsedKhongThich.length > 0 || parsedUuTien.length > 0
+
+  // ============================================
+  // Loading / Error
+  // ============================================
+  if (isLoading) {
+    return (
+      <>
+        <NutritionTopbar />
+        <Main className='flex flex-1 items-center justify-center'>
+          <Loader2 className='size-8 animate-spin text-muted-foreground' />
+        </Main>
+      </>
+    )
   }
 
-  const previewProfile = {
-    ...profile,
-    fullName: formData.fullName,
-    heightCm: Number(formData.heightCm) || 0,
-    currentWeightKg: Number(formData.currentWeightKg) || 0,
-    birthDate: new Intl.DateTimeFormat('vi-VN').format(new Date(formData.birthDate)),
-    activityLevel:
-      formData.activityLevel === 'light'
-        ? 'Vận động nhẹ'
-        : formData.activityLevel === 'active'
-          ? 'Năng động'
-          : 'Vận động vừa',
-    allergies: formData.allergies.split(',').map((item) => item.trim()).filter(Boolean),
-    dietaryPreferences: formData.dietaryPreferences
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean),
+  if (loadError && !profile) {
+    return (
+      <>
+        <NutritionTopbar />
+        <Main className='flex flex-1 items-center justify-center'>
+          <Card className='max-w-md'>
+            <CardContent className='pt-6 text-center'>
+              <p className='text-destructive'>{loadError}</p>
+              <Button className='mt-4' onClick={() => window.location.reload()}>
+                Thử lại
+              </Button>
+            </CardContent>
+          </Card>
+        </Main>
+      </>
+    )
   }
 
   return (
     <>
       <NutritionTopbar />
       <Main className='flex flex-1 flex-col gap-6'>
+        {isOnboarding && (
+          <div className='rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm'>
+            Hoàn thành hồ sơ để hệ thống cá nhân hóa tư vấn cho bạn. Sau khi lưu,
+            bạn sẽ được chuyển đến bước thiết lập mục tiêu sức khỏe.
+          </div>
+        )}
         <PageHeading
           title='Hồ sơ sức khỏe'
-          description='Thông tin cá nhân và dữ liệu nền được dùng cho đánh giá sức khỏe cũng như tư vấn AI.'
+          description='Thông tin cá nhân và dữ liệu nền dùng cho đánh giá sức khỏe và tư vấn AI.'
           actions={[{ label: 'Lưu thay đổi' }]}
         />
 
-        <div className='grid gap-6 xl:grid-cols-[1.25fr_0.75fr]'>
-          <Card>
-            <CardHeader>
-              <CardTitle>Thông tin cơ bản</CardTitle>
-              <CardDescription>
-                Các dữ liệu này được dùng để tính BMI, BMR, TDEE và cá nhân hóa tư vấn.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className='space-y-6'>
-              <div className='grid gap-4 md:grid-cols-2'>
-                <FieldBlock label='Họ và tên'>
-                  <Input
-                    value={formData.fullName}
-                    onChange={(event) =>
-                      setFormData((current) => ({ ...current, fullName: event.target.value }))
-                    }
+        {/* ============================================
+            Header: Avatar + Name + Email + Quick stats
+            ============================================ */}
+        <Card className='overflow-hidden'>
+          <div className='bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6'>
+            <div className='flex flex-wrap items-end gap-5'>
+              {/* Avatar */}
+              <div className='relative shrink-0'>
+                {profile?.anh_dai_dien_url ? (
+                  <img
+                    src={profile.anh_dai_dien_url}
+                    alt={formData.hoTen}
+                    className='size-24 rounded-full border-4 border-background object-cover shadow-md'
                   />
-                </FieldBlock>
-                <FieldBlock label='Ngày sinh'>
-                  <Input
-                    value={formData.birthDate}
-                    type='date'
-                    onChange={(event) =>
-                      setFormData((current) => ({ ...current, birthDate: event.target.value }))
-                    }
-                  />
-                </FieldBlock>
-                <FieldBlock label='Giới tính'>
-                  <Select
-                    value={formData.gender}
-                    onValueChange={(value) =>
-                      setFormData((current) => ({ ...current, gender: value }))
-                    }
-                  >
-                    <SelectTrigger className='w-full'>
-                      <SelectValue placeholder='Chọn giới tính' />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value='female'>Nữ</SelectItem>
-                      <SelectItem value='male'>Nam</SelectItem>
-                      <SelectItem value='other'>Khác</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FieldBlock>
-                <FieldBlock label='Mức vận động'>
-                  <Select
-                    value={formData.activityLevel}
-                    onValueChange={(value) =>
-                      setFormData((current) => ({ ...current, activityLevel: value }))
-                    }
-                  >
-                    <SelectTrigger className='w-full'>
-                      <SelectValue placeholder='Chọn mức vận động' />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value='light'>Nhẹ</SelectItem>
-                      <SelectItem value='moderate'>Vừa</SelectItem>
-                      <SelectItem value='active'>Năng động</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FieldBlock>
-                <FieldBlock label='Chiều cao (cm)'>
-                  <Input
-                    value={formData.heightCm}
-                    type='number'
-                    onChange={(event) =>
-                      setFormData((current) => ({ ...current, heightCm: event.target.value }))
-                    }
-                  />
-                </FieldBlock>
-                <FieldBlock label='Cân nặng hiện tại (kg)'>
-                  <Input
-                    value={formData.currentWeightKg}
-                    type='number'
-                    onChange={(event) =>
-                      setFormData((current) => ({
-                        ...current,
-                        currentWeightKg: event.target.value,
-                      }))
-                    }
-                  />
-                </FieldBlock>
+                ) : (
+                  <div className='flex size-24 items-center justify-center rounded-full border-4 border-background bg-muted shadow-md'>
+                    <User className='size-10 text-muted-foreground' />
+                  </div>
+                )}
+                <button
+                  className='absolute bottom-0 right-0 rounded-full bg-primary p-1.5 text-primary-foreground shadow-sm hover:bg-primary/90'
+                  title='Đổi ảnh đại diện'
+                >
+                  <Camera className='size-3.5' />
+                </button>
               </div>
 
-              <div className='grid gap-4 md:grid-cols-2'>
-                <FieldBlock label='Dị ứng'>
-                  <Textarea
-                    value={formData.allergies}
-                    rows={4}
-                    onChange={(event) =>
-                      setFormData((current) => ({ ...current, allergies: event.target.value }))
-                    }
-                  />
-                </FieldBlock>
-                <FieldBlock label='Thực phẩm ưu tiên và phong cách ăn'>
-                  <Textarea
-                    value={formData.dietaryPreferences}
-                    rows={4}
-                    onChange={(event) =>
-                      setFormData((current) => ({
-                        ...current,
-                        dietaryPreferences: event.target.value,
-                      }))
-                    }
-                  />
-                </FieldBlock>
+              {/* Name + email */}
+              <div className='min-w-0 flex-1'>
+                <h2 className='truncate text-2xl font-bold'>
+                  {formData.hoTen || '—'}
+                </h2>
+                <div className='mt-1 flex flex-wrap items-center gap-3 text-sm text-muted-foreground'>
+                  <span className='flex items-center gap-1'>
+                    <Mail className='size-3.5' />
+                    {profile?.email ?? '—'}
+                  </span>
+                  {age !== null && (
+                    <span>{age} tuổi</span>
+                  )}
+                </div>
               </div>
 
+              {/* Quick stats */}
               <div className='flex flex-wrap gap-3'>
-                <Button onClick={handleSaveProfile}>Lưu hồ sơ</Button>
-                <Button variant='outline' onClick={() => toast.success('Đã lưu tạm thay đổi.')}>
-                  Lưu làm bản nháp
-                </Button>
+                <StatPill
+                  label='BMI'
+                  value={bmi !== null ? bmi.toFixed(1) : '—'}
+                  sub={bmiClass.label}
+                  tone={bmiClass.tone}
+                />
+                <StatPill
+                  label='Chiều cao'
+                  value={heightCm > 0 ? `${heightCm} cm` : '—'}
+                />
+                <StatPill
+                  label='Cân nặng'
+                  value={weightKg > 0 ? `${weightKg} kg` : '—'}
+                />
+                <StatPill
+                  label='Mức vận động'
+                  value={mapActivityLabel(formData.mucDoVanDong)}
+                />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+        </Card>
 
+        {/* ============================================
+            Main: Form (left) + Sidebar cards (right)
+            ============================================ */}
+        <div className='grid gap-6 xl:grid-cols-[1fr_340px]'>
+          {/* Form */}
           <div className='space-y-6'>
+            {/* Thông tin cá nhân */}
             <Card>
               <CardHeader>
-                <CardTitle>Tóm tắt hồ sơ</CardTitle>
-                <CardDescription>
-                  Các dữ liệu quan trọng đang được hệ thống sử dụng.
-                </CardDescription>
+                <CardTitle>Thông tin cá nhân</CardTitle>
+              </CardHeader>
+              <CardContent className='space-y-5'>
+                <div className='grid gap-4 sm:grid-cols-2'>
+                  <FieldBlock label='Họ và tên'>
+                    <Input
+                      value={formData.hoTen}
+                      onChange={(e) =>
+                        setFormData((c) => ({ ...c, hoTen: e.target.value }))
+                      }
+                    />
+                  </FieldBlock>
+                  <FieldBlock label='Ngày sinh'>
+                    <Input
+                      value={formData.ngaySinh}
+                      type='date'
+                      onChange={(e) =>
+                        setFormData((c) => ({ ...c, ngaySinh: e.target.value }))
+                      }
+                    />
+                  </FieldBlock>
+                  <FieldBlock label='Giới tính'>
+                    <Select
+                      value={formData.gender}
+                      onValueChange={(v) =>
+                        setFormData((c) => ({
+                          ...c,
+                          gender: v as GenderValue,
+                        }))
+                      }
+                    >
+                      <SelectTrigger className='w-full'>
+                        <SelectValue placeholder='Chọn giới tính' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value='female'>Nữ</SelectItem>
+                        <SelectItem value='male'>Nam</SelectItem>
+                        <SelectItem value='other'>Khác</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FieldBlock>
+                  <FieldBlock label='Mức vận động'>
+                    <Select
+                      value={formData.mucDoVanDong}
+                      onValueChange={(v) =>
+                        setFormData((c) => ({
+                          ...c,
+                          mucDoVanDong: v as ActivityValue,
+                        }))
+                      }
+                    >
+                      <SelectTrigger className='w-full'>
+                        <SelectValue placeholder='Chọn mức vận động' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value='it_van_dong'>Ít vận động</SelectItem>
+                        <SelectItem value='van_dong_nhe'>Vận động nhẹ</SelectItem>
+                        <SelectItem value='van_dong_vua'>Vận động vừa</SelectItem>
+                        <SelectItem value='nang_dong'>Nặng động</SelectItem>
+                        <SelectItem value='rat_nang_dong'>Rất nặng động</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FieldBlock>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Chỉ số cơ thể */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Chỉ số cơ thể</CardTitle>
               </CardHeader>
               <CardContent className='space-y-4'>
-                <InfoRow icon={CalendarRange} label='Ngày sinh' value={previewProfile.birthDate} />
-                <InfoRow
-                  icon={Heart}
-                  label='Chiều cao / cân nặng'
-                  value={`${previewProfile.heightCm} cm / ${previewProfile.currentWeightKg} kg`}
+                <div className='grid gap-4 sm:grid-cols-2'>
+                  <FieldBlock label='Chiều cao (cm)'>
+                    <Input
+                      value={formData.chieuCaoCm}
+                      type='number'
+                      step='0.1'
+                      min='1'
+                      placeholder='VD: 165'
+                      onChange={(e) =>
+                        setFormData((c) => ({
+                          ...c,
+                          chieuCaoCm: e.target.value,
+                        }))
+                      }
+                    />
+                  </FieldBlock>
+                  <FieldBlock label='Cân nặng hiện tại (kg)'>
+                    <Input
+                      value={formData.canNangHienTaiKg}
+                      type='number'
+                      step='0.1'
+                      min='1'
+                      placeholder='VD: 60'
+                      onChange={(e) =>
+                        setFormData((c) => ({
+                          ...c,
+                          canNangHienTaiKg: e.target.value,
+                        }))
+                      }
+                    />
+                  </FieldBlock>
+                </div>
+                {bmi !== null && (
+                  <div className='flex items-center gap-3 rounded-lg border bg-muted/40 p-3'>
+                    <Activity className='size-4 shrink-0 text-muted-foreground' />
+                    <span className='text-sm'>
+                      BMI hiện tại của bạn là{' '}
+                      <strong>{bmi.toFixed(1)}</strong> —{' '}
+                      <span
+                        className={
+                          bmiClass.tone === 'green'
+                            ? 'text-green-600'
+                            : bmiClass.tone === 'yellow'
+                              ? 'text-yellow-600'
+                              : 'text-red-600'
+                        }
+                      >
+                        {bmiClass.label}
+                      </span>
+                    </span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Chế độ ăn & ràng buộc */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Chế độ ăn &amp; ràng buộc dinh dưỡng</CardTitle>
+              </CardHeader>
+              <CardContent className='space-y-4'>
+                <FieldBlock label='Dị ứng thực phẩm'>
+                  <Textarea
+                    value={formData.diUng}
+                    rows={3}
+                    placeholder='VD: Tôm, cua, gluten, đậu phộng...'
+                    onChange={(e) =>
+                      setFormData((c) => ({ ...c, diUng: e.target.value }))
+                    }
+                  />
+                  <p className='text-xs text-muted-foreground'>
+                    Nhập danh sách cách nhau bằng dấu phẩy. Hệ thống sẽ cảnh báo khi lên
+                    thực đơn.
+                  </p>
+                </FieldBlock>
+                <FieldBlock label='Thực phẩm không thích'>
+                  <Textarea
+                    value={formData.thucPhamKhongThich}
+                    rows={3}
+                    placeholder='VD: Rau bina, nấm, cá mòi...'
+                    onChange={(e) =>
+                      setFormData((c) => ({
+                        ...c,
+                        thucPhamKhongThich: e.target.value,
+                      }))
+                    }
+                  />
+                  <p className='text-xs text-muted-foreground'>
+                    Thực phẩm bạn không muốn ăn dù không dị ứng.
+                  </p>
+                </FieldBlock>
+                <FieldBlock label='Chế độ ăn ưu tiên / phong cách ăn'>
+                  <Textarea
+                    value={formData.cheDoAnUuTien}
+                    rows={3}
+                    placeholder='VD: Ăn chay, Keto, giảm đường, ăn low-carb...'
+                    onChange={(e) =>
+                      setFormData((c) => ({
+                        ...c,
+                        cheDoAnUuTien: e.target.value,
+                      }))
+                    }
+                  />
+                </FieldBlock>
+              </CardContent>
+            </Card>
+
+            <Button onClick={handleSaveProfile} disabled={isSaving}>
+              {isSaving && <Loader2 className='mr-2 size-4 animate-spin' />}
+              {isSaving ? 'Đang lưu...' : 'Lưu hồ sơ'}
+            </Button>
+          </div>
+
+          {/* Right sidebar */}
+          <div className='space-y-5'>
+            {/* Onboarding progress */}
+            <Card>
+              <CardHeader>
+                <CardTitle className='text-base'>Tiến độ hoàn thiện</CardTitle>
+              </CardHeader>
+              <CardContent className='space-y-3'>
+                <OnboardingCheck label='Thông tin cá nhân' active={isBasicOk} />
+                <OnboardingCheck label='Chỉ số cơ thể' active={isBodyOk} />
+                <OnboardingCheck
+                  label='Ràng buộc dinh dưỡng'
+                  active={isPrefsOk}
                 />
-                <InfoRow
-                  icon={Dumbbell}
+                <OnboardingCheck
                   label='Mức vận động'
-                  value={previewProfile.activityLevel}
+                  active={Boolean(formData.mucDoVanDong)}
                 />
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className='flex items-center gap-2'>
-                  <ShieldAlert className='size-5 text-primary' />
-                  Cảnh báo dinh dưỡng
-                </CardTitle>
-              </CardHeader>
-              <CardContent className='space-y-4'>
-                <div className='space-y-2'>
-                  <p className='text-sm font-medium'>Dị ứng</p>
+            {/* Warning cards */}
+            {(parsedDiUng.length > 0 || parsedKhongThich.length > 0) && (
+              <Card className='border-amber-200 bg-amber-50 dark:bg-amber-950/30'>
+                <CardHeader>
+                  <CardTitle className='flex items-center gap-2 text-base'>
+                    <ShieldAlert className='size-4 text-amber-600' />
+                    Ràng buộc dinh dưỡng
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className='space-y-3'>
+                  {parsedDiUng.length > 0 && (
+                    <div>
+                      <p className='mb-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400'>
+                        Dị ứng
+                      </p>
+                      <div className='flex flex-wrap gap-1.5'>
+                        {parsedDiUng.map((item) => (
+                          <Badge key={item} variant='destructive' className='text-xs'>
+                            {item}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {parsedKhongThich.length > 0 && (
+                    <div>
+                      <p className='mb-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400'>
+                        Không thích
+                      </p>
+                      <div className='flex flex-wrap gap-1.5'>
+                        {parsedKhongThich.map((item) => (
+                          <Badge
+                            key={item}
+                            variant='outline'
+                            className='border-amber-300 text-xs text-amber-700 dark:text-amber-400'
+                          >
+                            {item}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Preferences */}
+            {parsedUuTien.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className='text-base'>
+                    Chế độ ăn ưu tiên
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
                   <div className='flex flex-wrap gap-2'>
-                    {previewProfile.allergies.map((item) => (
-                      <Badge key={item} variant='destructive'>
-                        {item}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-                <div className='space-y-2'>
-                  <p className='text-sm font-medium'>Ưu tiên ăn uống</p>
-                  <div className='flex flex-wrap gap-2'>
-                    {previewProfile.dietaryPreferences.map((item) => (
+                    {parsedUuTien.map((item) => (
                       <Badge key={item} variant='secondary'>
                         {item}
                       </Badge>
                     ))}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
+            {/* Summary */}
             <Card>
               <CardHeader>
-                <CardTitle>Mức độ hoàn thiện onboarding</CardTitle>
-                <CardDescription>
-                  Hoàn thiện hồ sơ giúp AI và dashboard chính xác hơn.
-                </CardDescription>
+                <CardTitle className='text-base'>Tóm tắt hồ sơ</CardTitle>
               </CardHeader>
-              <CardContent className='space-y-3'>
-                <OnboardingCheck label='Thông tin cơ bản' active={Boolean(formData.fullName.trim())} />
-                <OnboardingCheck
-                  label='Thông tin cơ thể'
-                  active={Number(formData.heightCm) > 0 && Number(formData.currentWeightKg) > 0}
+              <CardContent className='space-y-2.5'>
+                <SummaryItem
+                  icon={CalendarRange}
+                  label='Ngày sinh'
+                  value={formatDate(formData.ngaySinh)}
                 />
-                <OnboardingCheck
-                  label='Dị ứng và sở thích ăn uống'
-                  active={Boolean(formData.allergies.trim() || formData.dietaryPreferences.trim())}
+                <SummaryItem
+                  icon={Heart}
+                  label='Giới tính'
+                  value={
+                    formData.gender === 'female'
+                      ? 'Nữ'
+                      : formData.gender === 'male'
+                        ? 'Nam'
+                        : 'Khác'
+                  }
                 />
-                <OnboardingCheck label='Mức vận động' active />
+                <SummaryItem
+                  icon={Dumbbell}
+                  label='Mức vận động'
+                  value={mapActivityLabel(formData.mucDoVanDong)}
+                />
+                {profile?.cap_nhat_luc && (
+                  <SummaryItem
+                    icon={Activity}
+                    label='Cập nhật lần cuối'
+                    value={formatDateTime(profile.cap_nhat_luc)}
+                  />
+                )}
               </CardContent>
             </Card>
           </div>
@@ -312,22 +702,19 @@ export function NutritionUserProfile() {
   )
 }
 
-function FieldBlock({
-  label,
-  children,
-}: {
-  label: string
-  children: ReactNode
-}) {
+// ============================================
+// Sub-components
+// ============================================
+function FieldBlock({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className='space-y-2'>
+    <div className='space-y-1.5'>
       <Label>{label}</Label>
       {children}
     </div>
   )
 }
 
-function InfoRow({
+function SummaryItem({
   icon: Icon,
   label,
   value,
@@ -337,31 +724,57 @@ function InfoRow({
   value: string
 }) {
   return (
-    <div className='flex items-center gap-3 rounded-xl border p-4'>
-      <div className='rounded-full bg-primary/10 p-2 text-primary'>
-        <Icon className='size-4' />
-      </div>
-      <div>
-        <p className='text-sm text-muted-foreground'>{label}</p>
-        <p className='font-medium'>{value}</p>
-      </div>
+    <div className='flex items-center gap-2.5 text-sm'>
+      <Icon className='size-3.5 shrink-0 text-muted-foreground' />
+      <span className='w-28 shrink-0 text-muted-foreground'>{label}</span>
+      <span className='font-medium'>{value}</span>
     </div>
   )
 }
 
-function OnboardingCheck({
+function StatPill({
   label,
-  active,
+  value,
+  sub,
+  tone,
 }: {
   label: string
-  active: boolean
+  value: string
+  sub?: string
+  tone?: 'green' | 'yellow' | 'red'
 }) {
   return (
-    <div className='flex items-center justify-between rounded-xl border p-3 text-sm'>
-      <span>{label}</span>
-      <Badge variant={active ? 'secondary' : 'outline'}>
-        {active ? 'Hoàn tất' : 'Thiếu dữ liệu'}
-      </Badge>
+    <div className='rounded-lg border bg-background/80 px-3 py-2 text-center backdrop-blur-sm'>
+      <p className='text-xs text-muted-foreground'>{label}</p>
+      <p
+        className={`mt-0.5 text-base font-semibold ${
+          tone === 'green'
+            ? 'text-green-600'
+            : tone === 'yellow'
+              ? 'text-yellow-600'
+              : tone === 'red'
+                ? 'text-red-600'
+                : ''
+        }`}
+      >
+        {value}
+      </p>
+      {sub && <p className='text-xs text-muted-foreground'>{sub}</p>}
+    </div>
+  )
+}
+
+function OnboardingCheck({ label, active }: { label: string; active: boolean }) {
+  return (
+    <div className='flex items-center gap-2.5 text-sm'>
+      {active ? (
+        <CheckCircle2 className='size-4 shrink-0 text-green-600' />
+      ) : (
+        <Circle className='size-4 shrink-0 text-muted-foreground' />
+      )}
+      <span className={active ? 'text-foreground' : 'text-muted-foreground'}>
+        {label}
+      </span>
     </div>
   )
 }

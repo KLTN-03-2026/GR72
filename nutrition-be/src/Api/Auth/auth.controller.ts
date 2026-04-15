@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
 import { AUTH_COOKIE_NAME } from '../../common/constants/auth.constants';
 import { Public } from '../../common/decorators/public.decorator';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -67,12 +67,8 @@ export class AuthController {
   // GET /auth/me
   // =============================================
   @Get('me')
-  getMe(@Req() request: Request & { user?: unknown }) {
-    return {
-      success: true,
-      message: 'Lấy thông tin đăng nhập thành công',
-      data: request.user ?? null,
-    };
+  async getMe(@Req() request: Request & { user?: { sub?: number } }) {
+    return this.authService.getMe(request.user?.sub);
   }
 
   // =============================================

@@ -8,8 +8,14 @@ import { ChucNangGoiDichVuEntity } from '../Api/Admin/PackageFeature/entities/ch
 import { DangKyGoiDichVuEntity } from '../Api/Admin/Subscription/entities/dang-ky-goi-dich-vu.entity';
 import { ThanhToanGoiDichVuEntity } from '../Api/Admin/Payment/entities/thanh-toan-goi-dich-vu.entity';
 import { BaiVietEntity } from '../Api/Nutritionist/Article/entities/bai-viet.entity';
-import { CongThucEntity, ThanhPhanCongThucEntity } from '../Api/Nutritionist/Recipe/entities/cong-thuc.entity';
-import { ThucDonMauEntity, ChiTietThucDonMauEntity } from '../Api/Nutritionist/MealTemplate/entities/thuc-don-mau.entity';
+import {
+  CongThucEntity,
+  ThanhPhanCongThucEntity,
+} from '../Api/Nutritionist/Recipe/entities/cong-thuc.entity';
+import {
+  ThucDonMauEntity,
+  ChiTietThucDonMauEntity,
+} from '../Api/Nutritionist/MealTemplate/entities/thuc-don-mau.entity';
 import { ChuyenGiaDinhDuongEntity } from '../Api/Admin/ChuyenGiaDinhDuong/entities/chuyen-gia-dinh-duong.entity';
 import { GoiTuVanEntity } from '../Api/Admin/ChuyenGiaDinhDuong/entities/goi-tu-van.entity';
 import { LichHenEntity } from '../Api/Admin/Booking/entities/lich-hen.entity';
@@ -17,6 +23,9 @@ import { ThanhToanTuVanEntity } from '../Api/Admin/Booking/entities/thanh-toan-t
 import { DanhGiaEntity } from '../Api/Admin/Booking/entities/danh-gia.entity';
 import { TaiKhoanEntity } from '../Api/Admin/User/entities/tai-khoan.entity';
 import { HoSoEntity } from '../Api/Admin/User/entities/ho-so.entity';
+import { MucTieuEntity } from '../Api/Admin/User/entities/muc-tieu.entity';
+import { ChiSoSucKhoeEntity } from '../Api/User/HealthAssessment/entities/chi-so-suc-khoe.entity';
+import { DanhGiaSucKhoeEntity } from '../Api/User/HealthAssessment/entities/danh-gia-suc-khoe.entity';
 import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import type { DataSourceOptions } from 'typeorm';
 
@@ -28,7 +37,31 @@ export function getTypeOrmConfig(): TypeOrmModuleOptions & DataSourceOptions {
     username: process.env.DB_USERNAME ?? 'root',
     password: process.env.DB_PASSWORD ?? '',
     database: process.env.DB_DATABASE ?? 'do_an',
-    entities: [TaiKhoanEntity, HoSoEntity, NhomThucPhamEntity, ThucPhamEntity, YeuCauDuyetThucPhamEntity, ThongBaoEntity, GoiDichVuEntity, ChucNangGoiDichVuEntity, DangKyGoiDichVuEntity, ThanhToanGoiDichVuEntity, BaiVietEntity, CongThucEntity, ThanhPhanCongThucEntity, ThucDonMauEntity, ChiTietThucDonMauEntity, ChuyenGiaDinhDuongEntity, GoiTuVanEntity, LichHenEntity, ThanhToanTuVanEntity, DanhGiaEntity],
+    entities: [
+      TaiKhoanEntity,
+      HoSoEntity,
+      MucTieuEntity,
+      ChiSoSucKhoeEntity,
+      DanhGiaSucKhoeEntity,
+      NhomThucPhamEntity,
+      ThucPhamEntity,
+      YeuCauDuyetThucPhamEntity,
+      ThongBaoEntity,
+      GoiDichVuEntity,
+      ChucNangGoiDichVuEntity,
+      DangKyGoiDichVuEntity,
+      ThanhToanGoiDichVuEntity,
+      BaiVietEntity,
+      CongThucEntity,
+      ThanhPhanCongThucEntity,
+      ThucDonMauEntity,
+      ChiTietThucDonMauEntity,
+      ChuyenGiaDinhDuongEntity,
+      GoiTuVanEntity,
+      LichHenEntity,
+      ThanhToanTuVanEntity,
+      DanhGiaEntity,
+    ],
     migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
     synchronize: false,
     autoLoadEntities: true,

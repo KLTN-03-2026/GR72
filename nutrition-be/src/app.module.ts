@@ -23,6 +23,8 @@ import { NutritionistProfileModule } from './Api/Nutritionist/Profile/profile.mo
 import { NutritionistConsultationPackageModule } from './Api/Nutritionist/ConsultationPackage/consultation-package.module';
 import { NutritionistBookingModule } from './Api/Nutritionist/Booking/booking.module';
 import { NutritionistEarningsModule } from './Api/Nutritionist/Earnings/earnings.module';
+import { UserProfileModule } from './Api/User/Profile/profile.module';
+import { UserGoalModule } from './Api/User/Goal/goal.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AdminUserModule } from './Api/Admin/User/user.module';
@@ -64,6 +66,8 @@ import { getTypeOrmConfig } from './database/typeorm.config';
     NutritionistConsultationPackageModule,
     NutritionistBookingModule,
     NutritionistEarningsModule,
+    UserProfileModule,
+    UserGoalModule,
   ],
   controllers: [AppController],
   providers: [

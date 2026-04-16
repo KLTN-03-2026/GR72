@@ -1,7 +1,16 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { ArrowLeft, CheckCircle, Clock3, MapPin, NotebookPen, UserRound, XCircle } from 'lucide-react'
+import {
+  ArrowLeft,
+  CheckCircle,
+  Clock3,
+  DollarSign,
+  MapPin,
+  NotebookPen,
+  UserRound,
+  XCircle,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { ApiError } from '@/services/auth/api'
 import {
@@ -87,6 +96,20 @@ function formatTime(timeStr: string) {
   return `${h}:${m}`
 }
 
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    maximumFractionDigits: 0,
+  }).format(amount)
+}
+
+function getIncomeLabel(status: string) {
+  if (status === 'hoan_thanh') return 'Thu nhập thực nhận'
+  if (status === 'da_huy' || status === 'vo_hieu_hoa') return 'Thu nhập thực nhận'
+  return 'Thu nhập dự kiến'
+}
+
 export function NutritionistBookingDetail({ bookingId }: Props) {
   const [booking, setBooking] = useState<NBooking | null>(null)
   const [loading, setLoading] = useState(true)
@@ -164,7 +187,7 @@ export function NutritionistBookingDetail({ bookingId }: Props) {
       setActionId(null)
       setActionType(null)
       setNote('')
-      toast.success('Đã hủy booking')
+      toast.success(updated.refundMessage ?? 'Đã hủy booking')
     } catch (error) {
       toast.error(
         error instanceof ApiError ? error.message : 'Không thể hủy booking'
@@ -312,6 +335,59 @@ export function NutritionistBookingDetail({ bookingId }: Props) {
             <div className='space-y-6'>
               <Card>
                 <CardHeader>
+                  <CardTitle className='text-base'>Doanh thu booking</CardTitle>
+                </CardHeader>
+                <CardContent className='space-y-3'>
+                  <div className='rounded-sm border bg-muted/20 p-4'>
+                    <div className='flex items-center gap-2 text-xs text-muted-foreground'>
+                      <DollarSign className='size-3.5' />
+                      <span>Giá gói</span>
+                    </div>
+                    <p className='mt-1 text-lg font-semibold'>{formatCurrency(booking.giaGoi)}</p>
+                  </div>
+                  <div className='rounded-sm border bg-muted/20 p-4'>
+                    <p className='text-xs text-muted-foreground'>Hoa hồng hệ thống (5%)</p>
+                    <p className='mt-1 text-lg font-semibold text-amber-600'>
+                      {formatCurrency(booking.hoaHongHeThong)}
+                    </p>
+                  </div>
+                  <div className='rounded-sm border bg-muted/20 p-4'>
+                    <p className='text-xs text-muted-foreground'>{getIncomeLabel(booking.trangThai)}</p>
+                    <p className='mt-1 text-lg font-semibold text-emerald-600'>
+                      {formatCurrency(
+                        booking.trangThai === 'hoan_thanh'
+                          ? booking.thuNhapThucNhan
+                          : booking.thuNhapDuKien
+                      )}
+                    </p>
+                    <p className='mt-1 text-xs text-muted-foreground'>
+                      {booking.trangThai === 'hoan_thanh'
+                        ? 'Khoản này đã được ghi nhận vào thu nhập của bạn.'
+                        : booking.trangThai === 'da_huy' || booking.trangThai === 'vo_hieu_hoa'
+                          ? 'Booking đã hủy hoặc vô hiệu hóa nên không phát sinh thu nhập.'
+                          : 'Khoản này sẽ được ghi nhận khi chuyên gia hoàn thành booking.'}
+                    </p>
+                  </div>
+                  <div className='rounded-sm border bg-muted/20 p-4'>
+                    <p className='text-xs text-muted-foreground'>Trạng thái thanh toán / phân bổ</p>
+                    <div className='mt-2 flex flex-wrap gap-2'>
+                      {booking.trangThaiThanhToan ? (
+                        <Badge variant='outline'>Thanh toán: {booking.trangThaiThanhToan}</Badge>
+                      ) : (
+                        <Badge variant='outline'>Thanh toán: chưa có</Badge>
+                      )}
+                      {booking.trangThaiPhanBoDoanhThu ? (
+                        <Badge variant='outline'>Phân bổ: {booking.trangThaiPhanBoDoanhThu}</Badge>
+                      ) : (
+                        <Badge variant='outline'>Phân bổ: chưa ghi nhận</Badge>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
                   <CardTitle className='text-base'>Người dùng đặt lịch</CardTitle>
                 </CardHeader>
                 <CardContent className='space-y-4'>
@@ -424,7 +500,7 @@ export function NutritionistBookingDetail({ bookingId }: Props) {
           <DialogHeader>
             <DialogTitle>Hủy booking</DialogTitle>
             <DialogDescription>
-              Hành động này sẽ chuyển booking sang trạng thái đã hủy và đánh dấu hoàn tiền nếu booking đã thanh toán.
+              Hành động này sẽ chuyển booking sang trạng thái đã hủy và gửi yêu cầu hoàn tiền qua VNPay nếu booking đã thanh toán.
             </DialogDescription>
           </DialogHeader>
           <div className='space-y-4 py-4'>

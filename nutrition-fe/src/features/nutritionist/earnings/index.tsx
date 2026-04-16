@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { DollarSign, Calendar, TrendingUp, FileText, Download } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { DollarSign, Calendar, TrendingUp, FileText, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { vi } from 'date-fns/locale'
@@ -26,11 +26,7 @@ export function NutritionistEarnings() {
   })
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0])
 
-  useEffect(() => {
-    loadEarnings()
-  }, [])
-
-  async function loadEarnings() {
+  const loadEarnings = useCallback(async () => {
     setLoading(true)
     try {
       const result = await getNutriEarnings({ start_date: startDate, end_date: endDate })
@@ -40,7 +36,11 @@ export function NutritionistEarnings() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [endDate, startDate])
+
+  useEffect(() => {
+    void loadEarnings()
+  }, [loadEarnings])
 
   function handleFilter() {
     if (!startDate || !endDate) {
@@ -60,20 +60,26 @@ export function NutritionistEarnings() {
 
   const statCards = [
     {
-      title: 'Tổng thu nhập',
-      value: formatCurrency(data?.tong_thu_nhap ?? 0),
+      title: 'Tổng doanh thu gộp',
+      value: formatCurrency(data?.tong_thu_nhap_gop ?? 0),
       icon: DollarSign,
+      color: 'bg-blue-500',
+    },
+    {
+      title: 'Tổng phí hoa hồng',
+      value: formatCurrency(data?.tong_phi_hoa_hong ?? 0),
+      icon: TrendingUp,
+      color: 'bg-amber-500',
+    },
+    {
+      title: 'Tổng thu nhập ròng',
+      value: formatCurrency(data?.tong_thu_nhap_rong ?? 0),
+      icon: Wallet,
       color: 'bg-emerald-500',
     },
     {
       title: 'Số booking hoàn thành',
       value: data?.so_booking ?? 0,
-      icon: TrendingUp,
-      color: 'bg-blue-500',
-    },
-    {
-      title: 'Thu nhập trung bình/booking',
-      value: data?.so_booking ? formatCurrency((data?.tong_thu_nhap ?? 0) / (data?.so_booking ?? 1)) : formatCurrency(0),
       icon: Calendar,
       color: 'bg-purple-500',
     },
@@ -121,7 +127,7 @@ export function NutritionistEarnings() {
         </Card>
 
         {/* Stats */}
-        <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
+        <div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-4'>
           {statCards.map((s) => (
             <Card key={s.title}>
               <CardHeader className='flex flex-row items-center justify-between pb-2'>
@@ -152,7 +158,17 @@ export function NutritionistEarnings() {
                       <span className='font-medium'>Tháng {m.thang}</span>
                       <Badge variant='outline'>{m.so_booking} booking</Badge>
                     </div>
-                    <span className='font-semibold text-emerald-600'>{formatCurrency(m.thu_nhap)}</span>
+                    <div className='text-right text-sm'>
+                      <p className='font-semibold text-slate-900'>
+                        Gộp: {formatCurrency(m.tong_thu_nhap_gop)}
+                      </p>
+                      <p className='text-amber-600'>
+                        Hoa hồng: {formatCurrency(m.tong_phi_hoa_hong)}
+                      </p>
+                      <p className='font-semibold text-emerald-600'>
+                        Ròng: {formatCurrency(m.tong_thu_nhap_rong)}
+                      </p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -192,8 +208,11 @@ export function NutritionistEarnings() {
                         <th className='pb-2 text-left font-medium text-muted-foreground'>Ngày</th>
                         <th className='pb-2 text-left font-medium text-muted-foreground'>Khách hàng</th>
                         <th className='pb-2 text-left font-medium text-muted-foreground'>Gói tư vấn</th>
-                        <th className='pb-2 text-right font-medium text-muted-foreground'>Số tiền</th>
+                        <th className='pb-2 text-right font-medium text-muted-foreground'>Giá gói</th>
+                        <th className='pb-2 text-right font-medium text-muted-foreground'>Hoa hồng 5%</th>
+                        <th className='pb-2 text-right font-medium text-muted-foreground'>Thu nhập ròng</th>
                         <th className='pb-2 text-center font-medium text-muted-foreground'>Thanh toán</th>
+                        <th className='pb-2 text-center font-medium text-muted-foreground'>Phân bổ</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -205,8 +224,14 @@ export function NutritionistEarnings() {
                           </td>
                           <td className='py-2'>{t.ten_user}</td>
                           <td className='py-2'>{t.ten_goi}</td>
+                          <td className='py-2 text-right font-medium'>
+                            {formatCurrency(t.gia_goi)}
+                          </td>
+                          <td className='py-2 text-right font-medium text-amber-600'>
+                            {formatCurrency(t.phi_hoa_hong)}
+                          </td>
                           <td className='py-2 text-right font-medium text-emerald-600'>
-                            {formatCurrency(t.so_tien)}
+                            {formatCurrency(t.thu_nhap_rong)}
                           </td>
                           <td className='py-2 text-center'>
                             <Badge
@@ -214,6 +239,18 @@ export function NutritionistEarnings() {
                               className={t.trang_thai_thanh_toan === 'thanh_cong' ? 'bg-emerald-100 text-emerald-700' : ''}
                             >
                               {t.trang_thai_thanh_toan}
+                            </Badge>
+                          </td>
+                          <td className='py-2 text-center'>
+                            <Badge
+                              variant='outline'
+                              className={
+                                t.trang_thai_phan_bo === 'da_ghi_nhan'
+                                  ? 'border-emerald-200 text-emerald-700'
+                                  : ''
+                              }
+                            >
+                              {t.trang_thai_phan_bo}
                             </Badge>
                           </td>
                         </tr>

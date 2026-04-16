@@ -47,8 +47,16 @@ export class BookingResponseDto {
   gioKetThuc!: string;
   diaDiem!: string | null;
   trangThai!: string;
+  trangThaiThanhToan!: string | null;
+  trangThaiPhanBoDoanhThu!: string | null;
   mucDich!: string | null;
   ghiChuNutritionist!: string | null;
+  giaGoi!: number;
+  hoaHongHeThong!: number;
+  thuNhapDuKien!: number;
+  thuNhapThucNhan!: number;
+  refundStatus!: 'not_required' | 'success' | 'failed';
+  refundMessage!: string | null;
   taLuc!: Date;
   capNhatLuc!: Date;
 }

@@ -19,6 +19,7 @@ import {
 import { ChuyenGiaDinhDuongEntity } from '../Api/Admin/ChuyenGiaDinhDuong/entities/chuyen-gia-dinh-duong.entity';
 import { GoiTuVanEntity } from '../Api/Admin/ChuyenGiaDinhDuong/entities/goi-tu-van.entity';
 import { LichHenEntity } from '../Api/Admin/Booking/entities/lich-hen.entity';
+import { PhanBoDoanhThuBookingEntity } from '../Api/Admin/Booking/entities/phan-bo-doanh-thu-booking.entity';
 import { ThanhToanTuVanEntity } from '../Api/Admin/Booking/entities/thanh-toan-tu-van.entity';
 import { DanhGiaEntity } from '../Api/Admin/Booking/entities/danh-gia.entity';
 import { TaiKhoanEntity } from '../Api/Admin/User/entities/tai-khoan.entity';
@@ -26,6 +27,16 @@ import { HoSoEntity } from '../Api/Admin/User/entities/ho-so.entity';
 import { MucTieuEntity } from '../Api/Admin/User/entities/muc-tieu.entity';
 import { ChiSoSucKhoeEntity } from '../Api/User/HealthAssessment/entities/chi-so-suc-khoe.entity';
 import { DanhGiaSucKhoeEntity } from '../Api/User/HealthAssessment/entities/danh-gia-suc-khoe.entity';
+import { KeHoachAnEntity, ChiTietKeHoachAnEntity } from '../Api/User/MealPlan/entities/ke-hoach-an.entity';
+import {
+  NhatKyBuaAnEntity,
+  ChiTietNhatKyBuaAnEntity,
+  TongHopDinhDuongNgayEntity,
+} from '../Api/User/MealLog/entities/nhat-ky-bua-an.entity';
+import {
+  PhienTuVanAiEntity,
+  KhuyenNghiAiEntity,
+} from '../Api/User/Recommendation/entities/khuyen-nghi-ai.entity';
 import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import type { DataSourceOptions } from 'typeorm';
 
@@ -43,6 +54,13 @@ export function getTypeOrmConfig(): TypeOrmModuleOptions & DataSourceOptions {
       MucTieuEntity,
       ChiSoSucKhoeEntity,
       DanhGiaSucKhoeEntity,
+      KeHoachAnEntity,
+      ChiTietKeHoachAnEntity,
+      NhatKyBuaAnEntity,
+      ChiTietNhatKyBuaAnEntity,
+      TongHopDinhDuongNgayEntity,
+      PhienTuVanAiEntity,
+      KhuyenNghiAiEntity,
       NhomThucPhamEntity,
       ThucPhamEntity,
       YeuCauDuyetThucPhamEntity,
@@ -59,6 +77,7 @@ export function getTypeOrmConfig(): TypeOrmModuleOptions & DataSourceOptions {
       ChuyenGiaDinhDuongEntity,
       GoiTuVanEntity,
       LichHenEntity,
+      PhanBoDoanhThuBookingEntity,
       ThanhToanTuVanEntity,
       DanhGiaEntity,
     ],

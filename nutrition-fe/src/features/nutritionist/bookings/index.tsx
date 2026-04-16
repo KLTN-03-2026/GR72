@@ -132,8 +132,8 @@ export function NutritionistBookings() {
     if (!note.trim()) { toast.error('Vui lòng nhập lý do hủy'); return }
     setActionLoading(true)
     try {
-      await cancelNutriBooking(actionId, { lyDoHuy: note.trim() })
-      toast.success('Đã hủy booking')
+      const updated = await cancelNutriBooking(actionId, { lyDoHuy: note.trim() })
+      toast.success(updated.refundMessage ?? 'Đã hủy booking')
       setActionId(null)
       setActionType(null)
       setNote('')
@@ -336,7 +336,7 @@ export function NutritionistBookings() {
           <DialogHeader>
             <DialogTitle>Hủy booking</DialogTitle>
             <DialogDescription>
-              Bạn có chắc muốn hủy booking này? Hành động sẽ hoàn tiền nếu đã thanh toán.
+              Bạn có chắc muốn hủy booking này? Nếu booking đã thanh toán qua VNPay, hệ thống sẽ gửi yêu cầu hoàn tiền ngay khi hủy.
             </DialogDescription>
           </DialogHeader>
           <div className='space-y-4 py-4'>

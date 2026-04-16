@@ -25,6 +25,12 @@ import { NutritionistBookingModule } from './Api/Nutritionist/Booking/booking.mo
 import { NutritionistEarningsModule } from './Api/Nutritionist/Earnings/earnings.module';
 import { UserProfileModule } from './Api/User/Profile/profile.module';
 import { UserGoalModule } from './Api/User/Goal/goal.module';
+import { UserHealthMetricModule } from './Api/User/HealthMetric/health-metric.module';
+import { UserHealthAssessmentModule } from './Api/User/HealthAssessment/health-assessment.module';
+import { UserDashboardModule } from './Api/User/Dashboard/dashboard.module';
+import { UserFoodModule } from './Api/User/Food/food.module';
+import { UserMealLogModule } from './Api/User/MealLog/meal-log.module';
+import { UserRecommendationModule } from './Api/User/Recommendation/recommendation.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AdminUserModule } from './Api/Admin/User/user.module';
@@ -68,6 +74,12 @@ import { getTypeOrmConfig } from './database/typeorm.config';
     NutritionistEarningsModule,
     UserProfileModule,
     UserGoalModule,
+    UserHealthMetricModule,
+    UserHealthAssessmentModule,
+    UserDashboardModule,
+    UserFoodModule,
+    UserMealLogModule,
+    UserRecommendationModule,
   ],
   controllers: [AppController],
   providers: [

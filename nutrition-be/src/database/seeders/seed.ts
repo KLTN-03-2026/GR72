@@ -22,6 +22,13 @@ import { ThanhToanTuVanEntity } from '../../Api/Admin/Booking/entities/thanh-toa
 import { DanhGiaEntity } from '../../Api/Admin/Booking/entities/danh-gia.entity';
 import { ChiSoSucKhoeEntity } from '../../Api/User/HealthAssessment/entities/chi-so-suc-khoe.entity';
 import { DanhGiaSucKhoeEntity } from '../../Api/User/HealthAssessment/entities/danh-gia-suc-khoe.entity';
+import { KeHoachAnEntity, ChiTietKeHoachAnEntity } from '../../Api/User/MealPlan/entities/ke-hoach-an.entity';
+import {
+  NhatKyBuaAnEntity,
+  ChiTietNhatKyBuaAnEntity,
+  TongHopDinhDuongNgayEntity,
+} from '../../Api/User/MealLog/entities/nhat-ky-bua-an.entity';
+import { PhienTuVanAiEntity, KhuyenNghiAiEntity } from '../../Api/User/Recommendation/entities/khuyen-nghi-ai.entity';
 
 async function hashPassword(password: string): Promise<string> {
   const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS ?? 10);
@@ -464,6 +471,383 @@ async function seedFoodCatalog() {
     ],
     ['slug'],
   );
+}
+
+async function seedUserNutritionTrackingAndRecommendations() {
+  const userRepository = AppDataSource.getRepository(TaiKhoanEntity);
+  const foodRepository = AppDataSource.getRepository(ThucPhamEntity);
+  const mealLogRepository = AppDataSource.getRepository(NhatKyBuaAnEntity);
+  const mealLogDetailRepository = AppDataSource.getRepository(ChiTietNhatKyBuaAnEntity);
+  const nutritionSummaryRepository = AppDataSource.getRepository(TongHopDinhDuongNgayEntity);
+  const mealPlanRepository = AppDataSource.getRepository(KeHoachAnEntity);
+  const mealPlanDetailRepository = AppDataSource.getRepository(ChiTietKeHoachAnEntity);
+  const aiSessionRepository = AppDataSource.getRepository(PhienTuVanAiEntity);
+  const recommendationRepository = AppDataSource.getRepository(KhuyenNghiAiEntity);
+
+  const user = await userRepository.findOne({
+    where: { email: 'user@nutriwise.vn' },
+  });
+
+  if (!user) {
+    console.log('User demo not found, skipping nutrition tracking and recommendation seed');
+    return;
+  }
+
+  const foods = await foodRepository.find({
+    where: [
+      { slug: 'com-trang' },
+      { slug: 'uc-ga-khong-da' },
+      { slug: 'bong-cai-xanh' },
+      { slug: 'chuoi' },
+      { slug: 'sua-tuoi-khong-duong' },
+    ],
+  });
+
+  const foodBySlug = new Map(foods.map((food) => [food.slug, food]));
+  const requiredSlugs = [
+    'com-trang',
+    'uc-ga-khong-da',
+    'bong-cai-xanh',
+    'chuoi',
+    'sua-tuoi-khong-duong',
+  ];
+
+  if (requiredSlugs.some((slug) => !foodBySlug.has(slug))) {
+    console.log('Food catalog demo is incomplete, skipping nutrition tracking and recommendation seed');
+    return;
+  }
+
+  const existingMealLogs = await mealLogRepository.find({
+    where: { tai_khoan_id: user.id },
+    select: ['id'],
+  });
+  const existingMealPlans = await mealPlanRepository.find({
+    where: { tai_khoan_id: user.id },
+    select: ['id'],
+  });
+
+  if (existingMealLogs.length) {
+    await mealLogDetailRepository
+      .createQueryBuilder()
+      .delete()
+      .where('nhat_ky_bua_an_id IN (:...ids)', { ids: existingMealLogs.map((item) => item.id) })
+      .execute();
+  }
+
+  if (existingMealPlans.length) {
+    await mealPlanDetailRepository
+      .createQueryBuilder()
+      .delete()
+      .where('ke_hoach_an_id IN (:...ids)', { ids: existingMealPlans.map((item) => item.id) })
+      .execute();
+  }
+
+  await recommendationRepository.delete({ tai_khoan_id: user.id });
+  await nutritionSummaryRepository.delete({ tai_khoan_id: user.id });
+  await mealLogRepository.delete({ tai_khoan_id: user.id });
+  await mealPlanRepository.delete({ tai_khoan_id: user.id });
+  await aiSessionRepository.delete({ tai_khoan_id: user.id });
+
+  const now = new Date();
+  const today = new Date().toISOString().slice(0, 10);
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const breakfastLog = await mealLogRepository.save(
+    mealLogRepository.create({
+      tai_khoan_id: user.id,
+      ngay_ghi: today,
+      loai_bua_an: 'bua_sang',
+      ghi_chu: 'Bữa sáng demo cho C09',
+      tao_luc: now,
+      cap_nhat_luc: now,
+    }),
+  );
+
+  const lunchLog = await mealLogRepository.save(
+    mealLogRepository.create({
+      tai_khoan_id: user.id,
+      ngay_ghi: today,
+      loai_bua_an: 'bua_trua',
+      ghi_chu: 'Bữa trưa demo cho C09',
+      tao_luc: now,
+      cap_nhat_luc: now,
+    }),
+  );
+
+  await mealLogDetailRepository.save([
+    mealLogDetailRepository.create({
+      nhat_ky_bua_an_id: breakfastLog.id,
+      loai_nguon: 'thuc_pham',
+      nguon_id: foodBySlug.get('sua-tuoi-khong-duong')!.id,
+      cong_thuc_id: null,
+      thuc_pham_id: foodBySlug.get('sua-tuoi-khong-duong')!.id,
+      so_luong: '200.00',
+      don_vi: 'ml',
+      calories: '122.00',
+      protein_g: '6.40',
+      carb_g: '9.60',
+      fat_g: '6.60',
+      chat_xo_g: '0.00',
+      natri_mg: '86.00',
+      du_lieu_chup_lai: { ten: 'Sữa tươi không đường', khau_phan: 200, don_vi: 'ml' },
+      tao_luc: now,
+      cap_nhat_luc: now,
+    }),
+    mealLogDetailRepository.create({
+      nhat_ky_bua_an_id: breakfastLog.id,
+      loai_nguon: 'thuc_pham',
+      nguon_id: foodBySlug.get('chuoi')!.id,
+      cong_thuc_id: null,
+      thuc_pham_id: foodBySlug.get('chuoi')!.id,
+      so_luong: '120.00',
+      don_vi: 'g',
+      calories: '106.80',
+      protein_g: '1.32',
+      carb_g: '27.36',
+      fat_g: '0.36',
+      chat_xo_g: '3.12',
+      natri_mg: '1.20',
+      du_lieu_chup_lai: { ten: 'Chuối', khau_phan: 120, don_vi: 'g' },
+      tao_luc: now,
+      cap_nhat_luc: now,
+    }),
+    mealLogDetailRepository.create({
+      nhat_ky_bua_an_id: lunchLog.id,
+      loai_nguon: 'thuc_pham',
+      nguon_id: foodBySlug.get('com-trang')!.id,
+      cong_thuc_id: null,
+      thuc_pham_id: foodBySlug.get('com-trang')!.id,
+      so_luong: '200.00',
+      don_vi: 'g',
+      calories: '260.00',
+      protein_g: '5.40',
+      carb_g: '56.40',
+      fat_g: '0.60',
+      chat_xo_g: '0.80',
+      natri_mg: '2.00',
+      du_lieu_chup_lai: { ten: 'Cơm trắng', khau_phan: 200, don_vi: 'g' },
+      tao_luc: now,
+      cap_nhat_luc: now,
+    }),
+    mealLogDetailRepository.create({
+      nhat_ky_bua_an_id: lunchLog.id,
+      loai_nguon: 'thuc_pham',
+      nguon_id: foodBySlug.get('uc-ga-khong-da')!.id,
+      cong_thuc_id: null,
+      thuc_pham_id: foodBySlug.get('uc-ga-khong-da')!.id,
+      so_luong: '150.00',
+      don_vi: 'g',
+      calories: '247.50',
+      protein_g: '46.50',
+      carb_g: '0.00',
+      fat_g: '5.40',
+      chat_xo_g: '0.00',
+      natri_mg: '111.00',
+      du_lieu_chup_lai: { ten: 'Ức gà không da', khau_phan: 150, don_vi: 'g' },
+      tao_luc: now,
+      cap_nhat_luc: now,
+    }),
+    mealLogDetailRepository.create({
+      nhat_ky_bua_an_id: lunchLog.id,
+      loai_nguon: 'thuc_pham',
+      nguon_id: foodBySlug.get('bong-cai-xanh')!.id,
+      cong_thuc_id: null,
+      thuc_pham_id: foodBySlug.get('bong-cai-xanh')!.id,
+      so_luong: '100.00',
+      don_vi: 'g',
+      calories: '34.00',
+      protein_g: '2.80',
+      carb_g: '6.60',
+      fat_g: '0.40',
+      chat_xo_g: '2.60',
+      natri_mg: '33.00',
+      du_lieu_chup_lai: { ten: 'Bông cải xanh', khau_phan: 100, don_vi: 'g' },
+      tao_luc: now,
+      cap_nhat_luc: now,
+    }),
+  ]);
+
+  await nutritionSummaryRepository.save(
+    nutritionSummaryRepository.create({
+      tai_khoan_id: user.id,
+      ngay: today,
+      tong_calories: '770.30',
+      tong_protein_g: '62.42',
+      tong_carb_g: '99.96',
+      tong_fat_g: '13.36',
+      so_bua_da_ghi: 2,
+      tao_luc: now,
+      cap_nhat_luc: now,
+    }),
+  );
+
+  const aiSession = await aiSessionRepository.save(
+    aiSessionRepository.create({
+      tai_khoan_id: user.id,
+      tieu_de: 'Phiên AI demo cho user',
+      trang_thai: 'dang_mo',
+      tin_nhan: JSON.stringify([
+        { role: 'user', content: 'Hôm nay tôi nên ăn gì để giảm cân?' },
+        { role: 'assistant', content: 'Ưu tiên đạm nạc, rau xanh và kiểm soát calories.' },
+      ]),
+      ngu_canh_chup_lai: { muc_tieu: 'giam_can', calories_con_lai: 1329.7 },
+      mo_hinh_cuoi: 'gpt-5.2',
+      tong_token_cuoi: 512,
+      loi_cuoi: null,
+      tao_luc: now,
+      cap_nhat_luc: now,
+    }),
+  );
+
+  const mealPlan = await mealPlanRepository.save(
+    mealPlanRepository.create({
+      tai_khoan_id: user.id,
+      loai_nguon: 'khuyen_nghi_ai',
+      nguon_id: null,
+      tieu_de: 'Kế hoạch ăn demo cho ngày mai',
+      mo_ta: 'Kế hoạch ăn được tạo từ khuyến nghị AI để user thử C10.',
+      ngay_ap_dung: tomorrow,
+      trang_thai: 'dang_ap_dung',
+      tong_calories: '1850.00',
+      tong_protein_g: '145.00',
+      tong_carb_g: '180.00',
+      tong_fat_g: '55.00',
+      tao_luc: now,
+      cap_nhat_luc: now,
+    }),
+  );
+
+  await mealPlanDetailRepository.save([
+    mealPlanDetailRepository.create({
+      ke_hoach_an_id: mealPlan.id,
+      loai_bua_an: 'bua_sang',
+      cong_thuc_id: null,
+      thuc_pham_id: foodBySlug.get('sua-tuoi-khong-duong')!.id,
+      so_luong: '250.00',
+      don_vi: 'ml',
+      calories: '152.50',
+      protein_g: '8.00',
+      carb_g: '12.00',
+      fat_g: '8.25',
+      ghi_chu: 'Uống cùng trái cây ít ngọt',
+      thu_tu: 1,
+      tao_luc: now,
+      cap_nhat_luc: now,
+    }),
+    mealPlanDetailRepository.create({
+      ke_hoach_an_id: mealPlan.id,
+      loai_bua_an: 'bua_trua',
+      cong_thuc_id: null,
+      thuc_pham_id: foodBySlug.get('uc-ga-khong-da')!.id,
+      so_luong: '180.00',
+      don_vi: 'g',
+      calories: '297.00',
+      protein_g: '55.80',
+      carb_g: '0.00',
+      fat_g: '6.48',
+      ghi_chu: 'Ưu tiên chế biến áp chảo ít dầu',
+      thu_tu: 2,
+      tao_luc: now,
+      cap_nhat_luc: now,
+    }),
+    mealPlanDetailRepository.create({
+      ke_hoach_an_id: mealPlan.id,
+      loai_bua_an: 'bua_toi',
+      cong_thuc_id: null,
+      thuc_pham_id: foodBySlug.get('bong-cai-xanh')!.id,
+      so_luong: '200.00',
+      don_vi: 'g',
+      calories: '68.00',
+      protein_g: '5.60',
+      carb_g: '13.20',
+      fat_g: '0.80',
+      ghi_chu: 'Ăn cùng ức gà hoặc cơm lượng vừa',
+      thu_tu: 3,
+      tao_luc: now,
+      cap_nhat_luc: now,
+    }),
+  ]);
+
+  await recommendationRepository.save([
+    recommendationRepository.create({
+      tai_khoan_id: user.id,
+      phien_tu_van_ai_id: aiSession.id,
+      trang_thai: 'da_chap_nhan',
+      loai_khuyen_nghi: 'nutrition',
+      ngay_muc_tieu: today,
+      muc_tieu_calories: '2100.00',
+      muc_tieu_protein_g: '156.00',
+      muc_tieu_carb_g: '210.00',
+      muc_tieu_fat_g: '58.00',
+      canh_bao: ['Đã loại trừ thực phẩm dị ứng khỏi danh sách gợi ý.'],
+      ly_giai: 'Khuyến nghị dinh dưỡng demo được xây từ hồ sơ, mục tiêu và thực phẩm đã ghi.',
+      du_lieu_khuyen_nghi: {
+        calorie_gap: 1329.7,
+        foods_uu_tien: [
+          { id: foodBySlug.get('uc-ga-khong-da')!.id, ten: 'Ức gà không da' },
+          { id: foodBySlug.get('bong-cai-xanh')!.id, ten: 'Bông cải xanh' },
+        ],
+        foods_han_che: [{ id: foodBySlug.get('chuoi')!.id, ten: 'Chuối', ly_do: 'Ăn ở lượng vừa phải' }],
+      },
+      ke_hoach_an_da_ap_dung_id: null,
+      tao_luc: now,
+      cap_nhat_luc: now,
+    }),
+    recommendationRepository.create({
+      tai_khoan_id: user.id,
+      phien_tu_van_ai_id: aiSession.id,
+      trang_thai: 'da_ap_dung',
+      loai_khuyen_nghi: 'meal_plan_daily',
+      ngay_muc_tieu: tomorrow,
+      muc_tieu_calories: '1850.00',
+      muc_tieu_protein_g: '145.00',
+      muc_tieu_carb_g: '180.00',
+      muc_tieu_fat_g: '55.00',
+      canh_bao: [],
+      ly_giai: 'Khuyến nghị thực đơn ngày đã được áp dụng thành kế hoạch ăn demo.',
+      du_lieu_khuyen_nghi: {
+        tieu_de: 'Thực đơn ngày giảm cân demo',
+        mo_ta: 'Gợi ý thực đơn 1 ngày từ hệ thống',
+        chi_tiet: [
+          {
+            loai_bua_an: 'bua_sang',
+            thuc_pham_id: foodBySlug.get('sua-tuoi-khong-duong')!.id,
+            so_luong: 250,
+            don_vi: 'ml',
+            calories: 152.5,
+            protein_g: 8,
+            carb_g: 12,
+            fat_g: 8.25,
+          },
+          {
+            loai_bua_an: 'bua_trua',
+            thuc_pham_id: foodBySlug.get('uc-ga-khong-da')!.id,
+            so_luong: 180,
+            don_vi: 'g',
+            calories: 297,
+            protein_g: 55.8,
+            carb_g: 0,
+            fat_g: 6.48,
+          },
+          {
+            loai_bua_an: 'bua_toi',
+            thuc_pham_id: foodBySlug.get('bong-cai-xanh')!.id,
+            so_luong: 200,
+            don_vi: 'g',
+            calories: 68,
+            protein_g: 5.6,
+            carb_g: 13.2,
+            fat_g: 0.8,
+          },
+        ],
+      },
+      ke_hoach_an_da_ap_dung_id: mealPlan.id,
+      tao_luc: now,
+      cap_nhat_luc: now,
+    }),
+  ]);
+
+  console.log('Seeded user meal logs, nutrition summary, meal plan, AI session, and recommendations');
 }
 
 async function seedFoodReviewRequests() {
@@ -1272,6 +1656,7 @@ async function run() {
     await seedUsers();
     await seedUserHealthData();
     await seedFoodCatalog();
+    await seedUserNutritionTrackingAndRecommendations();
     await seedFoodReviewRequests();
     await seedNotifications();
     await seedPackages();

@@ -347,8 +347,16 @@ export type NBooking = {
   gioKetThuc: string
   diaDiem: string | null
   trangThai: string
+  trangThaiThanhToan: string | null
+  trangThaiPhanBoDoanhThu: string | null
   mucDich: string | null
   ghiChuNutritionist: string | null
+  giaGoi: number
+  hoaHongHeThong: number
+  thuNhapDuKien: number
+  thuNhapThucNhan: number
+  refundStatus: 'not_required' | 'success' | 'failed'
+  refundMessage: string | null
   taLuc: string
   capNhatLuc: string
 }
@@ -425,17 +433,28 @@ export async function getNutriUnreadCount() {
 
 // ====== NUTRITIONIST EARNINGS ======
 export type NEarningsData = {
-  tong_thu_nhap: number
+  tong_thu_nhap_gop: number
+  tong_phi_hoa_hong: number
+  tong_thu_nhap_rong: number
   so_booking: number
   khoang_ngay: { start_date: string; end_date: string }
-  thu_nhap_theo_thang: { thang: string; so_booking: number; thu_nhap: number }[]
+  thu_nhap_theo_thang: {
+    thang: string
+    so_booking: number
+    tong_thu_nhap_gop: number
+    tong_phi_hoa_hong: number
+    tong_thu_nhap_rong: number
+  }[]
   chi_tiet: {
     booking_id: number
     ma_lich_hen: string
     ngay: string
     ten_user: string
     ten_goi: string
-    so_tien: number
+    gia_goi: number
+    phi_hoa_hong: number
+    thu_nhap_rong: number
+    trang_thai_phan_bo: string
     trang_thai_thanh_toan: string
     ngay_thanh_toan: string | null
   }[]

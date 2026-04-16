@@ -99,34 +99,33 @@ function getUserNavGroups(locale: AppLocale): NavGroup[] {
           url: '/nutrition/goals',
           icon: Goal,
         },
-    // {
-    //   title: copy.healthMetrics,
-    //   url: '/nutrition/health-metrics',
-    //   icon: ClipboardList,
-    // },
+        {
+          title: copy.healthMetrics,
+          url: '/nutrition/health-metrics',
+          icon: ClipboardList,
+        },
       ],
     },
-    // === CHƯA CÓ API - TẠM ẨN ===
-    // {
-    //   title: copy.nutrition,
-    //   items: [
-    //     {
-    //       title: copy.foods,
-    //       url: '/nutrition/foods',
-    //       icon: Apple,
-    //     },
-    //     {
-    //       title: copy.mealLogs,
-    //       url: '/nutrition/meal-logs',
-    //       icon: Soup,
-    //     },
-    //     {
-    //       title: copy.mealPlans,
-    //       url: '/nutrition/meal-plans',
-    //       icon: NotebookPen,
-    //     },
-    //   ],
-    // },
+    {
+      title: copy.nutrition,
+      items: [
+        {
+          title: copy.foods,
+          url: '/nutrition/foods',
+          icon: Apple,
+        },
+        {
+          title: copy.mealLogs,
+          url: '/nutrition/meal-logs',
+          icon: Soup,
+        },
+        {
+          title: copy.mealPlans,
+          url: '/nutrition/meal-plans',
+          icon: NotebookPen,
+        },
+      ],
+    },
     // {
     //   title: copy.ai,
     //   items: [

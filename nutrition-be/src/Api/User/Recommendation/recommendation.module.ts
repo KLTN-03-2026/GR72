@@ -8,9 +8,18 @@ import { TaiKhoanEntity } from '../../Admin/User/entities/tai-khoan.entity';
 import { CongThucEntity } from '../../Nutritionist/Recipe/entities/cong-thuc.entity';
 import { ChiSoSucKhoeEntity } from '../HealthAssessment/entities/chi-so-suc-khoe.entity';
 import { DanhGiaSucKhoeEntity } from '../HealthAssessment/entities/danh-gia-suc-khoe.entity';
-import { NhatKyBuaAnEntity, TongHopDinhDuongNgayEntity } from '../MealLog/entities/nhat-ky-bua-an.entity';
-import { ChiTietKeHoachAnEntity, KeHoachAnEntity } from '../MealPlan/entities/ke-hoach-an.entity';
-import { ChiTietThucDonMauEntity, ThucDonMauEntity } from '../../Nutritionist/MealTemplate/entities/thuc-don-mau.entity';
+import {
+  NhatKyBuaAnEntity,
+  TongHopDinhDuongNgayEntity,
+} from '../MealLog/entities/nhat-ky-bua-an.entity';
+import {
+  ChiTietKeHoachAnEntity,
+  KeHoachAnEntity,
+} from '../MealPlan/entities/ke-hoach-an.entity';
+import {
+  ChiTietThucDonMauEntity,
+  ThucDonMauEntity,
+} from '../../Nutritionist/MealTemplate/entities/thuc-don-mau.entity';
 import { KhuyenNghiAiEntity } from './entities/khuyen-nghi-ai.entity';
 import { UserRecommendationController } from './recommendation.controller';
 import { UserRecommendationService } from './recommendation.service';

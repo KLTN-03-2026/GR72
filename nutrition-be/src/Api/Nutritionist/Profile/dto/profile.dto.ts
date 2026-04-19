@@ -1,7 +1,15 @@
-import { IsOptional, IsString, IsUrl, MaxLength, ValidateIf } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsUrl,
+  MaxLength,
+  ValidateIf,
+} from 'class-validator';
 
 export class UpdateProfileDto {
-  @ValidateIf((o) => typeof o.anhDaiDienUrl === 'string' && o.anhDaiDienUrl.trim() !== '')
+  @ValidateIf(
+    (o) => typeof o.anhDaiDienUrl === 'string' && o.anhDaiDienUrl.trim() !== '',
+  )
   @IsUrl({}, { message: 'Avatar URL khong hop le' })
   @IsOptional()
   @MaxLength(255)

@@ -54,34 +54,42 @@ export class UserDashboardService {
   async getDashboard(userId?: number) {
     const user = await this.getActiveUser(userId);
 
-    const [profile, currentGoal, latestAssessment, latestMetric, recentMetrics, unreadNotifications, nutritionToday, latestRecommendation] =
-      await Promise.all([
-        this.profileRepository.findOne({
-          where: { tai_khoan_id: user.id },
-        }),
-        this.goalRepository.findOne({
-          where: { tai_khoan_id: user.id, trang_thai: 'dang_ap_dung' },
-          order: { cap_nhat_luc: 'DESC', id: 'DESC' },
-        }),
-        this.assessmentRepository.findOne({
-          where: { tai_khoan_id: user.id },
-          order: { tao_luc: 'DESC', id: 'DESC' },
-        }),
-        this.metricRepository.findOne({
-          where: { tai_khoan_id: user.id },
-          order: { do_luc: 'DESC', id: 'DESC' },
-        }),
-        this.metricRepository.find({
-          where: { tai_khoan_id: user.id },
-          order: { do_luc: 'DESC', id: 'DESC' },
-          take: 12,
-        }),
-        this.notificationRepository.count({
-          where: { tai_khoan_id: user.id, trang_thai: 'chua_doc' },
-        }),
-        this.getNutritionSummaryForToday(user.id),
-        this.getLatestRecommendation(user.id),
-      ]);
+    const [
+      profile,
+      currentGoal,
+      latestAssessment,
+      latestMetric,
+      recentMetrics,
+      unreadNotifications,
+      nutritionToday,
+      latestRecommendation,
+    ] = await Promise.all([
+      this.profileRepository.findOne({
+        where: { tai_khoan_id: user.id },
+      }),
+      this.goalRepository.findOne({
+        where: { tai_khoan_id: user.id, trang_thai: 'dang_ap_dung' },
+        order: { cap_nhat_luc: 'DESC', id: 'DESC' },
+      }),
+      this.assessmentRepository.findOne({
+        where: { tai_khoan_id: user.id },
+        order: { tao_luc: 'DESC', id: 'DESC' },
+      }),
+      this.metricRepository.findOne({
+        where: { tai_khoan_id: user.id },
+        order: { do_luc: 'DESC', id: 'DESC' },
+      }),
+      this.metricRepository.find({
+        where: { tai_khoan_id: user.id },
+        order: { do_luc: 'DESC', id: 'DESC' },
+        take: 12,
+      }),
+      this.notificationRepository.count({
+        where: { tai_khoan_id: user.id, trang_thai: 'chua_doc' },
+      }),
+      this.getNutritionSummaryForToday(user.id),
+      this.getLatestRecommendation(user.id),
+    ]);
 
     const onboardingStep = this.resolveOnboardingStep(profile, currentGoal);
     const recentWeights = recentMetrics
@@ -104,7 +112,11 @@ export class UserDashboardService {
             : onboardingStep === 'muc_tieu'
               ? '/nutrition/goals'
               : '/nutrition/dashboard',
-        thieu_du_lieu: this.collectMissingData(profile, currentGoal, latestAssessment),
+        thieu_du_lieu: this.collectMissingData(
+          profile,
+          currentGoal,
+          latestAssessment,
+        ),
         ho_so_tom_tat: profile
           ? {
               gioi_tinh: profile.gioi_tinh,
@@ -145,7 +157,9 @@ export class UserDashboardService {
               ngay_muc_tieu: currentGoal.ngay_muc_tieu,
             }
           : null,
-        chi_so_gan_nhat: latestMetric ? this.toMetricSummary(latestMetric) : null,
+        chi_so_gan_nhat: latestMetric
+          ? this.toMetricSummary(latestMetric)
+          : null,
         bieu_do_can_nang: recentWeights,
         danh_gia_suc_khoe_moi_nhat: latestAssessment
           ? this.toAssessmentResponse(latestAssessment)
@@ -321,5 +335,4 @@ export class UserDashboardService {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
   }
-
 }

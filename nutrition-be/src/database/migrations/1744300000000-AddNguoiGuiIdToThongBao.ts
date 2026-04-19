@@ -1,9 +1,7 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 import { TableForeignKey, TableIndex } from 'typeorm';
 
-export class AddNguoiGuiIdToThongBao1744300000000
-  implements MigrationInterface
-{
+export class AddNguoiGuiIdToThongBao1744300000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       ALTER TABLE thong_bao
@@ -34,11 +32,15 @@ export class AddNguoiGuiIdToThongBao1744300000000
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     try {
-      await queryRunner.dropForeignKey('thong_bao', 'fk_thong_bao_nguoi_gui')
-    } catch { /* ignore if not exists */ }
+      await queryRunner.dropForeignKey('thong_bao', 'fk_thong_bao_nguoi_gui');
+    } catch {
+      /* ignore if not exists */
+    }
     try {
-      await queryRunner.dropIndex('thong_bao', 'idx_thong_bao_nguoi_gui_id')
-    } catch { /* ignore if not exists */ }
-    await queryRunner.query(`ALTER TABLE thong_bao DROP COLUMN nguoi_gui_id`)
+      await queryRunner.dropIndex('thong_bao', 'idx_thong_bao_nguoi_gui_id');
+    } catch {
+      /* ignore if not exists */
+    }
+    await queryRunner.query(`ALTER TABLE thong_bao DROP COLUMN nguoi_gui_id`);
   }
 }

@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { AlertCircle, Calendar, BookOpen, Star } from 'lucide-react'
+import { Calendar, BookOpen, Star } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,7 +16,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Main } from '@/components/layout/main'
 import { NutritionTopbar } from '@/features/nutrition/components/topbar'
 import { PageHeading } from '@/features/nutrition/components/page-heading'
@@ -43,12 +42,29 @@ type WorkingHoursSlot = {
   end: string
 }
 
+type WorkingDayState = {
+  enabled: boolean
+  start: string
+  end: string
+}
+
+type WorkingScheduleState = Record<string, WorkingDayState>
+
+const DEFAULT_WORKING_SCHEDULE: WorkingScheduleState = {
+  mon: { enabled: false, start: '08:00', end: '17:00' },
+  tue: { enabled: false, start: '08:00', end: '17:00' },
+  wed: { enabled: false, start: '08:00', end: '17:00' },
+  thu: { enabled: false, start: '08:00', end: '17:00' },
+  fri: { enabled: false, start: '08:00', end: '17:00' },
+  sat: { enabled: false, start: '08:00', end: '12:00' },
+  sun: { enabled: false, start: '08:00', end: '12:00' },
+}
+
 function mapProfileToFormData(data: NProfile) {
   return {
     anhDaiDienUrl: data.anhDaiDienUrl ?? '',
     moTa: data.moTa ?? '',
     chuyenMon: data.chuyenMon ?? '',
-    gioLamViec: formatWorkingHoursForEditor(data.gioLamViec),
   }
 }
 
@@ -62,16 +78,6 @@ function normalizeSpecialties(value: string) {
         .map((item) => [item.toLowerCase(), item] as const),
     ).values()
   )
-}
-
-function formatWorkingHoursForEditor(value: string | null | undefined) {
-  if (!value) return ''
-
-  try {
-    return JSON.stringify(JSON.parse(value), null, 2)
-  } catch {
-    return value
-  }
 }
 
 function validateAvatarUrl(value: string) {
@@ -89,71 +95,75 @@ function validateAvatarUrl(value: string) {
   }
 }
 
-function validateWorkingHours(value: string) {
-  const trimmed = value.trim()
-  if (!trimmed) return null
+function parseWorkingHoursToSchedule(value: string | null | undefined): WorkingScheduleState {
+  const initial = { ...DEFAULT_WORKING_SCHEDULE }
 
-  let parsed: unknown
+  if (!value) return initial
+
   try {
-    parsed = JSON.parse(trimmed)
+    const parsed = JSON.parse(value) as Record<string, WorkingHoursSlot[]>
+
+    for (const day of Object.keys(initial)) {
+      const firstSlot = parsed?.[day]?.[0]
+      if (!firstSlot) continue
+
+      initial[day] = {
+        enabled: true,
+        start: firstSlot.start,
+        end: firstSlot.end,
+      }
+    }
   } catch {
-    return 'Giờ làm việc phải là JSON hợp lệ.'
+    return initial
   }
 
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    return 'Giờ làm việc phải là object JSON, ví dụ {"mon":[{"start":"08:00","end":"12:00"}]}.'
-  }
+  return initial
+}
 
-  for (const [day, slots] of Object.entries(parsed as Record<string, unknown>)) {
+function validateWorkingSchedule(schedule: WorkingScheduleState) {
+  for (const [day, config] of Object.entries(schedule)) {
+    if (!config.enabled) continue
+
     if (!(day in WEEKDAY_LABELS)) {
       return `Ngày làm việc không hợp lệ: ${day}.`
     }
 
-    if (!Array.isArray(slots)) {
-      return `Danh sách ca làm của ${day} phải là mảng.`
+    if (!TIME_SLOT_PATTERN.test(config.start) || !TIME_SLOT_PATTERN.test(config.end)) {
+      return `Giờ làm việc của ${WEEKDAY_LABELS[day]} phải dùng định dạng HH:mm.`
     }
 
-    for (const [index, slot] of slots.entries()) {
-      if (!slot || typeof slot !== 'object' || Array.isArray(slot)) {
-        return `Ca làm ${index + 1} của ${day} phải có dạng { "start": "08:00", "end": "12:00" }.`
-      }
-
-      const start = typeof (slot as Record<string, unknown>).start === 'string'
-        ? (slot as Record<string, unknown>).start.trim()
-        : ''
-      const end = typeof (slot as Record<string, unknown>).end === 'string'
-        ? (slot as Record<string, unknown>).end.trim()
-        : ''
-
-      if (!TIME_SLOT_PATTERN.test(start) || !TIME_SLOT_PATTERN.test(end)) {
-        return `Ca làm ${index + 1} của ${day} phải dùng định dạng HH:mm.`
-      }
-
-      if (start >= end) {
-        return `Ca làm ${index + 1} của ${day} phải có giờ bắt đầu nhỏ hơn giờ kết thúc.`
-      }
+    if (config.start >= config.end) {
+      return `Giờ bắt đầu của ${WEEKDAY_LABELS[day]} phải nhỏ hơn giờ kết thúc.`
     }
   }
 
   return null
 }
 
-function parseWorkingHoursSummary(value: string) {
-  const trimmed = value.trim()
-  if (!trimmed) return []
+function serializeWorkingSchedule(schedule: WorkingScheduleState) {
+  const payload = Object.entries(schedule).reduce<Record<string, WorkingHoursSlot[]>>((acc, [day, config]) => {
+    if (!config.enabled) return acc
 
-  try {
-    const parsed = JSON.parse(trimmed) as Record<string, WorkingHoursSlot[]>
-    return Object.entries(parsed)
-      .filter(([, slots]) => Array.isArray(slots) && slots.length > 0)
-      .map(([day, slots]) => ({
-        day,
-        label: WEEKDAY_LABELS[day] ?? day,
-        slots: slots.map((slot) => `${slot.start}-${slot.end}`),
-      }))
-  } catch {
-    return []
-  }
+    acc[day] = [
+      {
+        start: config.start,
+        end: config.end,
+      },
+    ]
+    return acc
+  }, {})
+
+  return Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined
+}
+
+function summarizeWorkingSchedule(schedule: WorkingScheduleState) {
+  return Object.entries(schedule)
+    .filter(([, config]) => config.enabled)
+    .map(([day, config]) => ({
+      day,
+      label: WEEKDAY_LABELS[day] ?? day,
+      slots: [`${config.start}-${config.end}`],
+    }))
 }
 
 export function NutritionistProfile() {
@@ -165,8 +175,8 @@ export function NutritionistProfile() {
     anhDaiDienUrl: '',
     moTa: '',
     chuyenMon: '',
-    gioLamViec: '',
   })
+  const [workingSchedule, setWorkingSchedule] = useState<WorkingScheduleState>(DEFAULT_WORKING_SCHEDULE)
 
   useEffect(() => {
     loadProfile()
@@ -177,6 +187,7 @@ export function NutritionistProfile() {
       const data = await getNutriProfile()
       setProfile(data)
       setFormData(mapProfileToFormData(data))
+      setWorkingSchedule(parseWorkingHoursToSchedule(data.gioLamViec))
     } catch (error) {
       toast.error('Không thể tải profile')
     } finally {
@@ -196,7 +207,7 @@ export function NutritionistProfile() {
       return
     }
 
-    const workingHoursError = validateWorkingHours(formData.gioLamViec)
+    const workingHoursError = validateWorkingSchedule(workingSchedule)
     if (workingHoursError) {
       toast.error(workingHoursError)
       return
@@ -208,10 +219,11 @@ export function NutritionistProfile() {
         anhDaiDienUrl: formData.anhDaiDienUrl || undefined,
         moTa: formData.moTa.trim() || undefined,
         chuyenMon: normalizeSpecialties(formData.chuyenMon).join(', ') || undefined,
-        gioLamViec: formData.gioLamViec.trim() || undefined,
+        gioLamViec: serializeWorkingSchedule(workingSchedule),
       })
       setProfile(data)
       setFormData(mapProfileToFormData(data))
+      setWorkingSchedule(parseWorkingHoursToSchedule(data.gioLamViec))
       toast.success('Đã lưu profile chuyên môn.')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể lưu profile'
@@ -235,7 +247,7 @@ export function NutritionistProfile() {
   if (!profile) return null
 
   const specialtyTags = normalizeSpecialties(formData.chuyenMon)
-  const workingHoursSummary = parseWorkingHoursSummary(formData.gioLamViec)
+  const workingHoursSummary = summarizeWorkingSchedule(workingSchedule)
   const avatarPreviewUrl = formData.anhDaiDienUrl.trim() || profile.anhDaiDienUrl || ''
 
   return (
@@ -328,21 +340,72 @@ export function NutritionistProfile() {
                 </div>
                 <div className='space-y-2 md:col-span-2'>
                   <Label>Giờ làm việc</Label>
-                  <Textarea
-                    value={formData.gioLamViec}
-                    onChange={(e) => setFormData((f) => ({ ...f, gioLamViec: e.target.value }))}
-                    rows={8}
-                    className='font-mono text-xs'
-                    placeholder={`{\n  "mon": [{ "start": "08:00", "end": "12:00" }],\n  "wed": [{ "start": "13:30", "end": "17:30" }]\n}`}
-                  />
-                  <Alert>
-                    <AlertCircle className='size-4' />
-                    <AlertTitle>Định dạng giờ làm việc</AlertTitle>
-                    <AlertDescription>
-                      Dùng JSON theo các key `mon`, `tue`, `wed`, `thu`, `fri`, `sat`, `sun`.
-                      Mỗi ca làm gồm `start` và `end` dạng `HH:mm`, và giờ bắt đầu phải nhỏ hơn giờ kết thúc.
-                    </AlertDescription>
-                  </Alert>
+                  <div className='space-y-3 rounded-sm border bg-muted/20 p-4'>
+                    {Object.entries(WEEKDAY_LABELS).map(([dayKey, label]) => {
+                      const config = workingSchedule[dayKey]
+
+                      return (
+                        <div
+                          key={dayKey}
+                          className='grid gap-3 rounded-lg border bg-background p-3 md:grid-cols-[1.2fr_1fr_1fr]'
+                        >
+                          <label className='flex items-center gap-3 text-sm font-medium'>
+                            <input
+                              type='checkbox'
+                              checked={config.enabled}
+                              onChange={(event) =>
+                                setWorkingSchedule((current) => ({
+                                  ...current,
+                                  [dayKey]: {
+                                    ...current[dayKey],
+                                    enabled: event.target.checked,
+                                  },
+                                }))
+                              }
+                            />
+                            <span>{label}</span>
+                          </label>
+                          <div className='space-y-1.5'>
+                            <Label className='text-xs text-muted-foreground'>Bắt đầu</Label>
+                            <Input
+                              type='time'
+                              value={config.start}
+                              disabled={!config.enabled}
+                              onChange={(event) =>
+                                setWorkingSchedule((current) => ({
+                                  ...current,
+                                  [dayKey]: {
+                                    ...current[dayKey],
+                                    start: event.target.value,
+                                  },
+                                }))
+                              }
+                            />
+                          </div>
+                          <div className='space-y-1.5'>
+                            <Label className='text-xs text-muted-foreground'>Kết thúc</Label>
+                            <Input
+                              type='time'
+                              value={config.end}
+                              disabled={!config.enabled}
+                              onChange={(event) =>
+                                setWorkingSchedule((current) => ({
+                                  ...current,
+                                  [dayKey]: {
+                                    ...current[dayKey],
+                                    end: event.target.value,
+                                  },
+                                }))
+                              }
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <p className='text-xs text-muted-foreground'>
+                    Chỉ cần chọn ngày làm việc và khung giờ. Hệ thống sẽ tự chuyển về định dạng dữ liệu chuẩn khi lưu.
+                  </p>
                   {workingHoursSummary.length > 0 && (
                     <div className='rounded-sm border bg-muted/20 p-3'>
                       <p className='text-xs font-medium text-muted-foreground'>

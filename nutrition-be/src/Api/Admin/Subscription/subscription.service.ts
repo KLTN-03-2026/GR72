@@ -135,7 +135,9 @@ export class SubscriptionService {
     if (dto.ngayHetHan) {
       ngayHetHan = new Date(dto.ngayHetHan);
     } else if (pkg.thoi_han_ngay) {
-      ngayHetHan = new Date(ngayBatDau.getTime() + pkg.thoi_han_ngay * 24 * 60 * 60 * 1000);
+      ngayHetHan = new Date(
+        ngayBatDau.getTime() + pkg.thoi_han_ngay * 24 * 60 * 60 * 1000,
+      );
     }
 
     const entity = this.subscriptionRepository.create({
@@ -170,10 +172,14 @@ export class SubscriptionService {
   ): Promise<SuccessResponse<PublicSubscription>> {
     const entity = await this.findById(id);
 
-    if (dto.trangThai !== undefined) entity.trang_thai = dto.trangThai as SubscriptionStatus;
-    if (dto.ngayBatDau !== undefined) entity.ngay_bat_dau = dto.ngayBatDau ? new Date(dto.ngayBatDau) : null;
-    if (dto.ngayHetHan !== undefined) entity.ngay_het_han = dto.ngayHetHan ? new Date(dto.ngayHetHan) : null;
-    if (dto.tuDongGiaHan !== undefined) entity.tu_dong_gia_han = dto.tuDongGiaHan;
+    if (dto.trangThai !== undefined)
+      entity.trang_thai = dto.trangThai as SubscriptionStatus;
+    if (dto.ngayBatDau !== undefined)
+      entity.ngay_bat_dau = dto.ngayBatDau ? new Date(dto.ngayBatDau) : null;
+    if (dto.ngayHetHan !== undefined)
+      entity.ngay_het_han = dto.ngayHetHan ? new Date(dto.ngayHetHan) : null;
+    if (dto.tuDongGiaHan !== undefined)
+      entity.tu_dong_gia_han = dto.tuDongGiaHan;
     if (dto.ghiChu !== undefined) entity.ghi_chu = dto.ghiChu?.trim() || null;
 
     entity.cap_nhat_luc = new Date();
@@ -207,11 +213,19 @@ export class SubscriptionService {
       id: entity.id,
       tai_khoan_id: entity.tai_khoan_id,
       tai_khoan: entity.tai_khoan
-        ? { id: entity.tai_khoan.id, ho_ten: entity.tai_khoan.ho_ten, email: entity.tai_khoan.email }
+        ? {
+            id: entity.tai_khoan.id,
+            ho_ten: entity.tai_khoan.ho_ten,
+            email: entity.tai_khoan.email,
+          }
         : null,
       goi_dich_vu_id: entity.goi_dich_vu_id,
       goi_dich_vu: entity.goi_dich_vu
-        ? { id: entity.goi_dich_vu.id, ten_goi: entity.goi_dich_vu.ten_goi, slug: entity.goi_dich_vu.slug }
+        ? {
+            id: entity.goi_dich_vu.id,
+            ten_goi: entity.goi_dich_vu.ten_goi,
+            slug: entity.goi_dich_vu.slug,
+          }
         : null,
       ma_dang_ky: entity.ma_dang_ky,
       trang_thai: entity.trang_thai,

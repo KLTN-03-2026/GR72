@@ -1,4 +1,11 @@
-import { Controller, Get, NotFoundException, Param, ParseIntPipe, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  ParseIntPipe,
+  Query,
+} from '@nestjs/common';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, IsNull, Like, Repository } from 'typeorm';
@@ -22,7 +29,9 @@ export class NutritionistFoodController {
     const p = Math.max(1, Number(page));
     const l = Math.max(1, Math.min(50, Number(limit)));
 
-    const where: FindOptionsWhere<ThucPhamEntity> = { xoa_luc: IsNull() as any };
+    const where: FindOptionsWhere<ThucPhamEntity> = {
+      xoa_luc: IsNull() as any,
+    };
     if (keyword) where.ten = Like(`%${keyword}%`);
     if (daXacMinh !== undefined) where.da_xac_minh = daXacMinh === 'true';
 
@@ -38,8 +47,12 @@ export class NutritionistFoodController {
       success: true,
       data: {
         items: items.map((f) => ({
-          id: f.id, ten: f.ten, nhom_thuc_pham_id: f.nhom_thuc_pham_id,
-          nhom_thuc_pham: f.nhom_thuc_pham ? { id: f.nhom_thuc_pham.id, ten: f.nhom_thuc_pham.ten } : null,
+          id: f.id,
+          ten: f.ten,
+          nhom_thuc_pham_id: f.nhom_thuc_pham_id,
+          nhom_thuc_pham: f.nhom_thuc_pham
+            ? { id: f.nhom_thuc_pham.id, ten: f.nhom_thuc_pham.ten }
+            : null,
           calories_100g: f.calories_100g ? Number(f.calories_100g) : null,
           protein_100g: f.protein_100g ? Number(f.protein_100g) : null,
           carb_100g: f.carb_100g ? Number(f.carb_100g) : null,

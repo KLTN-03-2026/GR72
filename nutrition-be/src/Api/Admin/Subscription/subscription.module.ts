@@ -8,7 +8,11 @@ import { SubscriptionService } from './subscription.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([DangKyGoiDichVuEntity, GoiDichVuEntity, TaiKhoanEntity]),
+    TypeOrmModule.forFeature([
+      DangKyGoiDichVuEntity,
+      GoiDichVuEntity,
+      TaiKhoanEntity,
+    ]),
   ],
   controllers: [SubscriptionController],
   providers: [SubscriptionService],

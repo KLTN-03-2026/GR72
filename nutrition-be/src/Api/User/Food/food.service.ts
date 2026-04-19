@@ -102,10 +102,7 @@ export class UserFoodService {
       relations: ['nhom_thuc_pham'],
     });
 
-    if (
-      !food ||
-      (!food.da_xac_minh && food.loai_nguon !== 'noi_bo')
-    ) {
+    if (!food || (!food.da_xac_minh && food.loai_nguon !== 'noi_bo')) {
       throw new NotFoundException('Khong tim thay thuc pham');
     }
 

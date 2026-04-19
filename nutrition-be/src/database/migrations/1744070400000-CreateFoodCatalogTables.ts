@@ -1,9 +1,7 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 import { Table, TableForeignKey, TableIndex } from 'typeorm';
 
-export class CreateFoodCatalogTables1744070400000
-  implements MigrationInterface
-{
+export class CreateFoodCatalogTables1744070400000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     const hasFoodGroupTable = await queryRunner.hasTable('nhom_thuc_pham');
 

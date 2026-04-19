@@ -17,14 +17,21 @@ export class NutritionistEarningsService {
     private readonly cgRepo: Repository<ChuyenGiaDinhDuongEntity>,
   ) {}
 
-  async getEarnings(userId: number, query: { startDate?: string; endDate?: string }) {
+  async getEarnings(
+    userId: number,
+    query: { startDate?: string; endDate?: string },
+  ) {
     const now = new Date();
     const start = query.startDate
       ? query.startDate
-      : new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      : new Date(now.getFullYear(), now.getMonth(), 1)
+          .toISOString()
+          .split('T')[0];
     const end = query.endDate ? query.endDate : now.toISOString().split('T')[0];
 
-    const expert = await this.cgRepo.findOne({ where: { tai_khoan_id: userId } });
+    const expert = await this.cgRepo.findOne({
+      where: { tai_khoan_id: userId },
+    });
     if (!expert) {
       throw new NotFoundException('Khong tim thay chuyen gia');
     }
@@ -33,8 +40,12 @@ export class NutritionistEarningsService {
       .createQueryBuilder('pb')
       .innerJoin(LichHenEntity, 'lh', 'lh.id = pb.lich_hen_id')
       .where('pb.chuyen_gia_dinh_duong_id = :cgId', { cgId: expert.id })
-      .andWhere('pb.trang_thai = :allocationStatus', { allocationStatus: 'da_ghi_nhan' })
-      .andWhere('lh.trang_thai = :bookingStatus', { bookingStatus: 'hoan_thanh' })
+      .andWhere('pb.trang_thai = :allocationStatus', {
+        allocationStatus: 'da_ghi_nhan',
+      })
+      .andWhere('lh.trang_thai = :bookingStatus', {
+        bookingStatus: 'hoan_thanh',
+      })
       .andWhere('lh.ngay_hen >= :start', { start })
       .andWhere('lh.ngay_hen <= :end', { end })
       .select([
@@ -49,8 +60,12 @@ export class NutritionistEarningsService {
       .createQueryBuilder('pb')
       .innerJoin(LichHenEntity, 'lh', 'lh.id = pb.lich_hen_id')
       .where('pb.chuyen_gia_dinh_duong_id = :cgId', { cgId: expert.id })
-      .andWhere('pb.trang_thai = :allocationStatus', { allocationStatus: 'da_ghi_nhan' })
-      .andWhere('lh.trang_thai = :bookingStatus', { bookingStatus: 'hoan_thanh' })
+      .andWhere('pb.trang_thai = :allocationStatus', {
+        allocationStatus: 'da_ghi_nhan',
+      })
+      .andWhere('lh.trang_thai = :bookingStatus', {
+        bookingStatus: 'hoan_thanh',
+      })
       .andWhere('lh.ngay_hen >= :start', { start })
       .andWhere('lh.ngay_hen <= :end', { end })
       .select([
@@ -71,8 +86,12 @@ export class NutritionistEarningsService {
       .innerJoin('lh.tai_khoan', 'tk')
       .innerJoin('lh.goi_tu_van', 'gtv')
       .where('pb.chuyen_gia_dinh_duong_id = :cgId', { cgId: expert.id })
-      .andWhere('pb.trang_thai = :allocationStatus', { allocationStatus: 'da_ghi_nhan' })
-      .andWhere('lh.trang_thai = :bookingStatus', { bookingStatus: 'hoan_thanh' })
+      .andWhere('pb.trang_thai = :allocationStatus', {
+        allocationStatus: 'da_ghi_nhan',
+      })
+      .andWhere('lh.trang_thai = :bookingStatus', {
+        bookingStatus: 'hoan_thanh',
+      })
       .andWhere('lh.ngay_hen >= :start', { start })
       .andWhere('lh.ngay_hen <= :end', { end })
       .select([

@@ -37,7 +37,10 @@ export class FoodController {
     @Body() body: CreateFoodDto,
     @Req() request: Request & { user?: RequestUser },
   ) {
-    return this.foodService.create(body, request.user?.id ?? request.user?.sub ?? null);
+    return this.foodService.create(
+      body,
+      request.user?.id ?? request.user?.sub ?? null,
+    );
   }
 
   @Get()
@@ -68,6 +71,9 @@ export class FoodController {
     @Param('id', ParseIntPipe) id: number,
     @Req() request: Request & { user?: RequestUser },
   ) {
-    return this.foodService.remove(id, request.user?.id ?? request.user?.sub ?? null);
+    return this.foodService.remove(
+      id,
+      request.user?.id ?? request.user?.sub ?? null,
+    );
   }
 }

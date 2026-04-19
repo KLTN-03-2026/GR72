@@ -27,6 +27,7 @@ export const nutritionMessages: Record<
         overview: string
         health: string
         nutrition: string
+        consultation: string
         ai: string
         content: string
         dashboard: string
@@ -36,6 +37,9 @@ export const nutritionMessages: Record<
         foods: string
         mealLogs: string
         mealPlans: string
+        nutritionists: string
+        bookings: string
+        reviews: string
         aiAdvisor: string
         articles: string
         notifications: string
@@ -92,23 +96,27 @@ export const nutritionMessages: Record<
       },
     },
     roles: {
-      nutritionist: 'Nutritionist',
-      admin: 'Admin',
+      nutritionist: 'Chuyên gia dinh dưỡng',
+      admin: 'Quản trị viên',
     },
     sidebar: {
       user: {
         overview: 'Tổng quan',
         health: 'Sức khỏe',
         nutrition: 'Dinh dưỡng',
+        consultation: 'Tư vấn',
         ai: 'AI tư vấn',
         content: 'Nội dung',
-        dashboard: 'Dashboard',
+        dashboard: 'Bảng điều khiển',
         profile: 'Hồ sơ sức khỏe',
         goals: 'Mục tiêu sức khỏe',
         healthMetrics: 'Chỉ số sức khỏe',
         foods: 'Thực phẩm',
         mealLogs: 'Nhật ký ăn uống',
         mealPlans: 'Thực đơn cá nhân',
+        nutritionists: 'Chuyên gia dinh dưỡng',
+        bookings: 'Lịch tư vấn',
+        reviews: 'Đánh giá',
         aiAdvisor: 'AI tư vấn',
         articles: 'Bài viết',
         notifications: 'Thông báo',
@@ -118,15 +126,15 @@ export const nutritionMessages: Record<
         nutritionData: 'Dữ liệu dinh dưỡng',
         professionalContent: 'Nội dung chuyên môn',
         administration: 'Quản trị',
-        dashboard: 'Dashboard staff',
+        dashboard: 'Bảng điều khiển',
         foods: 'Quản lý thực phẩm',
         foodReviewRequests: 'Yêu cầu duyệt dữ liệu',
-        recipes: 'Recipes',
-        mealTemplates: 'Meal templates',
+        recipes: 'Công thức chuẩn',
+        mealTemplates: 'Thực đơn mẫu',
         articles: 'Bài viết',
         users: 'Quản lý user',
         notifications: 'Thông báo hệ thống',
-        profile: 'Profile chuyên môn',
+        profile: 'Hồ sơ chuyên môn',
         consultationPackages: 'Gói tư vấn',
         bookings: 'Quản lý booking',
       },
@@ -172,6 +180,7 @@ export const nutritionMessages: Record<
         overview: 'Overview',
         health: 'Health',
         nutrition: 'Nutrition',
+        consultation: 'Consultation',
         ai: 'AI Advisor',
         content: 'Content',
         dashboard: 'Dashboard',
@@ -181,6 +190,9 @@ export const nutritionMessages: Record<
         foods: 'Foods',
         mealLogs: 'Meal Logs',
         mealPlans: 'Meal Plans',
+        nutritionists: 'Nutritionists',
+        bookings: 'Consultation Bookings',
+        reviews: 'Reviews',
         aiAdvisor: 'AI Advisor',
         articles: 'Articles',
         notifications: 'Notifications',

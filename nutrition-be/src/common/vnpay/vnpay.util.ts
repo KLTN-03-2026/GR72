@@ -73,6 +73,34 @@ export interface VnpayRefundResponse {
   vnp_SecureHash?: string;
 }
 
+export interface VnpayQueryResponse {
+  vnp_ResponseId?: string;
+  vnp_Command?: string;
+  vnp_ResponseCode?: string;
+  vnp_Message?: string;
+  vnp_TmnCode?: string;
+  vnp_TxnRef?: string;
+  vnp_Amount?: string;
+  vnp_BankCode?: string;
+  vnp_PayDate?: string;
+  vnp_TransactionNo?: string;
+  vnp_TransactionType?: string;
+  vnp_TransactionStatus?: string;
+  vnp_OrderInfo?: string;
+  vnp_PromotionCode?: string;
+  vnp_PromotionAmount?: string;
+  vnp_SecureHash?: string;
+}
+
+export interface VnpayQueryParams {
+  txnRef: string;
+  transactionDate: string;
+  orderInfo: string;
+  ipAddr?: string;
+  transactionNo?: string;
+  transactionType?: '02' | '03';
+}
+
 function sortObject(
   obj: Record<string, string | number>,
 ): Record<string, string> {
@@ -176,7 +204,9 @@ export function formatVnpayDate(date: Date): string {
   return `${y}${m}${d}${h}${mi}${s}`;
 }
 
-async function parseJsonResponse(response: Response): Promise<Record<string, string>> {
+async function parseJsonResponse(
+  response: Response,
+): Promise<Record<string, string>> {
   const text = await response.text();
   if (!text) return {};
 
@@ -187,7 +217,9 @@ async function parseJsonResponse(response: Response): Promise<Record<string, str
   }
 }
 
-function verifyRefundResponseSignature(params: Record<string, string>): boolean {
+function verifyRefundResponseSignature(
+  params: Record<string, string>,
+): boolean {
   const { vnp_SecureHash, ...rest } = params;
   if (!vnp_SecureHash) return false;
 
@@ -210,7 +242,100 @@ function verifyRefundResponseSignature(params: Record<string, string>): boolean 
   return hmacSHA512(signData) === vnp_SecureHash;
 }
 
-export async function refundVnpayTransaction(params: VnpayRefundParams): Promise<{
+function verifyQueryResponseSignature(params: Record<string, string>): boolean {
+  const { vnp_SecureHash, ...rest } = params;
+  if (!vnp_SecureHash) return false;
+
+  const signData = [
+    rest['vnp_ResponseId'] ?? '',
+    rest['vnp_Command'] ?? '',
+    rest['vnp_ResponseCode'] ?? '',
+    rest['vnp_Message'] ?? '',
+    rest['vnp_TmnCode'] ?? '',
+    rest['vnp_TxnRef'] ?? '',
+    rest['vnp_Amount'] ?? '',
+    rest['vnp_BankCode'] ?? '',
+    rest['vnp_PayDate'] ?? '',
+    rest['vnp_TransactionNo'] ?? '',
+    rest['vnp_TransactionType'] ?? '',
+    rest['vnp_TransactionStatus'] ?? '',
+    rest['vnp_OrderInfo'] ?? '',
+    rest['vnp_PromotionCode'] ?? '',
+    rest['vnp_PromotionAmount'] ?? '',
+  ].join('|');
+
+  return hmacSHA512(signData) === vnp_SecureHash;
+}
+
+export async function queryVnpayTransaction(params: VnpayQueryParams): Promise<{
+  success: boolean;
+  message: string;
+  response: VnpayQueryResponse;
+}> {
+  const requestId = generateRequestId('QD');
+  const createDate = formatVnpayDate(new Date());
+  const ipAddr = params.ipAddr ?? '127.0.0.1';
+  const transactionType = params.transactionType ?? '02';
+
+  const payload: Record<string, string> = {
+    vnp_RequestId: requestId,
+    vnp_Version: '2.1.0',
+    vnp_Command: 'querydr',
+    vnp_TmnCode: VNPAY_TMN_CODE,
+    vnp_TransactionType: transactionType,
+    vnp_TxnRef: params.txnRef,
+    vnp_OrderInfo: params.orderInfo,
+    vnp_TransactionNo: params.transactionNo ?? '',
+    vnp_TransactionDate: params.transactionDate,
+    vnp_CreateDate: createDate,
+    vnp_IpAddr: ipAddr,
+  };
+
+  const signData = [
+    payload.vnp_RequestId,
+    payload.vnp_Version,
+    payload.vnp_Command,
+    payload.vnp_TmnCode,
+    payload.vnp_TransactionType,
+    payload.vnp_TxnRef,
+    payload.vnp_TransactionDate,
+    payload.vnp_CreateDate,
+    payload.vnp_IpAddr,
+    payload.vnp_OrderInfo,
+  ].join('|');
+
+  payload.vnp_SecureHash = hmacSHA512(signData);
+
+  const response = await fetch(VNPAY_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  const responseBody = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(
+      responseBody['vnp_Message'] || 'VNPay tu choi yeu cau truy van giao dich',
+    );
+  }
+
+  if (!verifyQueryResponseSignature(responseBody)) {
+    throw new Error('Chu ky phan hoi truy van giao dich VNPay khong hop le');
+  }
+
+  const responseCode = responseBody['vnp_ResponseCode'] ?? '';
+
+  return {
+    success: responseCode === '00',
+    message: responseBody['vnp_Message'] || 'Truy van giao dich thanh cong',
+    response: responseBody,
+  };
+}
+
+export async function refundVnpayTransaction(
+  params: VnpayRefundParams,
+): Promise<{
   success: boolean;
   message: string;
   response: VnpayRefundResponse;
@@ -265,7 +390,9 @@ export async function refundVnpayTransaction(params: VnpayRefundParams): Promise
   const responseBody = await parseJsonResponse(response);
 
   if (!response.ok) {
-    throw new Error(responseBody['vnp_Message'] || 'VNPay tu choi yeu cau hoan tien');
+    throw new Error(
+      responseBody['vnp_Message'] || 'VNPay tu choi yeu cau hoan tien',
+    );
   }
 
   if (!verifyRefundResponseSignature(responseBody)) {
@@ -278,7 +405,9 @@ export async function refundVnpayTransaction(params: VnpayRefundParams): Promise
   if (responseCode !== '00') {
     return {
       success: false,
-      message: responseBody['vnp_Message'] || 'VNPay khong chap nhan yeu cau hoan tien',
+      message:
+        responseBody['vnp_Message'] ||
+        'VNPay khong chap nhan yeu cau hoan tien',
       response: responseBody,
     };
   }

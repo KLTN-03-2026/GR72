@@ -1,4 +1,12 @@
-import { Controller, Get, Param, ParseIntPipe, Patch, Query, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Query,
+  Req,
+} from '@nestjs/common';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { NutritionistNotificationsService } from './nutritionist-notifications.service';
 
@@ -22,7 +30,10 @@ export class NutritionistNotificationsController {
   }
 
   @Patch(':id/read')
-  markRead(@Req() req: { user?: { sub: number } }, @Param('id', ParseIntPipe) id: number) {
+  markRead(
+    @Req() req: { user?: { sub: number } },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
     const userId = req.user?.sub;
     if (!userId) {
       return { success: false, message: 'Khong xac dinh duoc nguoi dung' };

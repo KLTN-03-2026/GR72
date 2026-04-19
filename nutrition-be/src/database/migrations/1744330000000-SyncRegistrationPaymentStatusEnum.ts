@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class SyncRegistrationPaymentStatusEnum1744330000000
-  implements MigrationInterface
-{
+export class SyncRegistrationPaymentStatusEnum1744330000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     const hasTable = await queryRunner.hasTable('chuyen_gia_dinh_duong');
     if (!hasTable) {

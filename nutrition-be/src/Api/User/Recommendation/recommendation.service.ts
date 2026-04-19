@@ -14,9 +14,18 @@ import { MucTieuEntity } from '../../Admin/User/entities/muc-tieu.entity';
 import { TaiKhoanEntity } from '../../Admin/User/entities/tai-khoan.entity';
 import { ChiSoSucKhoeEntity } from '../HealthAssessment/entities/chi-so-suc-khoe.entity';
 import { DanhGiaSucKhoeEntity } from '../HealthAssessment/entities/danh-gia-suc-khoe.entity';
-import { NhatKyBuaAnEntity, TongHopDinhDuongNgayEntity } from '../MealLog/entities/nhat-ky-bua-an.entity';
-import { ChiTietKeHoachAnEntity, KeHoachAnEntity } from '../MealPlan/entities/ke-hoach-an.entity';
-import { ChiTietThucDonMauEntity, ThucDonMauEntity } from '../../Nutritionist/MealTemplate/entities/thuc-don-mau.entity';
+import {
+  NhatKyBuaAnEntity,
+  TongHopDinhDuongNgayEntity,
+} from '../MealLog/entities/nhat-ky-bua-an.entity';
+import {
+  ChiTietKeHoachAnEntity,
+  KeHoachAnEntity,
+} from '../MealPlan/entities/ke-hoach-an.entity';
+import {
+  ChiTietThucDonMauEntity,
+  ThucDonMauEntity,
+} from '../../Nutritionist/MealTemplate/entities/thuc-don-mau.entity';
 import { CongThucEntity } from '../../Nutritionist/Recipe/entities/cong-thuc.entity';
 import { ApplyRecommendationDto } from './dto/apply-recommendation.dto';
 import { KhuyenNghiAiEntity } from './entities/khuyen-nghi-ai.entity';
@@ -93,7 +102,9 @@ export class UserRecommendationService {
       ? Number(context.summaryToday.tong_calories)
       : 0;
     const calorieGap =
-      targetCalories !== null ? Number((targetCalories - consumedCalories).toFixed(2)) : null;
+      targetCalories !== null
+        ? Number((targetCalories - consumedCalories).toFixed(2))
+        : null;
 
     const foods = await this.foodRepository.find({
       where: { xoa_luc: IsNull() },
@@ -102,7 +113,9 @@ export class UserRecommendationService {
       order: { da_xac_minh: 'DESC', ten: 'ASC' },
     });
 
-    const filteredFoods = foods.filter((food) => this.isFoodAllowed(food, context.profile));
+    const filteredFoods = foods.filter((food) =>
+      this.isFoodAllowed(food, context.profile),
+    );
     const prioritize = [...filteredFoods]
       .sort((a, b) => {
         const scoreA =
@@ -117,27 +130,42 @@ export class UserRecommendationService {
       .map((food) => this.toFoodSuggestion(food));
 
     const limitFoods = [...filteredFoods]
-      .sort((a, b) => Number(b.duong_100g) + Number(b.natri_100g) - (Number(a.duong_100g) + Number(a.natri_100g)))
+      .sort(
+        (a, b) =>
+          Number(b.duong_100g) +
+          Number(b.natri_100g) -
+          (Number(a.duong_100g) + Number(a.natri_100g)),
+      )
       .slice(0, 3)
       .map((food) => this.toFoodSuggestion(food));
 
     const warnings: string[] = [];
     if (calorieGap !== null && calorieGap < 0) {
-      warnings.push('Bạn đã vượt mục tiêu calories hôm nay, nên ưu tiên món nhẹ và giàu protein.');
+      warnings.push(
+        'Bạn đã vượt mục tiêu calories hôm nay, nên ưu tiên món nhẹ và giàu protein.',
+      );
     }
     if (context.profile?.di_ung?.length) {
-      warnings.push(`Đã loại trừ thực phẩm liên quan đến dị ứng: ${context.profile.di_ung.join(', ')}.`);
+      warnings.push(
+        `Đã loại trừ thực phẩm liên quan đến dị ứng: ${context.profile.di_ung.join(', ')}.`,
+      );
     }
 
     const recommendation = await this.saveRecommendation(context.user.id, {
       loai: 'nutrition',
       mucTieuCalories: targetCalories,
       mucTieuProtein:
-        context.goal?.muc_tieu_protein_g ?? context.assessment?.protein_khuyen_nghi_g ?? null,
+        context.goal?.muc_tieu_protein_g ??
+        context.assessment?.protein_khuyen_nghi_g ??
+        null,
       mucTieuCarb:
-        context.goal?.muc_tieu_carb_g ?? context.assessment?.carb_khuyen_nghi_g ?? null,
+        context.goal?.muc_tieu_carb_g ??
+        context.assessment?.carb_khuyen_nghi_g ??
+        null,
       mucTieuFat:
-        context.goal?.muc_tieu_fat_g ?? context.assessment?.fat_khuyen_nghi_g ?? null,
+        context.goal?.muc_tieu_fat_g ??
+        context.assessment?.fat_khuyen_nghi_g ??
+        null,
       warnings,
       lyGiai:
         calorieGap === null
@@ -194,7 +222,9 @@ export class UserRecommendationService {
       .map(({ score, ...rest }) => rest);
 
     if (suggestions.length === 0) {
-      throw new NotFoundException('Khong tim thay goi y bua an phu hop voi che do hien tai');
+      throw new NotFoundException(
+        'Khong tim thay goi y bua an phu hop voi che do hien tai',
+      );
     }
 
     const recommendation = await this.saveRecommendation(context.user.id, {
@@ -247,7 +277,9 @@ export class UserRecommendationService {
     }
 
     const detailRows = await this.mealTemplateDetailRepository.find({
-      where: candidateTemplates.map((template) => ({ thuc_don_mau_id: template.id })),
+      where: candidateTemplates.map((template) => ({
+        thuc_don_mau_id: template.id,
+      })),
       order: { ngay_so: 'ASC', loai_bua_an: 'ASC', thu_tu: 'ASC' },
     });
 
@@ -260,19 +292,25 @@ export class UserRecommendationService {
 
     const matchingTemplates = (
       await Promise.all(
-      candidateTemplates.map(async (template) => {
-        const details = detailsByTemplate.get(template.id) ?? [];
-        const enrichedDetails = await Promise.all(
-          details.map((detail) => this.enrichMealPlanDetail(detail)),
-        );
+        candidateTemplates.map(async (template) => {
+          const details = detailsByTemplate.get(template.id) ?? [];
+          const enrichedDetails = await Promise.all(
+            details.map((detail) => this.enrichMealPlanDetail(detail)),
+          );
 
-        return {
-          template,
-          details: enrichedDetails,
-          distance: Math.abs(Number(template.calories_muc_tieu || targetCalories) - targetCalories),
-          preferenceScore: this.scoreTemplateForDietPreference(enrichedDetails, context.profile),
-        };
-      }),
+          return {
+            template,
+            details: enrichedDetails,
+            distance: Math.abs(
+              Number(template.calories_muc_tieu || targetCalories) -
+                targetCalories,
+            ),
+            preferenceScore: this.scoreTemplateForDietPreference(
+              enrichedDetails,
+              context.profile,
+            ),
+          };
+        }),
       )
     ).filter((item) => item.preferenceScore > Number.NEGATIVE_INFINITY);
 
@@ -321,22 +359,37 @@ export class UserRecommendationService {
     const actions: string[] = [];
     const warnings: string[] = [];
 
-    if (context.assessment?.phan_loai_bmi === 'thua_can' || context.assessment?.phan_loai_bmi === 'beo_phi') {
+    if (
+      context.assessment?.phan_loai_bmi === 'thua_can' ||
+      context.assessment?.phan_loai_bmi === 'beo_phi'
+    ) {
       actions.push('Duy trì deficit calories nhẹ 300-500 kcal mỗi ngày.');
       actions.push('Ưu tiên hoạt động thể lực tối thiểu 30 phút mỗi ngày.');
     } else if (context.assessment?.phan_loai_bmi === 'thieu_can') {
       actions.push('Tăng bữa phụ giàu năng lượng lành mạnh trong ngày.');
       actions.push('Tăng protein và theo dõi cân nặng hàng tuần.');
     } else {
-      actions.push('Duy trì phân bổ bữa ăn đều trong ngày và theo dõi trend calories 7 ngày.');
+      actions.push(
+        'Duy trì phân bổ bữa ăn đều trong ngày và theo dõi trend calories 7 ngày.',
+      );
     }
 
-    if (context.latestMetric?.huyet_ap_tam_thu && context.latestMetric.huyet_ap_tam_thu >= 140) {
-      warnings.push('Huyết áp tâm thu gần nhất đang cao, nên giảm natri và theo dõi thêm.');
+    if (
+      context.latestMetric?.huyet_ap_tam_thu &&
+      context.latestMetric.huyet_ap_tam_thu >= 140
+    ) {
+      warnings.push(
+        'Huyết áp tâm thu gần nhất đang cao, nên giảm natri và theo dõi thêm.',
+      );
     }
 
-    if (context.latestMetric?.duong_huyet && Number(context.latestMetric.duong_huyet) >= 126) {
-      warnings.push('Đường huyết gần nhất cao hơn ngưỡng tham khảo, cần theo dõi sát.');
+    if (
+      context.latestMetric?.duong_huyet &&
+      Number(context.latestMetric.duong_huyet) >= 126
+    ) {
+      warnings.push(
+        'Đường huyết gần nhất cao hơn ngưỡng tham khảo, cần theo dõi sát.',
+      );
     }
 
     const recentSummaries = await this.nutritionSummaryRepository.find({
@@ -347,22 +400,28 @@ export class UserRecommendationService {
 
     const averageCalories =
       recentSummaries.length > 0
-        ? recentSummaries.reduce((sum, item) => sum + Number(item.tong_calories), 0) /
-          recentSummaries.length
+        ? recentSummaries.reduce(
+            (sum, item) => sum + Number(item.tong_calories),
+            0,
+          ) / recentSummaries.length
         : null;
 
     const recommendation = await this.saveRecommendation(context.user.id, {
       loai: 'health_management',
       mucTieuCalories:
-        context.goal?.muc_tieu_calories_ngay ?? context.assessment?.calories_khuyen_nghi ?? null,
+        context.goal?.muc_tieu_calories_ngay ??
+        context.assessment?.calories_khuyen_nghi ??
+        null,
       mucTieuProtein: null,
       mucTieuCarb: null,
       mucTieuFat: null,
       warnings,
-      lyGiai: 'Khuyến nghị quản lý sức khỏe được tổng hợp từ assessment mới nhất, metric gần nhất và lịch sử ăn uống gần đây.',
+      lyGiai:
+        'Khuyến nghị quản lý sức khỏe được tổng hợp từ assessment mới nhất, metric gần nhất và lịch sử ăn uống gần đây.',
       duLieu: {
         actions,
-        average_calories_7d: averageCalories !== null ? Number(averageCalories.toFixed(2)) : null,
+        average_calories_7d:
+          averageCalories !== null ? Number(averageCalories.toFixed(2)) : null,
         bmi: context.assessment?.bmi ? Number(context.assessment.bmi) : null,
         phan_loai_bmi: context.assessment?.phan_loai_bmi ?? null,
       },
@@ -393,8 +452,11 @@ export class UserRecommendationService {
       throw new NotFoundException('Khong tim thay khuyen nghi');
     }
 
-    const payload = recommendation.du_lieu_khuyen_nghi as Record<string, unknown>;
-    const appliedDate = dto.ngayApDung ?? recommendation.ngay_muc_tieu ?? new Date().toISOString().slice(0, 10);
+    const payload = recommendation.du_lieu_khuyen_nghi;
+    const appliedDate =
+      dto.ngayApDung ??
+      recommendation.ngay_muc_tieu ??
+      new Date().toISOString().slice(0, 10);
 
     if (
       recommendation.loai_khuyen_nghi !== 'meal_plan_daily' &&
@@ -413,9 +475,12 @@ export class UserRecommendationService {
 
     const plan = await this.dataSource.transaction(async (manager) => {
       const mealPlanRepository = manager.getRepository(KeHoachAnEntity);
-      const mealPlanDetailRepository = manager.getRepository(ChiTietKeHoachAnEntity);
+      const mealPlanDetailRepository = manager.getRepository(
+        ChiTietKeHoachAnEntity,
+      );
       const notificationRepository = manager.getRepository(ThongBaoEntity);
-      const recommendationRepository = manager.getRepository(KhuyenNghiAiEntity);
+      const recommendationRepository =
+        manager.getRepository(KhuyenNghiAiEntity);
 
       const now = new Date();
       const createdPlan = await mealPlanRepository.save(
@@ -442,31 +507,38 @@ export class UserRecommendationService {
         }),
       );
 
-      const details: RecommendationPlanDetail[] = Array.isArray(payload.chi_tiet)
+      const details: RecommendationPlanDetail[] = Array.isArray(
+        payload.chi_tiet,
+      )
         ? (payload.chi_tiet as RecommendationPlanDetail[])
         : Array.isArray(payload.recipes)
-          ? (payload.recipes as Array<Record<string, unknown>>).map((recipe, index) => ({
-              ngay_so: 1,
-              loai_bua_an: payload.loai_bua_an_goi_y ?? 'bua_phu',
-              cong_thuc_id: recipe.id,
-              thuc_pham_id: null,
-              so_luong: 1,
-              don_vi: 'phan',
-              calories: recipe.calories,
-              protein_g: recipe.protein_g,
-              carb_g: recipe.carb_g,
-              fat_g: recipe.fat_g,
-              ghi_chu: 'Tạo từ gợi ý bữa ăn tiếp theo',
-              thu_tu: index + 1,
-            }))
+          ? (payload.recipes as Array<Record<string, unknown>>).map(
+              (recipe, index) => ({
+                ngay_so: 1,
+                loai_bua_an: payload.loai_bua_an_goi_y ?? 'bua_phu',
+                cong_thuc_id: recipe.id,
+                thuc_pham_id: null,
+                so_luong: 1,
+                don_vi: 'phan',
+                calories: recipe.calories,
+                protein_g: recipe.protein_g,
+                carb_g: recipe.carb_g,
+                fat_g: recipe.fat_g,
+                ghi_chu: 'Tạo từ gợi ý bữa ăn tiếp theo',
+                thu_tu: index + 1,
+              }),
+            )
           : [];
 
       if (!details.length) {
-        throw new BadRequestException('Khuyến nghị này không có dữ liệu để áp dụng thành kế hoạch ăn');
+        throw new BadRequestException(
+          'Khuyến nghị này không có dữ liệu để áp dụng thành kế hoạch ăn',
+        );
       }
 
       for (const [index, detail] of details.entries()) {
-        const enrichedDetail = await this.enrichRecommendationPlanDetail(detail);
+        const enrichedDetail =
+          await this.enrichRecommendationPlanDetail(detail);
         await mealPlanDetailRepository.save(
           mealPlanDetailRepository.create({
             ke_hoach_an_id: createdPlan.id,
@@ -474,25 +546,32 @@ export class UserRecommendationService {
             cong_thuc_id: this.toNullableInt(enrichedDetail.cong_thuc_id),
             thuc_pham_id: this.toNullableInt(enrichedDetail.thuc_pham_id),
             so_luong:
-              enrichedDetail.so_luong !== undefined && enrichedDetail.so_luong !== null
+              enrichedDetail.so_luong !== undefined &&
+              enrichedDetail.so_luong !== null
                 ? Number(enrichedDetail.so_luong).toFixed(2)
                 : '1.00',
             don_vi:
-              typeof enrichedDetail.don_vi === 'string' ? enrichedDetail.don_vi : 'phan',
+              typeof enrichedDetail.don_vi === 'string'
+                ? enrichedDetail.don_vi
+                : 'phan',
             calories:
-              enrichedDetail.calories !== undefined && enrichedDetail.calories !== null
+              enrichedDetail.calories !== undefined &&
+              enrichedDetail.calories !== null
                 ? Number(enrichedDetail.calories).toFixed(2)
                 : null,
             protein_g:
-              enrichedDetail.protein_g !== undefined && enrichedDetail.protein_g !== null
+              enrichedDetail.protein_g !== undefined &&
+              enrichedDetail.protein_g !== null
                 ? Number(enrichedDetail.protein_g).toFixed(2)
                 : null,
             carb_g:
-              enrichedDetail.carb_g !== undefined && enrichedDetail.carb_g !== null
+              enrichedDetail.carb_g !== undefined &&
+              enrichedDetail.carb_g !== null
                 ? Number(enrichedDetail.carb_g).toFixed(2)
                 : null,
             fat_g:
-              enrichedDetail.fat_g !== undefined && enrichedDetail.fat_g !== null
+              enrichedDetail.fat_g !== undefined &&
+              enrichedDetail.fat_g !== null
                 ? Number(enrichedDetail.fat_g).toFixed(2)
                 : null,
             ghi_chu:
@@ -550,24 +629,28 @@ export class UserRecommendationService {
 
   private async getContext(userId?: number) {
     const user = await this.getActiveUser(userId);
-    const [profile, goal, latestMetric, assessment, summaryToday] = await Promise.all([
-      this.profileRepository.findOne({ where: { tai_khoan_id: user.id } }),
-      this.goalRepository.findOne({
-        where: { tai_khoan_id: user.id, trang_thai: 'dang_ap_dung' },
-        order: { cap_nhat_luc: 'DESC', id: 'DESC' },
-      }),
-      this.metricRepository.findOne({
-        where: { tai_khoan_id: user.id },
-        order: { do_luc: 'DESC', id: 'DESC' },
-      }),
-      this.assessmentRepository.findOne({
-        where: { tai_khoan_id: user.id },
-        order: { tao_luc: 'DESC', id: 'DESC' },
-      }),
-      this.nutritionSummaryRepository.findOne({
-        where: { tai_khoan_id: user.id, ngay: new Date().toISOString().slice(0, 10) },
-      }),
-    ]);
+    const [profile, goal, latestMetric, assessment, summaryToday] =
+      await Promise.all([
+        this.profileRepository.findOne({ where: { tai_khoan_id: user.id } }),
+        this.goalRepository.findOne({
+          where: { tai_khoan_id: user.id, trang_thai: 'dang_ap_dung' },
+          order: { cap_nhat_luc: 'DESC', id: 'DESC' },
+        }),
+        this.metricRepository.findOne({
+          where: { tai_khoan_id: user.id },
+          order: { do_luc: 'DESC', id: 'DESC' },
+        }),
+        this.assessmentRepository.findOne({
+          where: { tai_khoan_id: user.id },
+          order: { tao_luc: 'DESC', id: 'DESC' },
+        }),
+        this.nutritionSummaryRepository.findOne({
+          where: {
+            tai_khoan_id: user.id,
+            ngay: new Date().toISOString().slice(0, 10),
+          },
+        }),
+      ]);
 
     return { user, profile, goal, latestMetric, assessment, summaryToday };
   }
@@ -637,7 +720,8 @@ export class UserRecommendationService {
       ...(profile?.thuc_pham_khong_thich ?? []),
     ].map((item) => item.toLowerCase());
 
-    const candidate = `${food.ten} ${(food.the_gan ?? []).join(' ')}`.toLowerCase();
+    const candidate =
+      `${food.ten} ${(food.the_gan ?? []).join(' ')}`.toLowerCase();
     return (
       !blockedTerms.some((term) => term && candidate.includes(term)) &&
       this.scoreDietPreferenceForFood(food, profile) > Number.NEGATIVE_INFINITY
@@ -645,17 +729,23 @@ export class UserRecommendationService {
   }
 
   private isRecipeAllowed(recipe: CongThucEntity, profile: HoSoEntity | null) {
-    return this.scoreDietPreferenceForRecipe(recipe, profile) > Number.NEGATIVE_INFINITY;
+    return (
+      this.scoreDietPreferenceForRecipe(recipe, profile) >
+      Number.NEGATIVE_INFINITY
+    );
   }
 
-  private scoreDietPreferenceForFood(food: ThucPhamEntity, profile: HoSoEntity | null) {
+  private scoreDietPreferenceForFood(
+    food: ThucPhamEntity,
+    profile: HoSoEntity | null,
+  ) {
     const preferences = this.normalizePreferences(profile?.che_do_an_uu_tien);
     if (!preferences.length) {
       return 0;
     }
 
     return this.scoreDietPreference({
-      text: `${food.ten} ${(food.mo_ta ?? '')} ${(food.the_gan ?? []).join(' ')}`,
+      text: `${food.ten} ${food.mo_ta ?? ''} ${(food.the_gan ?? []).join(' ')}`,
       calories: Number(food.calories_100g || 0),
       protein_g: Number(food.protein_100g || 0),
       carb_g: Number(food.carb_100g || 0),
@@ -665,7 +755,10 @@ export class UserRecommendationService {
     });
   }
 
-  private scoreDietPreferenceForRecipe(recipe: CongThucEntity, profile: HoSoEntity | null) {
+  private scoreDietPreferenceForRecipe(
+    recipe: CongThucEntity,
+    profile: HoSoEntity | null,
+  ) {
     const preferences = this.normalizePreferences(profile?.che_do_an_uu_tien);
     if (!preferences.length) {
       return 0;
@@ -704,7 +797,10 @@ export class UserRecommendationService {
 
     const text = details
       .map((detail) => detail.ghi_chu)
-      .filter((value): value is string => typeof value === 'string' && value.length > 0)
+      .filter(
+        (value): value is string =>
+          typeof value === 'string' && value.length > 0,
+      )
       .join(' ');
 
     return this.scoreDietPreference({
@@ -804,7 +900,10 @@ export class UserRecommendationService {
     ].some((keyword) => value.includes(keyword));
   }
 
-  private scoreFoodForGoal(food: ThucPhamEntity, goalType: MucTieuEntity['loai_muc_tieu'] | null) {
+  private scoreFoodForGoal(
+    food: ThucPhamEntity,
+    goalType: MucTieuEntity['loai_muc_tieu'] | null,
+  ) {
     const protein = Number(food.protein_100g || 0);
     const calories = Number(food.calories_100g || 0);
     const fiber = Number(food.chat_xo_100g || 0);
@@ -824,7 +923,9 @@ export class UserRecommendationService {
     return protein * 2 - Math.abs(calories - targetCalories) * 0.02;
   }
 
-  private async enrichMealPlanDetail(detail: ChiTietThucDonMauEntity): Promise<RecommendationPlanDetail> {
+  private async enrichMealPlanDetail(
+    detail: ChiTietThucDonMauEntity,
+  ): Promise<RecommendationPlanDetail> {
     const baseDetail: RecommendationPlanDetail = {
       id: detail.id,
       ngay_so: detail.ngay_so,
@@ -845,7 +946,9 @@ export class UserRecommendationService {
   ): Promise<RecommendationPlanDetail> {
     const nextDetail: RecommendationPlanDetail = { ...detail };
     const quantity =
-      detail.so_luong !== undefined && detail.so_luong !== null ? Number(detail.so_luong) : 1;
+      detail.so_luong !== undefined && detail.so_luong !== null
+        ? Number(detail.so_luong)
+        : 1;
 
     if (
       nextDetail.calories !== undefined &&
@@ -869,12 +972,18 @@ export class UserRecommendationService {
         },
       });
       if (!recipe) {
-        throw new NotFoundException('Khong tim thay cong thuc hop le de tao ke hoach an');
+        throw new NotFoundException(
+          'Khong tim thay cong thuc hop le de tao ke hoach an',
+        );
       }
 
-      const servingCount = recipe.so_khau_phan && recipe.so_khau_phan > 0 ? recipe.so_khau_phan : 1;
+      const servingCount =
+        recipe.so_khau_phan && recipe.so_khau_phan > 0
+          ? recipe.so_khau_phan
+          : 1;
       const ratio = quantity / servingCount;
-      nextDetail.don_vi = typeof nextDetail.don_vi === 'string' ? nextDetail.don_vi : 'phan';
+      nextDetail.don_vi =
+        typeof nextDetail.don_vi === 'string' ? nextDetail.don_vi : 'phan';
       nextDetail.calories = Number(recipe.tong_calories || 0) * ratio;
       nextDetail.protein_g = Number(recipe.tong_protein_g || 0) * ratio;
       nextDetail.carb_g = Number(recipe.tong_carb_g || 0) * ratio;
@@ -890,10 +999,14 @@ export class UserRecommendationService {
         },
       });
       if (!food || (!food.da_xac_minh && food.loai_nguon !== 'noi_bo')) {
-        throw new NotFoundException('Khong tim thay thuc pham hop le de tao ke hoach an');
+        throw new NotFoundException(
+          'Khong tim thay thuc pham hop le de tao ke hoach an',
+        );
       }
 
-      const unit = this.normalizeText(typeof nextDetail.don_vi === 'string' ? nextDetail.don_vi : '');
+      const unit = this.normalizeText(
+        typeof nextDetail.don_vi === 'string' ? nextDetail.don_vi : '',
+      );
       const servingUnit = this.normalizeText(food.don_vi_khau_phan ?? '');
       const denominator =
         unit === 'g'
@@ -902,7 +1015,10 @@ export class UserRecommendationService {
             ? Number(food.khau_phan_tham_chieu || 100)
             : 100;
       const ratio = quantity / (denominator > 0 ? denominator : 100);
-      nextDetail.don_vi = typeof nextDetail.don_vi === 'string' ? nextDetail.don_vi : (food.don_vi_khau_phan ?? 'g');
+      nextDetail.don_vi =
+        typeof nextDetail.don_vi === 'string'
+          ? nextDetail.don_vi
+          : (food.don_vi_khau_phan ?? 'g');
       nextDetail.calories = Number(food.calories_100g || 0) * ratio;
       nextDetail.protein_g = Number(food.protein_100g || 0) * ratio;
       nextDetail.carb_g = Number(food.carb_100g || 0) * ratio;

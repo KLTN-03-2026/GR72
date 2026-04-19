@@ -1,4 +1,14 @@
-import { IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
+
+const MIN_PACKAGE_DURATION_MINUTES = 15;
+const MAX_PACKAGE_DURATION_MINUTES = 240;
 
 export class CreatePackageDto {
   @IsString()
@@ -12,7 +22,9 @@ export class CreatePackageDto {
   gia!: number;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(MIN_PACKAGE_DURATION_MINUTES)
+  @Max(MAX_PACKAGE_DURATION_MINUTES)
   thoiLuongPhut?: number;
 
   @IsOptional()
@@ -34,7 +46,9 @@ export class UpdatePackageDto {
   gia?: number;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(MIN_PACKAGE_DURATION_MINUTES)
+  @Max(MAX_PACKAGE_DURATION_MINUTES)
   thoiLuongPhut?: number;
 
   @IsOptional()
@@ -54,6 +68,7 @@ export class PackageResponseDto {
   gia!: number;
   thoiLuongPhut!: number;
   soLanDungMienPhi!: number;
+  soLuotSuDung!: number;
   trangThai!: string;
   taLuc!: Date;
   capNhatLuc!: Date;

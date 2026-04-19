@@ -1,4 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { TaiKhoanEntity } from '../../../Admin/User/entities/tai-khoan.entity';
 import { KeHoachAnEntity } from '../../MealPlan/entities/ke-hoach-an.entity';
 
@@ -37,10 +43,20 @@ export class PhienTuVanAiEntity {
   @Column({ name: 'ngu_canh_chup_lai', type: 'json', nullable: true })
   ngu_canh_chup_lai!: Record<string, unknown> | null;
 
-  @Column({ name: 'mo_hinh_cuoi', type: 'varchar', length: 100, nullable: true })
+  @Column({
+    name: 'mo_hinh_cuoi',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
   mo_hinh_cuoi!: string | null;
 
-  @Column({ name: 'tong_token_cuoi', type: 'int', unsigned: true, nullable: true })
+  @Column({
+    name: 'tong_token_cuoi',
+    type: 'int',
+    unsigned: true,
+    nullable: true,
+  })
   tong_token_cuoi!: number | null;
 
   @Column({ name: 'loi_cuoi', type: 'text', nullable: true })
@@ -65,7 +81,12 @@ export class KhuyenNghiAiEntity {
   @JoinColumn({ name: 'tai_khoan_id' })
   tai_khoan!: TaiKhoanEntity;
 
-  @Column({ name: 'phien_tu_van_ai_id', type: 'bigint', unsigned: true, nullable: true })
+  @Column({
+    name: 'phien_tu_van_ai_id',
+    type: 'bigint',
+    unsigned: true,
+    nullable: true,
+  })
   phien_tu_van_ai_id!: number | null;
 
   @ManyToOne(() => PhienTuVanAiEntity)
@@ -86,16 +107,40 @@ export class KhuyenNghiAiEntity {
   @Column({ name: 'ngay_muc_tieu', type: 'date', nullable: true })
   ngay_muc_tieu!: string | null;
 
-  @Column({ name: 'muc_tieu_calories', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'muc_tieu_calories',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   muc_tieu_calories!: string | null;
 
-  @Column({ name: 'muc_tieu_protein_g', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'muc_tieu_protein_g',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   muc_tieu_protein_g!: string | null;
 
-  @Column({ name: 'muc_tieu_carb_g', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'muc_tieu_carb_g',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   muc_tieu_carb_g!: string | null;
 
-  @Column({ name: 'muc_tieu_fat_g', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'muc_tieu_fat_g',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   muc_tieu_fat_g!: string | null;
 
   @Column({ name: 'canh_bao', type: 'json', nullable: true })
@@ -107,7 +152,12 @@ export class KhuyenNghiAiEntity {
   @Column({ name: 'du_lieu_khuyen_nghi', type: 'json' })
   du_lieu_khuyen_nghi!: Record<string, unknown>;
 
-  @Column({ name: 'ke_hoach_an_da_ap_dung_id', type: 'bigint', unsigned: true, nullable: true })
+  @Column({
+    name: 'ke_hoach_an_da_ap_dung_id',
+    type: 'bigint',
+    unsigned: true,
+    nullable: true,
+  })
   ke_hoach_an_da_ap_dung_id!: number | null;
 
   @ManyToOne(() => KeHoachAnEntity)

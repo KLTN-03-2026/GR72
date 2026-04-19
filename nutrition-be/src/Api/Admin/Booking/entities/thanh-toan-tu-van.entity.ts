@@ -1,10 +1,26 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { LichHenEntity } from './lich-hen.entity';
 import { TaiKhoanEntity } from '../../User/entities/tai-khoan.entity';
 
-export type ThanhToanStatus = 'cho_thanh_toan' | 'dang_xu_ly' | 'thanh_cong' | 'that_bai' | 'da_hoan_tien';
+export type ThanhToanStatus =
+  | 'cho_thanh_toan'
+  | 'dang_xu_ly'
+  | 'thanh_cong'
+  | 'that_bai'
+  | 'da_hoan_tien';
 
-export type PhuongThucThanhToan = 'vnpay' | 'chuyen_khoan' | 'vi_dien_tu' | 'thu_cong' | 'mien_phi';
+export type PhuongThucThanhToan =
+  | 'vnpay'
+  | 'chuyen_khoan'
+  | 'vi_dien_tu'
+  | 'thu_cong'
+  | 'mien_phi';
 
 @Entity({ name: 'thanh_toan_tu_van' })
 export class ThanhToanTuVanEntity {
@@ -40,7 +56,13 @@ export class ThanhToanTuVanEntity {
 
   @Column({
     type: 'enum',
-    enum: ['cho_thanh_toan', 'dang_xu_ly', 'thanh_cong', 'that_bai', 'da_hoan_tien'],
+    enum: [
+      'cho_thanh_toan',
+      'dang_xu_ly',
+      'thanh_cong',
+      'that_bai',
+      'da_hoan_tien',
+    ],
     default: 'cho_thanh_toan',
   })
   trang_thai!: ThanhToanStatus;
@@ -51,7 +73,12 @@ export class ThanhToanTuVanEntity {
   @Column({ name: 'du_lieu_thanh_toan', type: 'json', nullable: true })
   du_lieu_thanh_toan!: object | null;
 
-  @Column({ name: 'xac_nhan_boi', type: 'bigint', unsigned: true, nullable: true })
+  @Column({
+    name: 'xac_nhan_boi',
+    type: 'bigint',
+    unsigned: true,
+    nullable: true,
+  })
   xac_nhan_boi!: number | null;
 
   @Column({ name: 'xac_nhan_luc', type: 'datetime', nullable: true })

@@ -1,8 +1,4 @@
-import {
-  Column,
-  Entity,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 export type PackageCycleType = 'thang' | 'quy' | 'nam' | 'tron_doi';
 export type PackageStatus = 'ban_nhap' | 'dang_kinh_doanh' | 'ngung_kinh_doanh';

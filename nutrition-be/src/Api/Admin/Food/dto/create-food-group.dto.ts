@@ -13,4 +13,3 @@ export class CreateFoodGroupDto {
   @IsString()
   moTa?: string;
 }
-

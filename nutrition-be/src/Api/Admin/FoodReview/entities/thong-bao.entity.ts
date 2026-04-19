@@ -1,4 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { TaiKhoanEntity } from '../../../Admin/User/entities/tai-khoan.entity';
 
 export type NotificationStatus = 'chua_doc' | 'da_doc';

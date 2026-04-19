@@ -78,13 +78,44 @@ export async function createMealLog(dto: CreateMealLogDto) {
 }
 
 export async function getMealLogs(params?: {
-  ngay?: string
+  date?: string
+  from?: string
+  to?: string
   page?: number
   limit?: number
 }) {
   const q = new URLSearchParams()
-  if (params?.ngay) q.set('ngay', params.ngay)
+  if (params?.date) q.set('date', params.date)
+  if (params?.from) q.set('from', params.from)
+  if (params?.to) q.set('to', params.to)
   if (params?.page) q.set('page', String(params.page))
   if (params?.limit) q.set('limit', String(params.limit))
   return apiFetch<{ success: boolean; message: string; data: { items: MealLogItem[]; pagination: { page: number; limit: number; total: number } } }>(`/me/meal-logs?${q.toString()}`)
+}
+
+export type NutritionSummaryItem = {
+  id: number
+  tai_khoan_id: number
+  ngay: string
+  tong_calories: number
+  tong_protein_g: number
+  tong_carb_g: number
+  tong_fat_g: number
+  so_bua_da_ghi: number
+  tao_luc: string
+  cap_nhat_luc: string
+}
+
+export async function getNutritionSummary(params: { date: string } | { from: string; to: string }) {
+  const q = new URLSearchParams()
+  if ('date' in params) {
+    q.set('date', params.date)
+  } else {
+    q.set('from', params.from)
+    q.set('to', params.to)
+  }
+  return apiFetch<
+    | { success: boolean; message: string; data: NutritionSummaryItem | null }
+    | { success: boolean; message: string; data: { items: NutritionSummaryItem[]; total: number } }
+  >(`/me/nutrition-summary?${q.toString()}`)
 }

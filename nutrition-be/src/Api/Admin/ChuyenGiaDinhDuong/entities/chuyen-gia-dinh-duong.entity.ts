@@ -11,8 +11,18 @@ import { TaiKhoanEntity } from '../../User/entities/tai-khoan.entity';
 import { GoiTuVanEntity } from './goi-tu-van.entity';
 import { LichHenEntity } from '../../Booking/entities/lich-hen.entity';
 
-export type ChuyenGiaStatus = 'cho_duyet' | 'tu_choi' | 'hoat_dong' | 'khong_hoat_dong' | 'bi_khoa';
-export type RegistrationPaymentStatus = 'chua_thanh_toan' | 'dang_cho_thanh_toan' | 'thanh_cong' | 'that_bai' | 'da_hoan';
+export type ChuyenGiaStatus =
+  | 'cho_duyet'
+  | 'tu_choi'
+  | 'hoat_dong'
+  | 'khong_hoat_dong'
+  | 'bi_khoa';
+export type RegistrationPaymentStatus =
+  | 'chua_thanh_toan'
+  | 'dang_cho_thanh_toan'
+  | 'thanh_cong'
+  | 'that_bai'
+  | 'da_hoan';
 
 @Entity({ name: 'chuyen_gia_dinh_duong' })
 export class ChuyenGiaDinhDuongEntity {
@@ -41,10 +51,20 @@ export class ChuyenGiaDinhDuongEntity {
   @Column({ type: 'varchar', length: 255, nullable: true })
   chung_chi!: string | null;
 
-  @Column({ name: 'gio_lam_viec', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'gio_lam_viec',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   gio_lam_viec!: string | null;
 
-  @Column({ name: 'anh_dai_dien_url', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'anh_dai_dien_url',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   anh_dai_dien_url!: string | null;
 
   @Column({
@@ -57,7 +77,13 @@ export class ChuyenGiaDinhDuongEntity {
   @Column({
     name: 'trang_thai_thanh_toan',
     type: 'enum',
-    enum: ['chua_thanh_toan', 'dang_cho_thanh_toan', 'thanh_cong', 'that_bai', 'da_hoan'],
+    enum: [
+      'chua_thanh_toan',
+      'dang_cho_thanh_toan',
+      'thanh_cong',
+      'that_bai',
+      'da_hoan',
+    ],
     default: 'chua_thanh_toan',
   })
   trang_thai_thanh_toan!: RegistrationPaymentStatus;
@@ -65,7 +91,12 @@ export class ChuyenGiaDinhDuongEntity {
   @Column({ name: 'vnp_txn_ref', type: 'varchar', length: 100, nullable: true })
   vnp_txn_ref!: string | null;
 
-  @Column({ name: 'vnp_transaction_no', type: 'varchar', length: 100, nullable: true })
+  @Column({
+    name: 'vnp_transaction_no',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
   vnp_transaction_no!: string | null;
 
   @Column({ name: 'ngay_thanh_toan', type: 'datetime', nullable: true })
@@ -89,7 +120,13 @@ export class ChuyenGiaDinhDuongEntity {
   @Column({ name: 'ngay_kich_hoat_lai', type: 'datetime', nullable: true })
   ngay_kich_hoat_lai!: Date | null;
 
-  @Column({ name: 'diem_danh_gia_trung_binh', type: 'decimal', precision: 3, scale: 2, default: 0 })
+  @Column({
+    name: 'diem_danh_gia_trung_binh',
+    type: 'decimal',
+    precision: 3,
+    scale: 2,
+    default: 0,
+  })
   diem_danh_gia_trung_binh!: string;
 
   @Column({ name: 'so_luot_danh_gia', type: 'int', unsigned: true, default: 0 })

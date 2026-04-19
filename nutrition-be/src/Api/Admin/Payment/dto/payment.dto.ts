@@ -1,7 +1,12 @@
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
-const PAYMENT_STATUSES = ['cho_thanh_toan', 'thanh_cong', 'that_bai', 'da_hoan_tien'] as const;
+const PAYMENT_STATUSES = [
+  'cho_thanh_toan',
+  'thanh_cong',
+  'that_bai',
+  'da_hoan_tien',
+] as const;
 
 export class PaymentQueryDto {
   @IsOptional()

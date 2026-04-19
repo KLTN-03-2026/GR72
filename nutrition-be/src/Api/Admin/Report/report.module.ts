@@ -6,7 +6,9 @@ import { ReportController } from './report.controller';
 import { ReportService } from './report.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ThanhToanGoiDichVuEntity, DangKyGoiDichVuEntity])],
+  imports: [
+    TypeOrmModule.forFeature([ThanhToanGoiDichVuEntity, DangKyGoiDichVuEntity]),
+  ],
   controllers: [ReportController],
   providers: [ReportService],
 })

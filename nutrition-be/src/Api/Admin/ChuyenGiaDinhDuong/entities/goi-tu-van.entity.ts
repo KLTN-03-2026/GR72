@@ -37,7 +37,12 @@ export class GoiTuVanEntity {
   @Column({ name: 'thoi_luong_phut', type: 'int', unsigned: true, default: 30 })
   thoi_luong_phut!: number;
 
-  @Column({ name: 'so_lan_dung_mien_phi', type: 'int', unsigned: true, default: 0 })
+  @Column({
+    name: 'so_lan_dung_mien_phi',
+    type: 'int',
+    unsigned: true,
+    default: 0,
+  })
   so_lan_dung_mien_phi!: number;
 
   @Column({

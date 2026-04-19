@@ -206,4 +206,3 @@ export class ThucPhamEntity {
   })
   xoa_luc!: Date | null;
 }
-

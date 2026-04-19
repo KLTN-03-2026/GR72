@@ -1,4 +1,11 @@
-import { Controller, Delete, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Query,
+} from '@nestjs/common';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { Public } from '../../../common/decorators/public.decorator';
 import { AdminMealTemplateService } from './meal-template.service';
@@ -10,23 +17,37 @@ export class AdminMealTemplateController {
   constructor(private readonly service: AdminMealTemplateService) {}
 
   @Get('stats')
-  getStats() { return this.service.getStats(); }
+  getStats() {
+    return this.service.getStats();
+  }
 
   @Get('authors')
-  getAuthors() { return this.service.getAuthorList(); }
+  getAuthors() {
+    return this.service.getAuthorList();
+  }
 
   @Get('public/list')
-  getPublicList(@Query() query: MealTemplateQueryDto) { return this.service.getPublicList(query); }
+  getPublicList(@Query() query: MealTemplateQueryDto) {
+    return this.service.getPublicList(query);
+  }
 
   @Get(':id/chi-tiet')
-  getDetails(@Param('id', ParseIntPipe) id: number) { return this.service.getDetailById(id); }
+  getDetails(@Param('id', ParseIntPipe) id: number) {
+    return this.service.getDetailById(id);
+  }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) { return this.service.findOne(id); }
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.service.findOne(id);
+  }
 
   @Get()
-  findAll(@Query() query: MealTemplateQueryDto) { return this.service.findAll(query); }
+  findAll(@Query() query: MealTemplateQueryDto) {
+    return this.service.findAll(query);
+  }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) { return this.service.remove(id); }
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.service.remove(id);
+  }
 }

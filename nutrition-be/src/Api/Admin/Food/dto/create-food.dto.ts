@@ -90,4 +90,3 @@ export class CreateFoodDto {
   @IsBoolean()
   daXacMinh?: boolean;
 }
-

@@ -2,23 +2,29 @@ import { IsOptional, IsString } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class MealTemplateQueryDto {
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   tieuDe?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   trangThai?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   loaiMucTieu?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   tacGiaId?: string;
 
-  @IsOptional() @Transform(({ value }) => (value ? String(value) : '1'))
+  @IsOptional()
+  @Transform(({ value }) => (value ? String(value) : '1'))
   @IsString()
   page?: string;
 
-  @IsOptional() @Transform(({ value }) => (value ? String(value) : '10'))
+  @IsOptional()
+  @Transform(({ value }) => (value ? String(value) : '10'))
   @IsString()
   limit?: string;
 }

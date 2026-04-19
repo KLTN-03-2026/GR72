@@ -1,9 +1,7 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 import { Table, TableForeignKey } from 'typeorm';
 
-export class CreateBookingRevenueAllocationTable1744360000000
-  implements MigrationInterface
-{
+export class CreateBookingRevenueAllocationTable1744360000000 implements MigrationInterface {
   name = 'CreateBookingRevenueAllocationTable1744360000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -34,8 +32,18 @@ export class CreateBookingRevenueAllocationTable1744360000000
             scale: 2,
             default: '5.00',
           },
-          { name: 'so_tien_hoa_hong', type: 'decimal', precision: 12, scale: 2 },
-          { name: 'so_tien_chuyen_gia_nhan', type: 'decimal', precision: 12, scale: 2 },
+          {
+            name: 'so_tien_hoa_hong',
+            type: 'decimal',
+            precision: 12,
+            scale: 2,
+          },
+          {
+            name: 'so_tien_chuyen_gia_nhan',
+            type: 'decimal',
+            precision: 12,
+            scale: 2,
+          },
           {
             name: 'trang_thai',
             type: 'enum',

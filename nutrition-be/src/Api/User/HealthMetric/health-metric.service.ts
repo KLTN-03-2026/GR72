@@ -6,7 +6,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, DataSource, IsNull, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import {
+  Between,
+  DataSource,
+  IsNull,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 import { HoSoEntity } from '../../Admin/User/entities/ho-so.entity';
 import { TaiKhoanEntity } from '../../Admin/User/entities/tai-khoan.entity';
 import { UserHealthAssessmentService } from '../HealthAssessment/health-assessment.service';
@@ -68,10 +75,7 @@ export class UserHealthMetricService {
     };
   }
 
-  async createMetric(
-    userId: number | undefined,
-    dto: CreateHealthMetricDto,
-  ) {
+  async createMetric(userId: number | undefined, dto: CreateHealthMetricDto) {
     const user = await this.getActiveUser(userId);
     const savedMetric = await this.dataSource.transaction(async (manager) => {
       const profileRepository = manager.getRepository(HoSoEntity);
@@ -118,8 +122,7 @@ export class UserHealthMetricService {
           dto.canNangKg !== undefined ? dto.canNangKg.toFixed(2) : null,
         chieu_cao_cm:
           dto.chieuCaoCm !== undefined ? dto.chieuCaoCm.toFixed(2) : null,
-        vong_eo_cm:
-          dto.vongEoCm !== undefined ? dto.vongEoCm.toFixed(2) : null,
+        vong_eo_cm: dto.vongEoCm !== undefined ? dto.vongEoCm.toFixed(2) : null,
         vong_mong_cm:
           dto.vongMongCm !== undefined ? dto.vongMongCm.toFixed(2) : null,
         huyet_ap_tam_thu: dto.huyetApTamThu ?? null,
@@ -132,7 +135,12 @@ export class UserHealthMetricService {
       });
 
       const persistedMetric = await metricRepository.save(metric);
-      await this.syncProfileWeight(user.id, profile, metricRepository, profileRepository);
+      await this.syncProfileWeight(
+        user.id,
+        profile,
+        metricRepository,
+        profileRepository,
+      );
       await this.assessmentService.recalculateForUser(user.id, manager);
 
       return persistedMetric;
@@ -187,7 +195,8 @@ export class UserHealthMetricService {
         throw new NotFoundException('Khong tim thay chi so suc khoe');
       }
 
-      const nextDoLuc = dto.doLuc !== undefined ? new Date(dto.doLuc) : metric.do_luc;
+      const nextDoLuc =
+        dto.doLuc !== undefined ? new Date(dto.doLuc) : metric.do_luc;
       const nextCanNangKg =
         dto.canNangKg !== undefined
           ? dto.canNangKg
@@ -215,11 +224,11 @@ export class UserHealthMetricService {
       const nextHuyetApTamThu =
         dto.huyetApTamThu !== undefined
           ? dto.huyetApTamThu
-          : metric.huyet_ap_tam_thu ?? undefined;
+          : (metric.huyet_ap_tam_thu ?? undefined);
       const nextHuyetApTamTruong =
         dto.huyetApTamTruong !== undefined
           ? dto.huyetApTamTruong
-          : metric.huyet_ap_tam_truong ?? undefined;
+          : (metric.huyet_ap_tam_truong ?? undefined);
       const nextDuongHuyet =
         dto.duongHuyet !== undefined
           ? dto.duongHuyet
@@ -267,7 +276,12 @@ export class UserHealthMetricService {
       metric.cap_nhat_luc = new Date();
       const persistedMetric = await metricRepository.save(metric);
 
-      await this.syncProfileWeight(user.id, profile, metricRepository, profileRepository);
+      await this.syncProfileWeight(
+        user.id,
+        profile,
+        metricRepository,
+        profileRepository,
+      );
       await this.assessmentService.recalculateForUser(user.id, manager);
 
       return persistedMetric;
@@ -339,7 +353,9 @@ export class UserHealthMetricService {
     }
 
     if (input.doLuc.getTime() > Date.now()) {
-      throw new BadRequestException('Không được lưu chỉ số đo ở thời điểm tương lai');
+      throw new BadRequestException(
+        'Không được lưu chỉ số đo ở thời điểm tương lai',
+      );
     }
 
     const hasAtLeastOneMetric = [

@@ -14,9 +14,7 @@ export class UserDashboardController {
   }
 
   @Get('health-assessments/latest')
-  getLatestAssessment(
-    @Req() request: Request & { user?: { sub?: number } },
-  ) {
+  getLatestAssessment(@Req() request: Request & { user?: { sub?: number } }) {
     return this.dashboardService.getLatestAssessment(request.user?.sub);
   }
 }

@@ -23,7 +23,12 @@ export class CreateAdminTables1744200000000 implements MigrationInterface {
             { name: 'chuyen_mon', type: 'text', isNullable: true },
             { name: 'mo_ta', type: 'text', isNullable: true },
             { name: 'kinh_nghiem', type: 'text', isNullable: true },
-            { name: 'hoc_vi', type: 'varchar', length: '100', isNullable: true },
+            {
+              name: 'hoc_vi',
+              type: 'varchar',
+              length: '100',
+              isNullable: true,
+            },
             {
               name: 'chung_chi',
               type: 'varchar',
@@ -119,7 +124,13 @@ export class CreateAdminTables1744200000000 implements MigrationInterface {
             },
             { name: 'ten', type: 'varchar', length: '191' },
             { name: 'mo_ta', type: 'text', isNullable: true },
-            { name: 'gia', type: 'decimal', precision: 12, scale: 2, default: 0 },
+            {
+              name: 'gia',
+              type: 'decimal',
+              precision: 12,
+              scale: 2,
+              default: 0,
+            },
             {
               name: 'thoi_luong_phut',
               type: 'int',
@@ -179,12 +190,22 @@ export class CreateAdminTables1744200000000 implements MigrationInterface {
             },
             { name: 'tai_khoan_id', type: 'bigint', unsigned: true },
             { name: 'goi_tu_van_id', type: 'bigint', unsigned: true },
-            { name: 'ma_lich_hen', type: 'varchar', length: '50', isUnique: true },
+            {
+              name: 'ma_lich_hen',
+              type: 'varchar',
+              length: '50',
+              isUnique: true,
+            },
             { name: 'muc_dich', type: 'text', isNullable: true },
             { name: 'ngay_hen', type: 'date' },
             { name: 'gio_bat_dau', type: 'time' },
             { name: 'gio_ket_thuc', type: 'time' },
-            { name: 'dia_diem', type: 'varchar', length: '255', isNullable: true },
+            {
+              name: 'dia_diem',
+              type: 'varchar',
+              length: '255',
+              isNullable: true,
+            },
             {
               name: 'trang_thai',
               type: 'enum',
@@ -200,7 +221,12 @@ export class CreateAdminTables1744200000000 implements MigrationInterface {
               default: "'cho_thanh_toan'",
             },
             { name: 'ly_do_huy', type: 'text', isNullable: true },
-            { name: 'huy_boi', type: 'bigint', unsigned: true, isNullable: true },
+            {
+              name: 'huy_boi',
+              type: 'bigint',
+              unsigned: true,
+              isNullable: true,
+            },
             { name: 'huy_luc', type: 'datetime', isNullable: true },
             {
               name: 'ghi_chu_nutritionist',
@@ -273,14 +299,26 @@ export class CreateAdminTables1744200000000 implements MigrationInterface {
             {
               name: 'phuong_thuc',
               type: 'enum',
-              enum: ['vnpay', 'chuyen_khoan', 'vi_dien_tu', 'thu_cong', 'mien_phi'],
+              enum: [
+                'vnpay',
+                'chuyen_khoan',
+                'vi_dien_tu',
+                'thu_cong',
+                'mien_phi',
+              ],
               default: "'vnpay'",
             },
             { name: 'so_tien', type: 'decimal', precision: 12, scale: 2 },
             {
               name: 'trang_thai',
               type: 'enum',
-              enum: ['cho_thanh_toan', 'dang_xu_ly', 'thanh_cong', 'that_bai', 'da_hoan_tien'],
+              enum: [
+                'cho_thanh_toan',
+                'dang_xu_ly',
+                'thanh_cong',
+                'that_bai',
+                'da_hoan_tien',
+              ],
               default: "'cho_thanh_toan'",
             },
             {

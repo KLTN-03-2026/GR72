@@ -27,7 +27,10 @@ import { HoSoEntity } from '../Api/Admin/User/entities/ho-so.entity';
 import { MucTieuEntity } from '../Api/Admin/User/entities/muc-tieu.entity';
 import { ChiSoSucKhoeEntity } from '../Api/User/HealthAssessment/entities/chi-so-suc-khoe.entity';
 import { DanhGiaSucKhoeEntity } from '../Api/User/HealthAssessment/entities/danh-gia-suc-khoe.entity';
-import { KeHoachAnEntity, ChiTietKeHoachAnEntity } from '../Api/User/MealPlan/entities/ke-hoach-an.entity';
+import {
+  KeHoachAnEntity,
+  ChiTietKeHoachAnEntity,
+} from '../Api/User/MealPlan/entities/ke-hoach-an.entity';
 import {
   NhatKyBuaAnEntity,
   ChiTietNhatKyBuaAnEntity,

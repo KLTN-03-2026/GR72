@@ -4,12 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  DataSource,
-  FindOptionsWhere,
-  IsNull,
-  Repository,
-} from 'typeorm';
+import { DataSource, FindOptionsWhere, IsNull, Repository } from 'typeorm';
 import { FoodReviewQueryDto } from './dto/food-review-query.dto';
 import { ApproveReviewDto, RejectReviewDto } from './dto/review-action.dto';
 import {
@@ -220,16 +215,28 @@ export class FoodReviewService {
 
       if (food) {
         const fields = [
-          'ten', 'mo_ta', 'the_gan', 'loai_nguon', 'ten_nguon', 'ma_nguon',
-          'khau_phan_tham_chieu', 'don_vi_khau_phan',
-          'calories_100g', 'protein_100g', 'carb_100g', 'fat_100g',
-          'chat_xo_100g', 'duong_100g', 'natri_100g',
+          'ten',
+          'mo_ta',
+          'the_gan',
+          'loai_nguon',
+          'ten_nguon',
+          'ma_nguon',
+          'khau_phan_tham_chieu',
+          'don_vi_khau_phan',
+          'calories_100g',
+          'protein_100g',
+          'carb_100g',
+          'fat_100g',
+          'chat_xo_100g',
+          'duong_100g',
+          'natri_100g',
           'da_xac_minh',
         ];
 
         for (const field of fields) {
           if (proposed[field] !== undefined) {
-            (food as unknown as Record<string, unknown>)[field] = proposed[field];
+            (food as unknown as Record<string, unknown>)[field] =
+              proposed[field];
           }
         }
 
@@ -248,7 +255,8 @@ export class FoodReviewService {
         slug,
         mo_ta: (proposed['mo_ta'] as string) || null,
         the_gan: (proposed['the_gan'] as string[]) || [],
-        loai_nguon: ((proposed['loai_nguon'] as string) || 'api_ngoai') as FoodSourceType,
+        loai_nguon: ((proposed['loai_nguon'] as string) ||
+          'api_ngoai') as FoodSourceType,
         ten_nguon: (proposed['ten_nguon'] as string) || review.ten_nguon,
         ma_nguon: (proposed['ma_nguon'] as string) || review.ma_nguon,
         khau_phan_tham_chieu: String(proposed['khau_phan_tham_chieu'] ?? 100),
@@ -296,9 +304,7 @@ export class FoodReviewService {
     await manager.save(ThongBaoEntity, notification);
   }
 
-  private async findReviewById(
-    id: number,
-  ): Promise<YeuCauDuyetThucPhamEntity> {
+  private async findReviewById(id: number): Promise<YeuCauDuyetThucPhamEntity> {
     const review = await this.reviewRepository.findOne({
       where: { id },
       relations: ['nguoi_de_xuat', 'nguoi_duyet'],

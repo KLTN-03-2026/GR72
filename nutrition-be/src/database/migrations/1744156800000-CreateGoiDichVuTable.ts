@@ -1,9 +1,7 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 import { Table, TableIndex } from 'typeorm';
 
-export class CreateGoiDichVuTable1744156800000
-  implements MigrationInterface
-{
+export class CreateGoiDichVuTable1744156800000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     const hasTable = await queryRunner.hasTable('goi_dich_vu');
     if (hasTable) return;

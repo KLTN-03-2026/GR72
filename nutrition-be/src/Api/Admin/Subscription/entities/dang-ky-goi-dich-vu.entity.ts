@@ -8,8 +8,15 @@ import {
 import { GoiDichVuEntity } from '../../Package/entities/goi-dich-vu.entity';
 import { TaiKhoanEntity } from '../../User/entities/tai-khoan.entity';
 
-export type SubscriptionStatus = 'cho_kich_hoat' | 'dang_hoat_dong' | 'het_han' | 'da_huy';
-export type SubscriptionSource = 'nguoi_dung_tu_nang_cap' | 'quan_tri_cap' | 'khuyen_mai';
+export type SubscriptionStatus =
+  | 'cho_kich_hoat'
+  | 'dang_hoat_dong'
+  | 'het_han'
+  | 'da_huy';
+export type SubscriptionSource =
+  | 'nguoi_dung_tu_nang_cap'
+  | 'quan_tri_cap'
+  | 'khuyen_mai';
 
 @Entity({ name: 'dang_ky_goi_dich_vu' })
 export class DangKyGoiDichVuEntity {

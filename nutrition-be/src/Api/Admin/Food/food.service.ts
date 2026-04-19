@@ -10,7 +10,11 @@ import { CreateFoodGroupDto } from './dto/create-food-group.dto';
 import { FoodsQueryDto } from './dto/foods-query.dto';
 import { UpdateFoodDto } from './dto/update-food.dto';
 import { UpdateFoodGroupDto } from './dto/update-food-group.dto';
-import type { FoodGroupSummary, FoodSourceType, PublicFood } from './food.types';
+import type {
+  FoodGroupSummary,
+  FoodSourceType,
+  PublicFood,
+} from './food.types';
 import { NhomThucPhamEntity } from './entities/nhom-thuc-pham.entity';
 import { ThucPhamEntity } from './entities/thuc-pham.entity';
 
@@ -93,12 +97,20 @@ export class FoodService {
     if (dto.ten !== undefined) {
       group.ten = dto.ten.trim();
       if (!dto.slug) {
-        group.slug = await this.buildUniqueFoodGroupSlug(undefined, group.ten, id);
+        group.slug = await this.buildUniqueFoodGroupSlug(
+          undefined,
+          group.ten,
+          id,
+        );
       }
     }
 
     if (dto.slug !== undefined) {
-      group.slug = await this.buildUniqueFoodGroupSlug(dto.slug, dto.ten ?? group.ten, id);
+      group.slug = await this.buildUniqueFoodGroupSlug(
+        dto.slug,
+        dto.ten ?? group.ten,
+        id,
+      );
     }
 
     if (dto.moTa !== undefined) {
@@ -461,9 +473,7 @@ export class FoodService {
   private normalizeTags(tags?: string[]): string[] {
     if (!tags?.length) return [];
 
-    return Array.from(
-      new Set(tags.map((tag) => tag.trim()).filter(Boolean)),
-    );
+    return Array.from(new Set(tags.map((tag) => tag.trim()).filter(Boolean)));
   }
 
   private normalizeSourceType(value?: string): FoodSourceType {

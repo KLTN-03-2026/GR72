@@ -1,4 +1,11 @@
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { TaiKhoanEntity } from '../../../Admin/User/entities/tai-khoan.entity';
 
 export type MealTemplateStatus = 'ban_nhap' | 'xuat_ban' | 'luu_tru';
@@ -23,13 +30,29 @@ export class ThucDonMauEntity {
   @Column({ type: 'text', nullable: true })
   mo_ta!: string | null;
 
-  @Column({ name: 'loai_muc_tieu_phu_hop', type: 'enum', enum: ['giam_can', 'tang_can', 'giu_can'], nullable: true })
+  @Column({
+    name: 'loai_muc_tieu_phu_hop',
+    type: 'enum',
+    enum: ['giam_can', 'tang_can', 'giu_can'],
+    nullable: true,
+  })
   loai_muc_tieu_phu_hop!: GoalType | null;
 
-  @Column({ name: 'calories_muc_tieu', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'calories_muc_tieu',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   calories_muc_tieu!: number | null;
 
-  @Column({ name: 'trang_thai', type: 'enum', enum: ['ban_nhap', 'xuat_ban', 'luu_tru'], default: 'ban_nhap' })
+  @Column({
+    name: 'trang_thai',
+    type: 'enum',
+    enum: ['ban_nhap', 'xuat_ban', 'luu_tru'],
+    default: 'ban_nhap',
+  })
   trang_thai!: MealTemplateStatus;
 
   @Column({ name: 'tao_luc', type: 'datetime' })
@@ -60,16 +83,36 @@ export class ChiTietThucDonMauEntity {
   @Column({ name: 'ngay_so', type: 'int', unsigned: true, default: 1 })
   ngay_so!: number;
 
-  @Column({ name: 'loai_bua_an', type: 'enum', enum: ['bua_sang', 'bua_trua', 'bua_toi', 'bua_phu'] })
+  @Column({
+    name: 'loai_bua_an',
+    type: 'enum',
+    enum: ['bua_sang', 'bua_trua', 'bua_toi', 'bua_phu'],
+  })
   loai_bua_an!: MealType;
 
-  @Column({ name: 'cong_thuc_id', type: 'bigint', unsigned: true, nullable: true })
+  @Column({
+    name: 'cong_thuc_id',
+    type: 'bigint',
+    unsigned: true,
+    nullable: true,
+  })
   cong_thuc_id!: number | null;
 
-  @Column({ name: 'thuc_pham_id', type: 'bigint', unsigned: true, nullable: true })
+  @Column({
+    name: 'thuc_pham_id',
+    type: 'bigint',
+    unsigned: true,
+    nullable: true,
+  })
   thuc_pham_id!: number | null;
 
-  @Column({ name: 'so_luong', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'so_luong',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   so_luong!: number | null;
 
   @Column({ name: 'don_vi', type: 'varchar', length: 50, nullable: true })

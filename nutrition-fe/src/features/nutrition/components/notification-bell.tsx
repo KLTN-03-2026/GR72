@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import { Bell, Check, CheckCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { ApiError } from '@/services/auth/api'
+import { useAuthStore } from '@/stores/auth-store'
 import { getNutriNotifications, getNutriUnreadCount, markNutriNotificationRead, type NNutriNotification } from '@/services/nutritionist/api'
+import { getUserNotifications, getUserUnreadCount, markUserNotificationRead, type UserNotification } from '@/services/user-notifications/api'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -13,9 +15,11 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export function NotificationBell() {
+  const { auth } = useAuthStore()
+  const isUserPortal = auth.user?.vai_tro === 'nguoi_dung'
   const [open, setOpen] = useState(false)
   const [count, setCount] = useState(0)
-  const [items, setItems] = useState<NNutriNotification[]>([])
+  const [items, setItems] = useState<Array<NNutriNotification | UserNotification>>([])
   const [loading, setLoading] = useState(false)
   const [markingId, setMarkingId] = useState<number | null>(null)
   const router = useRouter()
@@ -23,24 +27,26 @@ export function NotificationBell() {
 
   const fetchCount = useCallback(async () => {
     try {
-      const data = await getNutriUnreadCount()
+      const data = isUserPortal ? await getUserUnreadCount() : await getNutriUnreadCount()
       setCount(data.count ?? 0)
     } catch {
       // ignore
     }
-  }, [])
+  }, [isUserPortal])
 
   const fetchRecent = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await getNutriNotifications({ limit: 5 })
+      const res = isUserPortal
+        ? await getUserNotifications({ limit: 5 })
+        : await getNutriNotifications({ limit: 5 })
       setItems(res?.items ?? [])
     } catch {
       // ignore
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [isUserPortal])
 
   useEffect(() => {
     void fetchCount()
@@ -66,7 +72,11 @@ export function NotificationBell() {
     if (item.trang_thai === 'chua_doc') {
       setMarkingId(item.id)
       try {
-        await markNutriNotificationRead(item.id)
+        if (isUserPortal) {
+          await markUserNotificationRead(item.id)
+        } else {
+          await markNutriNotificationRead(item.id)
+        }
         await fetchCount()
         setItems(prev => prev.map(n => n.id === item.id ? { ...n, trang_thai: 'da_doc' as const } : n))
       } catch (e) {
@@ -194,7 +204,10 @@ export function NotificationBell() {
                 <Button
                   variant='ghost'
                   className='w-full text-xs text-muted-foreground'
-                  onClick={() => { setOpen(false); router.push('/nutritionist/notifications') }}
+                  onClick={() => {
+                    setOpen(false)
+                    router.push(isUserPortal ? '/nutrition/notifications' : '/nutritionist/notifications')
+                  }}
                 >
                   Xem tất cả thông báo
                 </Button>

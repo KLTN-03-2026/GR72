@@ -9,8 +9,17 @@ import { GoiDichVuEntity } from '../../Package/entities/goi-dich-vu.entity';
 import { DangKyGoiDichVuEntity } from '../../Subscription/entities/dang-ky-goi-dich-vu.entity';
 import { TaiKhoanEntity } from '../../User/entities/tai-khoan.entity';
 
-export type PaymentMethod = 'chuyen_khoan' | 'vi_dien_tu' | 'cong_thanh_toan' | 'thu_cong' | 'mien_phi';
-export type PaymentStatus = 'cho_thanh_toan' | 'thanh_cong' | 'that_bai' | 'da_hoan_tien';
+export type PaymentMethod =
+  | 'chuyen_khoan'
+  | 'vi_dien_tu'
+  | 'cong_thanh_toan'
+  | 'thu_cong'
+  | 'mien_phi';
+export type PaymentStatus =
+  | 'cho_thanh_toan'
+  | 'thanh_cong'
+  | 'that_bai'
+  | 'da_hoan_tien';
 
 @Entity({ name: 'thanh_toan_goi_dich_vu' })
 export class ThanhToanGoiDichVuEntity {
@@ -44,7 +53,13 @@ export class ThanhToanGoiDichVuEntity {
   @Column({
     name: 'phuong_thuc_thanh_toan',
     type: 'enum',
-    enum: ['chuyen_khoan', 'vi_dien_tu', 'cong_thanh_toan', 'thu_cong', 'mien_phi'],
+    enum: [
+      'chuyen_khoan',
+      'vi_dien_tu',
+      'cong_thanh_toan',
+      'thu_cong',
+      'mien_phi',
+    ],
     default: 'cong_thanh_toan',
   })
   phuong_thuc_thanh_toan!: PaymentMethod;
@@ -63,13 +78,23 @@ export class ThanhToanGoiDichVuEntity {
   @Column({ name: 'thanh_toan_luc', type: 'datetime', nullable: true })
   thanh_toan_luc!: Date | null;
 
-  @Column({ name: 'noi_dung_thanh_toan', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'noi_dung_thanh_toan',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   noi_dung_thanh_toan!: string | null;
 
   @Column({ name: 'du_lieu_thanh_toan', type: 'json', nullable: true })
   du_lieu_thanh_toan!: Record<string, unknown> | null;
 
-  @Column({ name: 'xac_nhan_boi', type: 'bigint', unsigned: true, nullable: true })
+  @Column({
+    name: 'xac_nhan_boi',
+    type: 'bigint',
+    unsigned: true,
+    nullable: true,
+  })
   xac_nhan_boi!: number | null;
 
   @ManyToOne(() => TaiKhoanEntity)

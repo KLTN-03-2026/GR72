@@ -23,14 +23,37 @@ type TeamSwitcherProps = {
   teams: Team[]
   activeTeam: Team
   onTeamChange: (team: Team) => void
+  disabled?: boolean
 }
 
 export function TeamSwitcher({
   teams,
   activeTeam,
   onTeamChange,
+  disabled = false,
 }: TeamSwitcherProps) {
   const { isMobile } = useSidebar()
+
+  if (disabled) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem className='group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center'>
+          <SidebarMenuButton
+            size='lg'
+            className='pointer-events-none group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:p-1!'
+          >
+            <div className='flex aspect-square size-8 items-center justify-center overflow-hidden rounded-lg bg-sidebar-primary text-sidebar-primary-foreground group-data-[collapsible=icon]:size-8'>
+              <activeTeam.logo className='size-4' />
+            </div>
+            <div className='grid flex-1 text-start text-sm leading-tight group-data-[collapsible=icon]:hidden'>
+              <span className='truncate font-semibold'>{activeTeam.name}</span>
+              <span className='truncate text-xs'>{activeTeam.plan}</span>
+            </div>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    )
+  }
 
   return (
     <SidebarMenu>
@@ -62,7 +85,7 @@ export function TeamSwitcher({
             sideOffset={4}
           >
             <DropdownMenuLabel className='text-xs text-muted-foreground'>
-              Teams
+              Không gian
             </DropdownMenuLabel>
             {teams.map((team, index) => (
               <DropdownMenuItem

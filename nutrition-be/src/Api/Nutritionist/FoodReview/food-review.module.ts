@@ -6,7 +6,13 @@ import { TaiKhoanEntity } from '../../Admin/User/entities/tai-khoan.entity';
 import { NutritionistFoodReviewController } from './food-review.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([YeuCauDuyetThucPhamEntity, ThongBaoEntity, TaiKhoanEntity])],
+  imports: [
+    TypeOrmModule.forFeature([
+      YeuCauDuyetThucPhamEntity,
+      ThongBaoEntity,
+      TaiKhoanEntity,
+    ]),
+  ],
   controllers: [NutritionistFoodReviewController],
 })
 export class NutritionistFoodReviewModule {}

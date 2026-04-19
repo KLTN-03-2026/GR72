@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { CalendarDays, Copy, Plus } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { CalendarDays, Copy, LoaderCircle, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,14 +17,48 @@ import { Main } from '@/components/layout/main'
 import { NutritionTopbar } from '@/features/nutrition/components/topbar'
 import { PageHeading } from '@/features/nutrition/components/page-heading'
 import { useNutritionStore } from '@/stores/nutrition-store'
+import {
+  copyMealPlanFromTemplate,
+  getPublishedMealTemplates,
+  type UserPublishedMealTemplate,
+} from '@/services/content/api'
 
 export function NutritionUserMealPlans() {
   const plans = useNutritionStore((state) => state.mealPlans)
   const goal = useNutritionStore((state) => state.goal)
-  const templates = useNutritionStore((state) => state.mealTemplates)
   const addMealPlan = useNutritionStore((state) => state.addMealPlan)
+  const [templates, setTemplates] = useState<UserPublishedMealTemplate[]>([])
+  const [loadingTemplates, setLoadingTemplates] = useState(true)
+  const [copying, setCopying] = useState(false)
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null)
   const [selectedId, setSelectedId] = useState(plans[0]?.id ?? '')
   const selectedPlan = plans.find((plan) => plan.id === selectedId) ?? plans[0]
+  const selectedTemplate = useMemo(
+    () =>
+      templates.find((item) => item.id === selectedTemplateId) ?? templates[0] ?? null,
+    [templates, selectedTemplateId],
+  )
+
+  useEffect(() => {
+    async function loadTemplates() {
+      setLoadingTemplates(true)
+      try {
+        const response = await getPublishedMealTemplates({ page: 1, limit: 20 })
+        setTemplates(response.items)
+        setSelectedTemplateId(response.items[0]?.id ?? null)
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : 'Không tải được thực đơn mẫu đã publish.',
+        )
+      } finally {
+        setLoadingTemplates(false)
+      }
+    }
+
+    void loadTemplates()
+  }, [])
 
   function handleCreatePlan() {
     addMealPlan({
@@ -38,22 +72,36 @@ export function NutritionUserMealPlans() {
     toast.success('Đã tạo meal plan mới.')
   }
 
-  function handleCopyTemplate() {
-    const template = templates[0]
-    if (!template) {
+  async function handleCopyTemplate() {
+    if (!selectedTemplate) {
       toast.error('Chưa có template để sao chép.')
       return
     }
 
-    addMealPlan({
-      id: `PLAN-${Date.now()}`,
-      title: `${template.title} - bản sao`,
-      planDate: new Intl.DateTimeFormat('vi-VN').format(new Date()),
-      meals: template.meals,
-      totalCalories: template.targetCalories,
-      status: 'Bản nháp',
-    })
-    toast.success('Đã copy từ thực đơn mẫu.')
+    setCopying(true)
+    try {
+      const copied = await copyMealPlanFromTemplate(selectedTemplate.id)
+      addMealPlan({
+        id: String(copied.id),
+        title: copied.tieu_de,
+        planDate: new Date(copied.ngay_ap_dung).toLocaleDateString('vi-VN'),
+        meals:
+          copied.chi_tiet_tom_tat.map(
+            (item) =>
+              `${item.loai_bua_an.replaceAll('_', ' ')}: ${item.ten_mon ?? 'Món ăn'}`,
+          ) ?? [],
+        totalCalories: copied.tong_calories ?? 0,
+        status: 'Bản nháp',
+      })
+      setSelectedId(String(copied.id))
+      toast.success('Đã copy từ thực đơn mẫu.')
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Không thể copy thực đơn mẫu.',
+      )
+    } finally {
+      setCopying(false)
+    }
   }
 
   return (
@@ -74,10 +122,65 @@ export function NutritionUserMealPlans() {
                 Tạo meal plan
               </Button>
               <Button variant='outline' onClick={handleCopyTemplate}>
-                <Copy className='mr-2 size-4' />
-                Copy template
+                {copying ? (
+                  <LoaderCircle className='mr-2 size-4 animate-spin' />
+                ) : (
+                  <Copy className='mr-2 size-4' />
+                )}
+                Copy template đã publish
               </Button>
             </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className='text-base'>Thực đơn mẫu đã publish</CardTitle>
+                <CardDescription>
+                  Chọn một template để copy thành kế hoạch ăn cá nhân.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className='space-y-3'>
+                {loadingTemplates ? (
+                  <div className='flex items-center gap-2 text-sm text-muted-foreground'>
+                    <LoaderCircle className='size-4 animate-spin' />
+                    Đang tải thực đơn mẫu...
+                  </div>
+                ) : templates.length === 0 ? (
+                  <p className='text-sm text-muted-foreground'>
+                    Chưa có thực đơn mẫu nào được publish.
+                  </p>
+                ) : (
+                  templates.map((template) => (
+                    <button
+                      key={template.id}
+                      type='button'
+                      onClick={() => setSelectedTemplateId(template.id)}
+                      className='w-full rounded-xl border p-3 text-left transition hover:border-primary/40'
+                    >
+                      <p className='font-medium'>{template.tieu_de}</p>
+                      <p className='mt-1 text-sm text-muted-foreground'>
+                        {template.mo_ta ?? 'Không có mô tả'}
+                      </p>
+                      <div className='mt-2 flex items-center gap-2 text-xs text-muted-foreground'>
+                        <Badge
+                          variant={
+                            selectedTemplate?.id === template.id
+                              ? 'secondary'
+                              : 'outline'
+                          }
+                        >
+                          {template.loai_muc_tieu_phu_hop ?? 'Tong hop'}
+                        </Badge>
+                        <span>
+                          {template.calories_muc_tieu
+                            ? `${template.calories_muc_tieu} kcal`
+                            : 'Chưa có calories mục tiêu'}
+                        </span>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </CardContent>
+            </Card>
 
             {plans.map((plan) => (
               <button

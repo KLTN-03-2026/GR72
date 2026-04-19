@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TaiKhoanEntity } from '../../Admin/User/entities/tai-khoan.entity';
@@ -32,7 +36,9 @@ export class NutritionistProfileService {
     }
 
     if (expert.trang_thai !== 'hoat_dong') {
-      throw new BadRequestException('Chi chuyen gia hoat dong moi xem duoc profile');
+      throw new BadRequestException(
+        'Chi chuyen gia hoat dong moi xem duoc profile',
+      );
     }
 
     // Count completed bookings
@@ -69,7 +75,9 @@ export class NutritionistProfileService {
     }
 
     if (expert.trang_thai !== 'hoat_dong') {
-      throw new BadRequestException('Chi chuyen gia hoat dong moi duoc cap nhat profile');
+      throw new BadRequestException(
+        'Chi chuyen gia hoat dong moi duoc cap nhat profile',
+      );
     }
 
     if (dto.anhDaiDienUrl !== undefined) {
@@ -137,18 +145,24 @@ export class NutritionistProfileService {
 
     const compactSchedule: Record<string, WorkingHoursSlot[]> = {};
 
-    for (const [dayKey, rawSlots] of Object.entries(parsed as Record<string, unknown>)) {
+    for (const [dayKey, rawSlots] of Object.entries(
+      parsed as Record<string, unknown>,
+    )) {
       if (!WEEKDAY_KEYS.includes(dayKey as (typeof WEEKDAY_KEYS)[number])) {
         throw new BadRequestException(`Ngay lam viec khong hop le: ${dayKey}`);
       }
 
       if (!Array.isArray(rawSlots)) {
-        throw new BadRequestException(`Danh sach ca lam cua ${dayKey} phai la mang`);
+        throw new BadRequestException(
+          `Danh sach ca lam cua ${dayKey} phai la mang`,
+        );
       }
 
       const normalizedSlots = rawSlots
         .filter((slot) => slot !== null)
-        .map((slot, index) => this.normalizeWorkingHoursSlot(dayKey, slot, index));
+        .map((slot, index) =>
+          this.normalizeWorkingHoursSlot(dayKey, slot, index),
+        );
 
       if (normalizedSlots.length > 0) {
         compactSchedule[dayKey] = normalizedSlots;
@@ -180,12 +194,8 @@ export class NutritionistProfileService {
     const startValue = slotRecord.start;
     const endValue = slotRecord.end;
 
-    const start = typeof startValue === 'string'
-      ? startValue.trim()
-      : '';
-    const end = typeof endValue === 'string'
-      ? endValue.trim()
-      : '';
+    const start = typeof startValue === 'string' ? startValue.trim() : '';
+    const end = typeof endValue === 'string' ? endValue.trim() : '';
 
     if (!TIME_SLOT_PATTERN.test(start) || !TIME_SLOT_PATTERN.test(end)) {
       throw new BadRequestException(

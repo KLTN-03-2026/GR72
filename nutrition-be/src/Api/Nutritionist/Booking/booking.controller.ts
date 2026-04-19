@@ -12,7 +12,11 @@ import {
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { NutritionistBookingService } from './booking.service';
-import { BookingQueryDto, CompleteBookingDto, CancelBookingDto } from './dto/booking.dto';
+import {
+  BookingQueryDto,
+  CompleteBookingDto,
+  CancelBookingDto,
+} from './dto/booking.dto';
 
 @UseGuards(JwtAuthGuard)
 @Roles('chuyen_gia_dinh_duong')
@@ -51,5 +55,13 @@ export class NutritionistBookingController {
     @Body() dto: CancelBookingDto,
   ) {
     return this.bookingService.cancel(req.user?.sub, id, dto);
+  }
+
+  @Patch(':id/refund-check')
+  async checkRefundStatus(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.bookingService.fakeRefundSuccess(req.user?.sub, id);
   }
 }

@@ -51,7 +51,11 @@ export class NutritionistNotificationsService {
     entity.doc_luc = now;
     entity.cap_nhat_luc = now;
     await this.notificationRepository.save(entity);
-    return { success: true, message: 'Da danh dau da doc', data: this.toPublic(entity) };
+    return {
+      success: true,
+      message: 'Da danh dau da doc',
+      data: this.toPublic(entity),
+    };
   }
 
   async getUnreadCount(userId: number) {

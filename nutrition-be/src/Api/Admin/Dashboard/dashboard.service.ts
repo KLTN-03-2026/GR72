@@ -30,7 +30,9 @@ export class DashboardService {
 
   async getDashboard() {
     // === Tổng tài khoản ===
-    const totalUsers = await this.userRepository.count({ where: { xoa_luc: IsNull() } });
+    const totalUsers = await this.userRepository.count({
+      where: { xoa_luc: IsNull() },
+    });
 
     // Phân bổ vai trò
     const usersByRole = await this.userRepository
@@ -63,7 +65,9 @@ export class DashboardService {
       .select("DATE_FORMAT(u.tao_luc, '%Y-%m-%d')", 'ngay')
       .addSelect('COUNT(u.id)', 'so_luong')
       .where('u.xoa_luc IS NULL')
-      .andWhere('u.tao_luc >= :date', { date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) })
+      .andWhere('u.tao_luc >= :date', {
+        date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+      })
       .groupBy('ngay')
       .orderBy('ngay', 'ASC')
       .getRawMany();
@@ -93,7 +97,9 @@ export class DashboardService {
     const activeSubscriptions = await this.subscriptionRepository.count({
       where: { trang_thai: 'dang_hoat_dong' },
     });
-    const totalPackages = await this.packageRepository.count({ where: { xoa_luc: IsNull() } });
+    const totalPackages = await this.packageRepository.count({
+      where: { xoa_luc: IsNull() },
+    });
 
     // Phân bổ đăng ký theo gói
     const subscriptionsByPackage = await this.subscriptionRepository
@@ -116,7 +122,9 @@ export class DashboardService {
       .createQueryBuilder('p')
       .select('SUM(p.so_tien)', 'total')
       .where("p.trang_thai = 'thanh_cong'")
-      .andWhere("DATE_FORMAT(p.thanh_toan_luc, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')")
+      .andWhere(
+        "DATE_FORMAT(p.thanh_toan_luc, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')",
+      )
       .getRawOne();
 
     // Doanh thu 7 ngày gần nhất theo ngày

@@ -1,7 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { Search } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { LoaderCircle, Search } from 'lucide-react'
+import { toast } from 'sonner'
 import { Link } from '@/lib/router'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -15,20 +16,42 @@ import {
 import { Main } from '@/components/layout/main'
 import { NutritionTopbar } from '@/features/nutrition/components/topbar'
 import { PageHeading } from '@/features/nutrition/components/page-heading'
-import { useNutritionStore } from '@/stores/nutrition-store'
+import {
+  getPublishedArticles,
+  type UserPublishedArticle,
+} from '@/services/content/api'
 
 export function NutritionUserArticles() {
-  const articles = useNutritionStore((state) => state.articles)
+  const [articles, setArticles] = useState<UserPublishedArticle[]>([])
+  const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    async function loadArticles() {
+      setLoading(true)
+      try {
+        const response = await getPublishedArticles({ page: 1, limit: 50 })
+        setArticles(response.items)
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : 'Không tải được bài viết',
+        )
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    void loadArticles()
+  }, [])
+
   const filteredArticles = useMemo(() => {
-    const publishedArticles = articles.filter((article) => article.status === 'Xuất bản')
     const keyword = query.trim().toLowerCase()
-    if (!keyword) return publishedArticles
-    return publishedArticles.filter(
+    if (!keyword) return articles
+    return articles.filter(
       (article) =>
-        article.title.toLowerCase().includes(keyword) ||
-        article.category.toLowerCase().includes(keyword) ||
-        article.summary.toLowerCase().includes(keyword)
+        article.tieu_de.toLowerCase().includes(keyword) ||
+        (article.danh_muc ?? '').toLowerCase().includes(keyword) ||
+        (article.tom_tat ?? '').toLowerCase().includes(keyword)
     )
   }, [articles, query])
   const featuredArticle = filteredArticles[0]
@@ -52,22 +75,37 @@ export function NutritionUserArticles() {
           />
         </div>
 
+        {loading && (
+          <div className='flex items-center gap-2 text-sm text-muted-foreground'>
+            <LoaderCircle className='size-4 animate-spin' />
+            Đang tải bài viết...
+          </div>
+        )}
+
         {featuredArticle ? (
           <Link
-            to={`/nutrition/articles/${featuredArticle.slug ?? featuredArticle.id}`}
+            to={`/nutrition/articles/${featuredArticle.slug}`}
             className='block'
           >
             <Card className='border-primary/20 bg-gradient-to-br from-primary/5 via-background to-background transition hover:border-primary/40'>
               <CardHeader>
                 <div className='flex items-center gap-2'>
-                  <Badge variant='secondary'>{featuredArticle.category}</Badge>
-                  <span className='text-xs text-muted-foreground'>{featuredArticle.updatedAt}</span>
+                  <Badge variant='secondary'>
+                    {featuredArticle.danh_muc ?? 'Tổng hợp'}
+                  </Badge>
+                  <span className='text-xs text-muted-foreground'>
+                    {new Date(
+                      featuredArticle.xuat_ban_luc ?? featuredArticle.cap_nhat_luc,
+                    ).toLocaleDateString('vi-VN')}
+                  </span>
                 </div>
-                <CardTitle className='text-2xl'>{featuredArticle.title}</CardTitle>
-                <CardDescription>{featuredArticle.summary}</CardDescription>
+                <CardTitle className='text-2xl'>
+                  {featuredArticle.tieu_de}
+                </CardTitle>
+                <CardDescription>{featuredArticle.tom_tat}</CardDescription>
               </CardHeader>
               <CardContent className='flex flex-wrap gap-2'>
-                {featuredArticle.aiGuidelines?.map((item) => (
+                {featuredArticle.the_gan?.map((item) => (
                   <Badge key={item} variant='outline'>
                     {item}
                   </Badge>
@@ -81,23 +119,27 @@ export function NutritionUserArticles() {
           {filteredArticles.map((article) => (
             <Link
               key={article.id}
-              to={`/nutrition/articles/${article.slug ?? article.id}`}
+              to={`/nutrition/articles/${article.slug}`}
               className='block'
             >
               <Card className='h-full transition hover:border-primary/40'>
                 <CardHeader>
                   <div className='flex items-start justify-between gap-3'>
-                    <Badge variant='secondary'>{article.category}</Badge>
+                    <Badge variant='secondary'>
+                      {article.danh_muc ?? 'Tổng hợp'}
+                    </Badge>
                     <span className='text-xs text-muted-foreground'>
-                      {article.updatedAt}
+                      {new Date(
+                        article.xuat_ban_luc ?? article.cap_nhat_luc,
+                      ).toLocaleDateString('vi-VN')}
                     </span>
                   </div>
-                  <CardTitle className='leading-snug'>{article.title}</CardTitle>
-                  <CardDescription>{article.summary}</CardDescription>
+                  <CardTitle className='leading-snug'>{article.tieu_de}</CardTitle>
+                  <CardDescription>{article.tom_tat}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className='flex flex-wrap gap-2'>
-                    {article.aiGuidelines?.slice(0, 2).map((item) => (
+                    {article.the_gan?.slice(0, 2).map((item) => (
                       <Badge key={item} variant='outline'>
                         {item}
                       </Badge>

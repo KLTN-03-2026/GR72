@@ -7,7 +7,9 @@ import { UserRecommendationService } from './recommendation.service';
 @Controller('me/recommendations')
 @Roles('nguoi_dung')
 export class UserRecommendationController {
-  constructor(private readonly recommendationService: UserRecommendationService) {}
+  constructor(
+    private readonly recommendationService: UserRecommendationService,
+  ) {}
 
   @Get('nutrition')
   getNutritionRecommendations(

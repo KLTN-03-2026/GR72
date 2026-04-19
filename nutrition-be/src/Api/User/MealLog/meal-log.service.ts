@@ -10,7 +10,11 @@ import { DataSource, IsNull, MoreThanOrEqual, Repository } from 'typeorm';
 import { ThucPhamEntity } from '../../Admin/Food/entities/thuc-pham.entity';
 import { TaiKhoanEntity } from '../../Admin/User/entities/tai-khoan.entity';
 import { CongThucEntity } from '../../Nutritionist/Recipe/entities/cong-thuc.entity';
-import { ChiTietKeHoachAnEntity, KeHoachAnEntity, UserMealType } from '../MealPlan/entities/ke-hoach-an.entity';
+import {
+  ChiTietKeHoachAnEntity,
+  KeHoachAnEntity,
+  UserMealType,
+} from '../MealPlan/entities/ke-hoach-an.entity';
 import {
   ChiTietNhatKyBuaAnEntity,
   NhatKyBuaAnEntity,
@@ -276,9 +280,13 @@ export class UserMealLogService {
     const user = await this.getActiveUser(userId);
     const result = await this.dataSource.transaction(async (manager) => {
       const mealPlanRepository = manager.getRepository(KeHoachAnEntity);
-      const mealPlanDetailRepository = manager.getRepository(ChiTietKeHoachAnEntity);
+      const mealPlanDetailRepository = manager.getRepository(
+        ChiTietKeHoachAnEntity,
+      );
       const mealLogRepository = manager.getRepository(NhatKyBuaAnEntity);
-      const mealLogDetailRepository = manager.getRepository(ChiTietNhatKyBuaAnEntity);
+      const mealLogDetailRepository = manager.getRepository(
+        ChiTietNhatKyBuaAnEntity,
+      );
 
       const plan = await mealPlanRepository.findOne({
         where: { id: planId, tai_khoan_id: user.id },
@@ -297,7 +305,9 @@ export class UserMealLogService {
       });
 
       if (details.length === 0) {
-        throw new BadRequestException('Kế hoạch ăn không có chi tiết để ghi nhận');
+        throw new BadRequestException(
+          'Kế hoạch ăn không có chi tiết để ghi nhận',
+        );
       }
 
       const byMealType = new Map<UserMealType, ChiTietKeHoachAnEntity[]>();
@@ -343,7 +353,9 @@ export class UserMealLogService {
           mealLog.cap_nhat_luc = now;
           await mealLogRepository.save(mealLog);
           if (existingDetailsCount > 0) {
-            await mealLogDetailRepository.delete({ nhat_ky_bua_an_id: mealLog.id });
+            await mealLogDetailRepository.delete({
+              nhat_ky_bua_an_id: mealLog.id,
+            });
           }
         }
 
@@ -362,14 +374,22 @@ export class UserMealLogService {
               nguon_id: snapshot.nguon_id,
               cong_thuc_id: snapshot.cong_thuc_id,
               thuc_pham_id: snapshot.thuc_pham_id,
-              so_luong: detail.so_luong ? Number(detail.so_luong).toFixed(2) : '1.00',
+              so_luong: detail.so_luong
+                ? Number(detail.so_luong).toFixed(2)
+                : '1.00',
               don_vi: detail.don_vi ?? (detail.cong_thuc_id ? 'phan' : 'g'),
               calories: snapshot.calories.toFixed(2),
               protein_g: snapshot.protein_g.toFixed(2),
               carb_g: snapshot.carb_g.toFixed(2),
               fat_g: snapshot.fat_g.toFixed(2),
-              chat_xo_g: snapshot.chat_xo_g !== null ? snapshot.chat_xo_g.toFixed(2) : null,
-              natri_mg: snapshot.natri_mg !== null ? snapshot.natri_mg.toFixed(2) : null,
+              chat_xo_g:
+                snapshot.chat_xo_g !== null
+                  ? snapshot.chat_xo_g.toFixed(2)
+                  : null,
+              natri_mg:
+                snapshot.natri_mg !== null
+                  ? snapshot.natri_mg.toFixed(2)
+                  : null,
               du_lieu_chup_lai: {
                 ...snapshot.du_lieu_chup_lai,
                 nguon_ke_hoach_an_id: plan.id,
@@ -455,7 +475,9 @@ export class UserMealLogService {
     mealLogId: number,
     details: MealLogDetailDto[],
   ) {
-    const mealLogDetailRepository = manager.getRepository(ChiTietNhatKyBuaAnEntity);
+    const mealLogDetailRepository = manager.getRepository(
+      ChiTietNhatKyBuaAnEntity,
+    );
     await mealLogDetailRepository.delete({ nhat_ky_bua_an_id: mealLogId });
 
     const now = new Date();
@@ -474,8 +496,10 @@ export class UserMealLogService {
           protein_g: snapshot.protein_g.toFixed(2),
           carb_g: snapshot.carb_g.toFixed(2),
           fat_g: snapshot.fat_g.toFixed(2),
-          chat_xo_g: snapshot.chat_xo_g !== null ? snapshot.chat_xo_g.toFixed(2) : null,
-          natri_mg: snapshot.natri_mg !== null ? snapshot.natri_mg.toFixed(2) : null,
+          chat_xo_g:
+            snapshot.chat_xo_g !== null ? snapshot.chat_xo_g.toFixed(2) : null,
+          natri_mg:
+            snapshot.natri_mg !== null ? snapshot.natri_mg.toFixed(2) : null,
           du_lieu_chup_lai: snapshot.du_lieu_chup_lai,
           tao_luc: now,
           cap_nhat_luc: now,
@@ -504,14 +528,22 @@ export class UserMealLogService {
       const normalizedUnit = this.normalizeUnit(detail.donVi);
       const servingUnit = this.normalizeUnit(food.don_vi_khau_phan ?? null);
 
-      if (normalizedUnit !== 'g' && (!servingUnit || normalizedUnit !== servingUnit)) {
+      if (
+        normalizedUnit !== 'g' &&
+        (!servingUnit || normalizedUnit !== servingUnit)
+      ) {
         throw new BadRequestException(
           `Đơn vị "${detail.donVi}" không hợp lệ cho thực phẩm này. Chỉ chấp nhận "g" hoặc "${food.don_vi_khau_phan}"`,
         );
       }
 
-      if (normalizedUnit !== 'g' && (!food.khau_phan_tham_chieu || Number(food.khau_phan_tham_chieu) <= 0)) {
-        throw new BadRequestException('Thực phẩm này chưa có khẩu phần tham chiếu hợp lệ để ghi nhật ký');
+      if (
+        normalizedUnit !== 'g' &&
+        (!food.khau_phan_tham_chieu || Number(food.khau_phan_tham_chieu) <= 0)
+      ) {
+        throw new BadRequestException(
+          'Thực phẩm này chưa có khẩu phần tham chiếu hợp lệ để ghi nhật ký',
+        );
       }
 
       const denominator =
@@ -546,7 +578,11 @@ export class UserMealLogService {
     }
 
     const recipe = await this.recipeRepository.findOne({
-      where: { id: detail.congThucId, xoa_luc: IsNull(), trang_thai: 'xuat_ban' },
+      where: {
+        id: detail.congThucId,
+        xoa_luc: IsNull(),
+        trang_thai: 'xuat_ban',
+      },
     });
 
     if (!recipe) {
@@ -560,7 +596,8 @@ export class UserMealLogService {
       );
     }
 
-    const servingCount = recipe.so_khau_phan && recipe.so_khau_phan > 0 ? recipe.so_khau_phan : 1;
+    const servingCount =
+      recipe.so_khau_phan && recipe.so_khau_phan > 0 ? recipe.so_khau_phan : 1;
     const ratio = detail.soLuong / servingCount;
 
     return {

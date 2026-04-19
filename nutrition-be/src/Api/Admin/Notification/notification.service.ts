@@ -1,8 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, IsNull, Repository } from 'typeorm';
-import { CreateNotificationDto, NotificationQueryDto, UpdateNotificationDto } from './dto/notification.dto';
-import { NotificationStatus, ThongBaoEntity } from '../FoodReview/entities/thong-bao.entity';
+import {
+  CreateNotificationDto,
+  NotificationQueryDto,
+  UpdateNotificationDto,
+} from './dto/notification.dto';
+import {
+  NotificationStatus,
+  ThongBaoEntity,
+} from '../FoodReview/entities/thong-bao.entity';
 import { TaiKhoanEntity } from '../User/entities/tai-khoan.entity';
 
 @Injectable()
@@ -20,7 +27,8 @@ export class NotificationService {
     const skip = (page - 1) * limit;
 
     const where: FindOptionsWhere<ThongBaoEntity> = {};
-    if (query.trangThai) where.trang_thai = query.trangThai as NotificationStatus;
+    if (query.trangThai)
+      where.trang_thai = query.trangThai as NotificationStatus;
     if (userId !== undefined) where.tai_khoan_id = userId;
     if (query.huong === 'gui' && userId !== undefined) {
       where.nguoi_gui_id = userId;
@@ -49,7 +57,9 @@ export class NotificationService {
   }
 
   async getUnreadCount(userId?: number) {
-    const where: FindOptionsWhere<ThongBaoEntity> = { trang_thai: 'chua_doc' as NotificationStatus };
+    const where: FindOptionsWhere<ThongBaoEntity> = {
+      trang_thai: 'chua_doc' as NotificationStatus,
+    };
     if (userId !== undefined) where.tai_khoan_id = userId;
     const count = await this.notificationRepository.count({ where });
     return { success: true, data: { count } };
@@ -57,11 +67,17 @@ export class NotificationService {
 
   async findOne(id: number, userId?: number) {
     const entity = await this.findById(id, userId);
-    return { success: true, message: 'Lay chi tiet thong bao', data: this.toPublic(entity) };
+    return {
+      success: true,
+      message: 'Lay chi tiet thong bao',
+      data: this.toPublic(entity),
+    };
   }
 
   async create(dto: CreateNotificationDto, nguoiGuiId?: number) {
-    const user = await this.userRepository.findOne({ where: { id: dto.taiKhoanId, xoa_luc: IsNull() } });
+    const user = await this.userRepository.findOne({
+      where: { id: dto.taiKhoanId, xoa_luc: IsNull() },
+    });
     if (!user) throw new NotFoundException('Tai khoan khong ton tai');
 
     const now = new Date();
@@ -79,7 +95,11 @@ export class NotificationService {
 
     const saved = await this.notificationRepository.save(entity);
     const result = await this.findById(saved.id);
-    return { success: true, message: 'Tao thong bao thanh cong', data: this.toPublic(result) };
+    return {
+      success: true,
+      message: 'Tao thong bao thanh cong',
+      data: this.toPublic(result),
+    };
   }
 
   async update(id: number, dto: UpdateNotificationDto) {
@@ -87,12 +107,17 @@ export class NotificationService {
 
     if (dto.tieuDe !== undefined) entity.tieu_de = dto.tieuDe.trim();
     if (dto.noiDung !== undefined) entity.noi_dung = dto.noiDung.trim();
-    if (dto.duongDanHanhDong !== undefined) entity.duong_dan_hanh_dong = dto.duongDanHanhDong?.trim() || null;
+    if (dto.duongDanHanhDong !== undefined)
+      entity.duong_dan_hanh_dong = dto.duongDanHanhDong?.trim() || null;
     entity.cap_nhat_luc = new Date();
 
     await this.notificationRepository.save(entity);
     const result = await this.findById(id);
-    return { success: true, message: 'Cap nhat thong bao thanh cong', data: this.toPublic(result) };
+    return {
+      success: true,
+      message: 'Cap nhat thong bao thanh cong',
+      data: this.toPublic(result),
+    };
   }
 
   async markRead(userId: number, id: number) {
@@ -102,7 +127,11 @@ export class NotificationService {
     entity.doc_luc = now;
     entity.cap_nhat_luc = now;
     await this.notificationRepository.save(entity);
-    return { success: true, message: 'Da danh dau da doc', data: this.toPublic(entity) };
+    return {
+      success: true,
+      message: 'Da danh dau da doc',
+      data: this.toPublic(entity),
+    };
   }
 
   async remove(id: number) {
@@ -126,9 +155,21 @@ export class NotificationService {
     return {
       id: e.id,
       tai_khoan_id: e.tai_khoan_id,
-      tai_khoan: e.tai_khoan ? { id: e.tai_khoan.id, ho_ten: e.tai_khoan.ho_ten, email: e.tai_khoan.email } : null,
+      tai_khoan: e.tai_khoan
+        ? {
+            id: e.tai_khoan.id,
+            ho_ten: e.tai_khoan.ho_ten,
+            email: e.tai_khoan.email,
+          }
+        : null,
       nguoi_gui_id: e.nguoi_gui_id,
-      nguoi_gui: e.nguoi_gui ? { id: e.nguoi_gui.id, ho_ten: e.nguoi_gui.ho_ten, email: e.nguoi_gui.email } : null,
+      nguoi_gui: e.nguoi_gui
+        ? {
+            id: e.nguoi_gui.id,
+            ho_ten: e.nguoi_gui.ho_ten,
+            email: e.nguoi_gui.email,
+          }
+        : null,
       loai: e.loai,
       tieu_de: e.tieu_de,
       noi_dung: e.noi_dung,

@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, ILike, IsNull, Repository } from 'typeorm';
-import { BaiVietEntity, ArticleStatus } from '../../Nutritionist/Article/entities/bai-viet.entity';
+import {
+  BaiVietEntity,
+  ArticleStatus,
+} from '../../Nutritionist/Article/entities/bai-viet.entity';
 import { ArticleQueryDto } from './dto/article-query.dto';
 
 @Injectable()
@@ -36,7 +39,10 @@ export class AdminArticleService {
   }
 
   async findOne(id: number) {
-    const entity = await this.repo.findOne({ where: { id, xoa_luc: IsNull() }, relations: ['tac_gia'] });
+    const entity = await this.repo.findOne({
+      where: { id, xoa_luc: IsNull() },
+      relations: ['tac_gia'],
+    });
     if (!entity) throw new NotFoundException('Bai viet khong ton tai');
     return this.toPublic(entity);
   }
@@ -79,7 +85,10 @@ export class AdminArticleService {
       where: { slug, trang_thai: 'xuat_ban', xoa_luc: IsNull() },
       relations: ['tac_gia'],
     });
-    if (!entity) throw new NotFoundException('Bai viet khong ton tai hoac chua duoc xuat ban');
+    if (!entity)
+      throw new NotFoundException(
+        'Bai viet khong ton tai hoac chua duoc xuat ban',
+      );
     return this.toPublic(entity);
   }
 
@@ -94,7 +103,10 @@ export class AdminArticleService {
       .orderBy('so_luong', 'DESC')
       .getRawMany();
 
-    return result.map((r) => ({ danh_muc: r.danh_muc, so_luong: Number(r.so_luong) }));
+    return result.map((r) => ({
+      danh_muc: r.danh_muc,
+      so_luong: Number(r.so_luong),
+    }));
   }
 
   async getAuthorList() {
@@ -121,7 +133,9 @@ export class AdminArticleService {
   }
 
   async remove(id: number) {
-    const entity = await this.repo.findOne({ where: { id, xoa_luc: IsNull() } });
+    const entity = await this.repo.findOne({
+      where: { id, xoa_luc: IsNull() },
+    });
     if (!entity) throw new NotFoundException('Bai viet khong ton tai');
     entity.xoa_luc = new Date();
     entity.cap_nhat_luc = new Date();
@@ -133,7 +147,9 @@ export class AdminArticleService {
     return {
       id: e.id,
       tac_gia_id: e.tac_gia_id,
-      tac_gia: e.tac_gia ? { id: e.tac_gia.id, ho_ten: e.tac_gia.ho_ten, email: e.tac_gia.email } : null,
+      tac_gia: e.tac_gia
+        ? { id: e.tac_gia.id, ho_ten: e.tac_gia.ho_ten, email: e.tac_gia.email }
+        : null,
       tieu_de: e.tieu_de,
       slug: e.slug,
       danh_muc: e.danh_muc,

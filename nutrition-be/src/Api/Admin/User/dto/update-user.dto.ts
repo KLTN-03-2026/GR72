@@ -1,9 +1,4 @@
-import {
-  IsEmail,
-  IsOptional,
-  IsString,
-  MinLength,
-} from 'class-validator';
+import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 
 // Spec "quan-ly-tai-khoan.md" nói rõ:
 // "Không bao gồm đổi role, đổi trạng thái và reset mật khẩu thủ công, vì đó là chức năng riêng."

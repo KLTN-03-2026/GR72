@@ -6,8 +6,10 @@ import {
   CheckCircle,
   Clock3,
   DollarSign,
+  LoaderCircle,
   MapPin,
   NotebookPen,
+  RefreshCw,
   UserRound,
   XCircle,
 } from 'lucide-react'
@@ -16,6 +18,7 @@ import { ApiError } from '@/services/auth/api'
 import {
   type NBooking,
   cancelNutriBooking,
+  checkNutriBookingRefundStatus,
   completeNutriBooking,
   confirmNutriBooking,
   getNutriBooking,
@@ -64,6 +67,22 @@ function getStatusBadge(status: string) {
     default:
       return <Badge>{status}</Badge>
   }
+}
+
+function getRefundBadge(paymentStatus: string | null, refundStatus: NBooking['refundStatus']) {
+  if (paymentStatus === 'dang_xu_ly' || refundStatus === 'processing') {
+    return <Badge className='bg-amber-100 text-amber-700'>Đang xử lý hoàn tiền</Badge>
+  }
+  if (refundStatus === 'bank_sent') {
+    return <Badge className='bg-sky-100 text-sky-700'>Đã gửi yêu cầu hoàn tiền</Badge>
+  }
+  if (paymentStatus === 'da_hoan_tien' || refundStatus === 'success') {
+    return <Badge className='bg-sky-100 text-sky-700'>Đã hoàn tiền</Badge>
+  }
+  if (refundStatus === 'failed') {
+    return <Badge className='bg-red-100 text-red-700'>Hoàn tiền chưa thành công</Badge>
+  }
+  return null
 }
 
 function getStatusDescription(status: string) {
@@ -117,6 +136,7 @@ export function NutritionistBookingDetail({ bookingId }: Props) {
   const [actionType, setActionType] = useState<'complete' | 'cancel' | null>(null)
   const [note, setNote] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+  const [refundCheckLoading, setRefundCheckLoading] = useState(false)
 
   const loadBooking = useCallback(async () => {
     setLoading(true)
@@ -194,6 +214,23 @@ export function NutritionistBookingDetail({ bookingId }: Props) {
       )
     } finally {
       setActionLoading(false)
+    }
+  }
+
+  async function handleRefundCheck() {
+    if (!booking) return
+
+    setRefundCheckLoading(true)
+    try {
+      const updated = await checkNutriBookingRefundStatus(booking.id)
+      setBooking(updated)
+      toast.success('Đã cập nhật trạng thái hoàn tiền')
+    } catch (error) {
+      toast.error(
+        error instanceof ApiError ? error.message : 'Không thể kiểm tra trạng thái hoàn tiền'
+      )
+    } finally {
+      setRefundCheckLoading(false)
     }
   }
 
@@ -385,6 +422,42 @@ export function NutritionistBookingDetail({ bookingId }: Props) {
                   </div>
                 </CardContent>
               </Card>
+
+              {(booking.trangThaiThanhToan === 'dang_xu_ly' ||
+                booking.trangThaiThanhToan === 'da_hoan_tien' ||
+                booking.refundStatus !== 'not_required') && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className='text-base'>Hoàn tiền</CardTitle>
+                  </CardHeader>
+                  <CardContent className='space-y-3'>
+                    <div>{getRefundBadge(booking.trangThaiThanhToan, booking.refundStatus)}</div>
+                    {booking.refundMessage && (
+                      <p className='text-sm text-muted-foreground'>{booking.refundMessage}</p>
+                    )}
+                    {(booking.refundStatus === 'processing' || booking.refundStatus === 'bank_sent') && (
+                      <Button
+                        size='sm'
+                        variant='outline'
+                        onClick={() => void handleRefundCheck()}
+                        disabled={refundCheckLoading}
+                      >
+                        {refundCheckLoading ? (
+                          <>
+                            <LoaderCircle className='mr-1.5 size-4 animate-spin' />
+                            Đang kiểm tra...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className='mr-1.5 size-4' />
+                            Kiểm tra trạng thái thanh toán
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               <Card>
                 <CardHeader>

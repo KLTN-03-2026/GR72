@@ -1,4 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { TaiKhoanEntity } from '../../../Admin/User/entities/tai-khoan.entity';
 
 export type ArticleStatus = 'ban_nhap' | 'xuat_ban' | 'luu_tru';
@@ -36,10 +42,20 @@ export class BaiVietEntity {
   @Column({ type: 'longtext' })
   noi_dung!: string;
 
-  @Column({ name: 'anh_dai_dien_url', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'anh_dai_dien_url',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   anh_dai_dien_url!: string | null;
 
-  @Column({ name: 'trang_thai', type: 'enum', enum: ['ban_nhap', 'xuat_ban', 'luu_tru'], default: 'ban_nhap' })
+  @Column({
+    name: 'trang_thai',
+    type: 'enum',
+    enum: ['ban_nhap', 'xuat_ban', 'luu_tru'],
+    default: 'ban_nhap',
+  })
   trang_thai!: ArticleStatus;
 
   @Column({ name: 'xuat_ban_luc', type: 'datetime', nullable: true })

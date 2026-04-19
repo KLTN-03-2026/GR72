@@ -18,7 +18,12 @@ import { ResetPasswordDto, UpdateUserDto } from './dto/update-user.dto';
 import { HoSoEntity } from './entities/ho-so.entity';
 import { UsersQueryDto } from './dto/users-query.dto';
 import { TaiKhoanEntity } from './entities/tai-khoan.entity';
-import { PublicUser, PublicUserDetail, UserRole, UserStatus } from './user.types';
+import {
+  PublicUser,
+  PublicUserDetail,
+  UserRole,
+  UserStatus,
+} from './user.types';
 
 type SuccessResponse<T> = {
   success: true;

@@ -55,7 +55,12 @@ export class BookingResponseDto {
   hoaHongHeThong!: number;
   thuNhapDuKien!: number;
   thuNhapThucNhan!: number;
-  refundStatus!: 'not_required' | 'success' | 'failed';
+  refundStatus!:
+    | 'not_required'
+    | 'processing'
+    | 'bank_sent'
+    | 'success'
+    | 'failed';
   refundMessage!: string | null;
   taLuc!: Date;
   capNhatLuc!: Date;

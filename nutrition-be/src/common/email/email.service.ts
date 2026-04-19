@@ -15,19 +15,19 @@ export class EmailService {
     host: process.env.EMAIL_HOST ?? 'smtp.gmail.com',
     port: Number(process.env.EMAIL_PORT ?? 587),
     secure: Number(process.env.EMAIL_PORT ?? 587) === 465,
-    auth:
-      process.env.EMAIL_USER
-        ? {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-          }
-        : undefined,
+    auth: process.env.EMAIL_USER
+      ? {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        }
+      : undefined,
   });
 
   async send(options: SendEmailOptions): Promise<void> {
     try {
       await this.transporter.sendMail({
-        from: process.env.EMAIL_FROM ?? '"Nutrition App" <noreply@nutrition.app>',
+        from:
+          process.env.EMAIL_FROM ?? '"Nutrition App" <noreply@nutrition.app>',
         to: options.to,
         subject: options.subject,
         html: options.html,

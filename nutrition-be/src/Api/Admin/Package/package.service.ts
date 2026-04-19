@@ -54,7 +54,8 @@ export class PackageService {
       slug,
       mo_ta: dto.moTa?.trim() || null,
       gia_niem_yet: String(dto.giaNiemYet),
-      gia_khuyen_mai: dto.giaKhuyenMai !== undefined ? String(dto.giaKhuyenMai) : null,
+      gia_khuyen_mai:
+        dto.giaKhuyenMai !== undefined ? String(dto.giaKhuyenMai) : null,
       thoi_han_ngay: dto.thoiHanNgay ?? null,
       loai_chu_ky: (dto.loaiChuKy as PackageCycleType) ?? 'thang',
       trang_thai: (dto.trangThai as PackageStatus) ?? 'ban_nhap',
@@ -93,7 +94,9 @@ export class PackageService {
       baseWhere.trang_thai = query.trangThai as PackageStatus;
     }
 
-    let where: FindOptionsWhere<GoiDichVuEntity> | FindOptionsWhere<GoiDichVuEntity>[] = baseWhere;
+    let where:
+      | FindOptionsWhere<GoiDichVuEntity>
+      | FindOptionsWhere<GoiDichVuEntity>[] = baseWhere;
 
     if (query.keyword?.trim()) {
       const keyword = query.keyword.trim();
@@ -143,14 +146,22 @@ export class PackageService {
       entity.slug = newSlug;
     }
     if (dto.moTa !== undefined) entity.mo_ta = dto.moTa?.trim() || null;
-    if (dto.giaNiemYet !== undefined) entity.gia_niem_yet = String(dto.giaNiemYet);
-    if (dto.giaKhuyenMai !== undefined) entity.gia_khuyen_mai = dto.giaKhuyenMai !== null ? String(dto.giaKhuyenMai) : null;
-    if (dto.thoiHanNgay !== undefined) entity.thoi_han_ngay = dto.thoiHanNgay ?? null;
-    if (dto.loaiChuKy !== undefined) entity.loai_chu_ky = dto.loaiChuKy as PackageCycleType;
-    if (dto.trangThai !== undefined) entity.trang_thai = dto.trangThai as PackageStatus;
-    if (dto.laGoiMienPhi !== undefined) entity.la_goi_mien_phi = dto.laGoiMienPhi;
+    if (dto.giaNiemYet !== undefined)
+      entity.gia_niem_yet = String(dto.giaNiemYet);
+    if (dto.giaKhuyenMai !== undefined)
+      entity.gia_khuyen_mai =
+        dto.giaKhuyenMai !== null ? String(dto.giaKhuyenMai) : null;
+    if (dto.thoiHanNgay !== undefined)
+      entity.thoi_han_ngay = dto.thoiHanNgay ?? null;
+    if (dto.loaiChuKy !== undefined)
+      entity.loai_chu_ky = dto.loaiChuKy as PackageCycleType;
+    if (dto.trangThai !== undefined)
+      entity.trang_thai = dto.trangThai as PackageStatus;
+    if (dto.laGoiMienPhi !== undefined)
+      entity.la_goi_mien_phi = dto.laGoiMienPhi;
     if (dto.goiNoiBat !== undefined) entity.goi_noi_bat = dto.goiNoiBat;
-    if (dto.thuTuHienThi !== undefined) entity.thu_tu_hien_thi = dto.thuTuHienThi;
+    if (dto.thuTuHienThi !== undefined)
+      entity.thu_tu_hien_thi = dto.thuTuHienThi;
 
     entity.cap_nhat_luc = new Date();
 
@@ -217,7 +228,9 @@ export class PackageService {
       slug: entity.slug,
       mo_ta: entity.mo_ta,
       gia_niem_yet: Number(entity.gia_niem_yet),
-      gia_khuyen_mai: entity.gia_khuyen_mai ? Number(entity.gia_khuyen_mai) : null,
+      gia_khuyen_mai: entity.gia_khuyen_mai
+        ? Number(entity.gia_khuyen_mai)
+        : null,
       thoi_han_ngay: entity.thoi_han_ngay,
       loai_chu_ky: entity.loai_chu_ky,
       trang_thai: entity.trang_thai,

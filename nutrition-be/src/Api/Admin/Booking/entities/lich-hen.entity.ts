@@ -66,7 +66,15 @@ export class LichHenEntity {
 
   @Column({
     type: 'enum',
-    enum: ['cho_thanh_toan', 'da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh', 'da_huy', 'vo_hieu_hoa'],
+    enum: [
+      'cho_thanh_toan',
+      'da_xac_nhan',
+      'da_checkin',
+      'dang_tu_van',
+      'hoan_thanh',
+      'da_huy',
+      'vo_hieu_hoa',
+    ],
     default: 'cho_thanh_toan',
   })
   trang_thai!: LichHenStatus;

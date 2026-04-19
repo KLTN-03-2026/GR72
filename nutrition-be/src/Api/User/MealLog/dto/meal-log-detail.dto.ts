@@ -1,4 +1,11 @@
-import { IsEnum, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import {
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class MealLogDetailDto {
   @IsEnum(['thuc_pham', 'cong_thuc'], {

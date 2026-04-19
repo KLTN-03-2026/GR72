@@ -68,6 +68,22 @@ function getStatusBadge(status: string) {
   }
 }
 
+function getPaymentRefundBadge(paymentStatus: string | null, refundStatus: NBooking['refundStatus']) {
+  if (paymentStatus === 'dang_xu_ly' || refundStatus === 'processing') {
+    return <Badge className='bg-amber-100 text-amber-700'>Đang xử lý hoàn tiền</Badge>
+  }
+  if (refundStatus === 'bank_sent') {
+    return <Badge className='bg-sky-100 text-sky-700'>Đã gửi yêu cầu hoàn tiền</Badge>
+  }
+  if (paymentStatus === 'da_hoan_tien' || refundStatus === 'success') {
+    return <Badge className='bg-sky-100 text-sky-700'>Đã hoàn tiền</Badge>
+  }
+  if (refundStatus === 'failed') {
+    return <Badge className='bg-red-100 text-red-700'>Hoàn tiền chưa thành công</Badge>
+  }
+  return null
+}
+
 function formatDateVN(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('vi-VN')
 }
@@ -186,7 +202,12 @@ export function NutritionistBookings() {
     {
       accessorKey: 'trangThai',
       header: 'Trạng thái',
-      cell: ({ row }) => getStatusBadge(row.original.trangThai),
+      cell: ({ row }) => (
+        <div className='space-y-1'>
+          <div>{getStatusBadge(row.original.trangThai)}</div>
+          {getPaymentRefundBadge(row.original.trangThaiThanhToan, row.original.refundStatus)}
+        </div>
+      ),
     },
     {
       id: 'actions',

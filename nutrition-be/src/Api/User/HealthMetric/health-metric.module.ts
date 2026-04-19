@@ -9,11 +9,7 @@ import { UserHealthMetricService } from './health-metric.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      TaiKhoanEntity,
-      HoSoEntity,
-      ChiSoSucKhoeEntity,
-    ]),
+    TypeOrmModule.forFeature([TaiKhoanEntity, HoSoEntity, ChiSoSucKhoeEntity]),
     UserHealthAssessmentModule,
   ],
   controllers: [UserHealthMetricController],

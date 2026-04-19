@@ -1,9 +1,7 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 import { Table, TableForeignKey, TableIndex } from 'typeorm';
 
-export class CreateThongBaoTable1744156200000
-  implements MigrationInterface
-{
+export class CreateThongBaoTable1744156200000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     const hasTable = await queryRunner.hasTable('thong_bao');
     if (hasTable) return;

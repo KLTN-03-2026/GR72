@@ -31,6 +31,9 @@ import { UserDashboardModule } from './Api/User/Dashboard/dashboard.module';
 import { UserFoodModule } from './Api/User/Food/food.module';
 import { UserMealLogModule } from './Api/User/MealLog/meal-log.module';
 import { UserRecommendationModule } from './Api/User/Recommendation/recommendation.module';
+import { UserConsultationModule } from './Api/User/Consultation/consultation.module';
+import { UserNotificationsModule } from './Api/User/Notifications/user-notifications.module';
+import { UserContentModule } from './Api/User/Content/content.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AdminUserModule } from './Api/Admin/User/user.module';
@@ -80,6 +83,9 @@ import { getTypeOrmConfig } from './database/typeorm.config';
     UserFoodModule,
     UserMealLogModule,
     UserRecommendationModule,
+    UserConsultationModule,
+    UserNotificationsModule,
+    UserContentModule,
   ],
   controllers: [AppController],
   providers: [

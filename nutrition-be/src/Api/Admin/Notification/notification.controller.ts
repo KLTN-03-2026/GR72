@@ -11,7 +11,11 @@ import {
   Req,
 } from '@nestjs/common';
 import { Roles } from '../../../common/decorators/roles.decorator';
-import { CreateNotificationDto, NotificationQueryDto, UpdateNotificationDto } from './dto/notification.dto';
+import {
+  CreateNotificationDto,
+  NotificationQueryDto,
+  UpdateNotificationDto,
+} from './dto/notification.dto';
 import { NotificationService } from './notification.service';
 
 @Controller('admin/notifications')
@@ -19,7 +23,10 @@ export class NotificationController {
   constructor(private readonly service: NotificationService) {}
 
   @Get()
-  findAll(@Req() req: { user?: { sub: number; vai_tro?: string } }, @Query() query: NotificationQueryDto) {
+  findAll(
+    @Req() req: { user?: { sub: number; vai_tro?: string } },
+    @Query() query: NotificationQueryDto,
+  ) {
     const userId = req.user?.sub;
     return this.service.findAll(query, userId);
   }
@@ -31,26 +38,38 @@ export class NotificationController {
   }
 
   @Get(':id')
-  findOne(@Req() req: { user?: { sub: number } }, @Param('id', ParseIntPipe) id: number) {
+  findOne(
+    @Req() req: { user?: { sub: number } },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
     const userId = req.user?.sub;
     return this.service.findOne(id, userId);
   }
 
   @Post()
   @Roles('quan_tri')
-  create(@Req() req: { user?: { sub: number } }, @Body() body: CreateNotificationDto) {
+  create(
+    @Req() req: { user?: { sub: number } },
+    @Body() body: CreateNotificationDto,
+  ) {
     const nguoiGuiId = req.user?.sub;
     return this.service.create(body, nguoiGuiId);
   }
 
   @Patch(':id')
   @Roles('quan_tri')
-  update(@Param('id', ParseIntPipe) id: number, @Body() body: UpdateNotificationDto) {
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: UpdateNotificationDto,
+  ) {
     return this.service.update(id, body);
   }
 
   @Patch(':id/read')
-  markRead(@Req() req: { user?: { sub: number } }, @Param('id', ParseIntPipe) id: number) {
+  markRead(
+    @Req() req: { user?: { sub: number } },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
     const userId = req.user?.sub;
     if (!userId) {
       return { success: false, message: 'Khong xac dinh duoc nguoi dung' };

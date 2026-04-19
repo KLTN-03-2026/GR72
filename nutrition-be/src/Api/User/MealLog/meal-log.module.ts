@@ -3,7 +3,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThucPhamEntity } from '../../Admin/Food/entities/thuc-pham.entity';
 import { TaiKhoanEntity } from '../../Admin/User/entities/tai-khoan.entity';
 import { CongThucEntity } from '../../Nutritionist/Recipe/entities/cong-thuc.entity';
-import { ChiTietKeHoachAnEntity, KeHoachAnEntity } from '../MealPlan/entities/ke-hoach-an.entity';
+import {
+  ChiTietKeHoachAnEntity,
+  KeHoachAnEntity,
+} from '../MealPlan/entities/ke-hoach-an.entity';
 import {
   ChiTietNhatKyBuaAnEntity,
   NhatKyBuaAnEntity,

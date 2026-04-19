@@ -1,4 +1,11 @@
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { TaiKhoanEntity } from '../../../Admin/User/entities/tai-khoan.entity';
 
 export type UserMealType = 'bua_sang' | 'bua_trua' | 'bua_toi' | 'bua_phu';
@@ -43,16 +50,40 @@ export class KeHoachAnEntity {
   })
   trang_thai!: UserMealPlanStatus;
 
-  @Column({ name: 'tong_calories', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'tong_calories',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   tong_calories!: string | null;
 
-  @Column({ name: 'tong_protein_g', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'tong_protein_g',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   tong_protein_g!: string | null;
 
-  @Column({ name: 'tong_carb_g', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'tong_carb_g',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   tong_carb_g!: string | null;
 
-  @Column({ name: 'tong_fat_g', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'tong_fat_g',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   tong_fat_g!: string | null;
 
   @Column({ name: 'tao_luc', type: 'datetime' })
@@ -84,28 +115,68 @@ export class ChiTietKeHoachAnEntity {
   })
   loai_bua_an!: UserMealType;
 
-  @Column({ name: 'cong_thuc_id', type: 'bigint', unsigned: true, nullable: true })
+  @Column({
+    name: 'cong_thuc_id',
+    type: 'bigint',
+    unsigned: true,
+    nullable: true,
+  })
   cong_thuc_id!: number | null;
 
-  @Column({ name: 'thuc_pham_id', type: 'bigint', unsigned: true, nullable: true })
+  @Column({
+    name: 'thuc_pham_id',
+    type: 'bigint',
+    unsigned: true,
+    nullable: true,
+  })
   thuc_pham_id!: number | null;
 
-  @Column({ name: 'so_luong', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'so_luong',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   so_luong!: string | null;
 
   @Column({ name: 'don_vi', type: 'varchar', length: 50, nullable: true })
   don_vi!: string | null;
 
-  @Column({ name: 'calories', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'calories',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   calories!: string | null;
 
-  @Column({ name: 'protein_g', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'protein_g',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   protein_g!: string | null;
 
-  @Column({ name: 'carb_g', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'carb_g',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   carb_g!: string | null;
 
-  @Column({ name: 'fat_g', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'fat_g',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   fat_g!: string | null;
 
   @Column({ name: 'ghi_chu', type: 'varchar', length: 255, nullable: true })

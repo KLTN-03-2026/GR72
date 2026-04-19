@@ -27,7 +27,9 @@ export class BookingService {
     end_date?: string;
     nutritionist_id?: string;
   }) {
-    const startDate = query.start_date ?? new Date(new Date().setDate(1)).toISOString().split('T')[0];
+    const startDate =
+      query.start_date ??
+      new Date(new Date().setDate(1)).toISOString().split('T')[0];
     const endDate = query.end_date ?? new Date().toISOString().split('T')[0];
 
     // Overview stats
@@ -43,8 +45,12 @@ export class BookingService {
       .createQueryBuilder('tt')
       .select('SUM(tt.so_tien)', 'tong_doanh_thu')
       .where("tt.trang_thai = 'thanh_cong'")
-      .andWhere('DATE_FORMAT(tt.thanh_toan_luc, "%Y-%m-%d") >= :startDate', { startDate })
-      .andWhere('DATE_FORMAT(tt.thanh_toan_luc, "%Y-%m-%d") <= :endDate', { endDate })
+      .andWhere('DATE_FORMAT(tt.thanh_toan_luc, "%Y-%m-%d") >= :startDate', {
+        startDate,
+      })
+      .andWhere('DATE_FORMAT(tt.thanh_toan_luc, "%Y-%m-%d") <= :endDate', {
+        endDate,
+      })
       .getRawOne();
 
     // Booking by status
@@ -62,7 +68,10 @@ export class BookingService {
       .createQueryBuilder('lh')
       .select("DATE_FORMAT(lh.ngay_hen, '%Y-%m-%d')", 'ngay')
       .addSelect('COUNT(lh.id)', 'so_booking')
-      .addSelect("SUM(CASE WHEN lh.trang_thai = 'hoan_thanh' THEN 1 ELSE 0 END)", 'so_hoan_thanh')
+      .addSelect(
+        "SUM(CASE WHEN lh.trang_thai = 'hoan_thanh' THEN 1 ELSE 0 END)",
+        'so_hoan_thanh',
+      )
       .where('lh.ngay_hen >= :startDate', { startDate })
       .andWhere('lh.ngay_hen <= :endDate', { endDate })
       .groupBy('ngay')
@@ -76,8 +85,12 @@ export class BookingService {
       .addSelect('SUM(tt.so_tien)', 'doanh_thu')
       .addSelect('COUNT(tt.id)', 'so_giao_dich')
       .where("tt.trang_thai = 'thanh_cong'")
-      .andWhere('DATE_FORMAT(tt.thanh_toan_luc, "%Y-%m-%d") >= :startDate', { startDate })
-      .andWhere('DATE_FORMAT(tt.thanh_toan_luc, "%Y-%m-%d") <= :endDate', { endDate })
+      .andWhere('DATE_FORMAT(tt.thanh_toan_luc, "%Y-%m-%d") >= :startDate', {
+        startDate,
+      })
+      .andWhere('DATE_FORMAT(tt.thanh_toan_luc, "%Y-%m-%d") <= :endDate', {
+        endDate,
+      })
       .groupBy('ngay')
       .orderBy('ngay', 'ASC')
       .getRawMany();
@@ -108,20 +121,29 @@ export class BookingService {
     start_date?: string;
     end_date?: string;
   }) {
-    const startDate = query.start_date ?? new Date(new Date().setDate(1)).toISOString().split('T')[0];
+    const startDate =
+      query.start_date ??
+      new Date(new Date().setDate(1)).toISOString().split('T')[0];
     const endDate = query.end_date ?? new Date().toISOString().split('T')[0];
 
     const stats = await this.lichHenRepository
       .createQueryBuilder('lh')
       .innerJoin('lh.chuyen_gia_dinh_duong', 'cg')
-      .innerJoin('tai_khoan', 'tk', 'tk.id = cg.tai_khoan_id AND tk.xoa_luc IS NULL')
+      .innerJoin(
+        'tai_khoan',
+        'tk',
+        'tk.id = cg.tai_khoan_id AND tk.xoa_luc IS NULL',
+      )
       .select('cg.id', 'chuyen_gia_id')
       .addSelect('tk.ho_ten', 'ho_ten')
       .addSelect('tk.email', 'email')
       .addSelect('cg.anh_dai_dien_url', 'anh_dai_dien_url')
       .addSelect('cg.diem_danh_gia_trung_binh', 'diem_trung_binh')
       .addSelect('COUNT(lh.id)', 'so_booking')
-      .addSelect("SUM(CASE WHEN lh.trang_thai = 'hoan_thanh' THEN 1 ELSE 0 END)", 'so_hoan_thanh')
+      .addSelect(
+        "SUM(CASE WHEN lh.trang_thai = 'hoan_thanh' THEN 1 ELSE 0 END)",
+        'so_hoan_thanh',
+      )
       .where('lh.ngay_hen >= :startDate', { startDate })
       .andWhere('lh.ngay_hen <= :endDate', { endDate })
       .groupBy('cg.id')
@@ -135,12 +157,18 @@ export class BookingService {
       .select('lh.chuyen_gia_dinh_duong_id', 'chuyen_gia_id')
       .addSelect('SUM(tt.so_tien)', 'doanh_thu')
       .where("tt.trang_thai = 'thanh_cong'")
-      .andWhere('DATE_FORMAT(tt.thanh_toan_luc, "%Y-%m-%d") >= :startDate', { startDate })
-      .andWhere('DATE_FORMAT(tt.thanh_toan_luc, "%Y-%m-%d") <= :endDate', { endDate })
+      .andWhere('DATE_FORMAT(tt.thanh_toan_luc, "%Y-%m-%d") >= :startDate', {
+        startDate,
+      })
+      .andWhere('DATE_FORMAT(tt.thanh_toan_luc, "%Y-%m-%d") <= :endDate', {
+        endDate,
+      })
       .groupBy('lh.chuyen_gia_dinh_duong_id')
       .getRawMany();
 
-    const revenueMap = new Map(revenueByCg.map((r) => [r.chuyen_gia_id, Number(r.doanh_thu)]));
+    const revenueMap = new Map(
+      revenueByCg.map((r) => [r.chuyen_gia_id, Number(r.doanh_thu)]),
+    );
 
     return {
       success: true,
@@ -178,10 +206,18 @@ export class BookingService {
       .leftJoinAndSelect('lh.goi_tu_van', 'gtv')
       .where('1=1');
 
-    if (query.trang_thai) qb.andWhere('lh.trang_thai = :trang_thai', { trang_thai: query.trang_thai });
-    if (query.nutritionist_id) qb.andWhere('lh.chuyen_gia_dinh_duong_id = :cgId', { cgId: Number(query.nutritionist_id) });
-    if (query.start_date) qb.andWhere('lh.ngay_hen >= :startDate', { startDate: query.start_date });
-    if (query.end_date) qb.andWhere('lh.ngay_hen <= :endDate', { endDate: query.end_date });
+    if (query.trang_thai)
+      qb.andWhere('lh.trang_thai = :trang_thai', {
+        trang_thai: query.trang_thai,
+      });
+    if (query.nutritionist_id)
+      qb.andWhere('lh.chuyen_gia_dinh_duong_id = :cgId', {
+        cgId: Number(query.nutritionist_id),
+      });
+    if (query.start_date)
+      qb.andWhere('lh.ngay_hen >= :startDate', { startDate: query.start_date });
+    if (query.end_date)
+      qb.andWhere('lh.ngay_hen <= :endDate', { endDate: query.end_date });
 
     const [items, total] = await qb
       .orderBy('lh.ngay_hen', 'DESC')
@@ -203,7 +239,12 @@ export class BookingService {
   async getBookingDetail(id: number) {
     const entity = await this.lichHenRepository.findOne({
       where: { id },
-      relations: ['chuyen_gia_dinh_duong', 'chuyen_gia_dinh_duong.tai_khoan', 'tai_khoan', 'goi_tu_van'],
+      relations: [
+        'chuyen_gia_dinh_duong',
+        'chuyen_gia_dinh_duong.tai_khoan',
+        'tai_khoan',
+        'goi_tu_van',
+      ],
     });
     if (!entity) throw new NotFoundException('Booking khong ton tai');
 
@@ -243,10 +284,19 @@ export class BookingService {
         : null,
       tai_khoan_id: e.tai_khoan_id,
       user: e.tai_khoan
-        ? { id: e.tai_khoan.id, ho_ten: e.tai_khoan.ho_ten, email: e.tai_khoan.email }
+        ? {
+            id: e.tai_khoan.id,
+            ho_ten: e.tai_khoan.ho_ten,
+            email: e.tai_khoan.email,
+          }
         : null,
       goi_tu_van: e.goi_tu_van
-        ? { id: e.goi_tu_van.id, ten: e.goi_tu_van.ten, gia: Number(e.goi_tu_van.gia), thoi_luong_phut: e.goi_tu_van.thoi_luong_phut }
+        ? {
+            id: e.goi_tu_van.id,
+            ten: e.goi_tu_van.ten,
+            gia: Number(e.goi_tu_van.gia),
+            thoi_luong_phut: e.goi_tu_van.thoi_luong_phut,
+          }
         : null,
       ma_lich_hen: e.ma_lich_hen,
       muc_dich: e.muc_dich,

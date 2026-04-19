@@ -15,9 +15,10 @@ type StandardResponseEnvelope = {
 };
 
 @Injectable()
-export class TransformResponseInterceptor<T>
-  implements NestInterceptor<T, StandardResponseEnvelope | T>
-{
+export class TransformResponseInterceptor<T> implements NestInterceptor<
+  T,
+  StandardResponseEnvelope | T
+> {
   intercept(
     _context: ExecutionContext,
     next: CallHandler,

@@ -290,6 +290,7 @@ export type NPackage = {
   gia: number
   thoiLuongPhut: number
   soLanDungMienPhi: number
+  soLuotSuDung: number
   trangThai: string
   taLuc: string
   capNhatLuc: string
@@ -355,7 +356,7 @@ export type NBooking = {
   hoaHongHeThong: number
   thuNhapDuKien: number
   thuNhapThucNhan: number
-  refundStatus: 'not_required' | 'success' | 'failed'
+  refundStatus: 'not_required' | 'processing' | 'bank_sent' | 'success' | 'failed'
   refundMessage: string | null
   taLuc: string
   capNhatLuc: string
@@ -397,6 +398,12 @@ export async function cancelNutriBooking(id: number, payload: { lyDoHuy: string 
   return request<NBooking>(`/nutritionist/bookings/${id}/cancel`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
+  })
+}
+
+export async function checkNutriBookingRefundStatus(id: number) {
+  return request<NBooking>(`/nutritionist/bookings/${id}/refund-check`, {
+    method: 'PATCH',
   })
 }
 

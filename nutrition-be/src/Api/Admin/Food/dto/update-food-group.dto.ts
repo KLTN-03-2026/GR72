@@ -13,4 +13,3 @@ export class UpdateFoodGroupDto {
   @IsString()
   moTa?: string;
 }
-

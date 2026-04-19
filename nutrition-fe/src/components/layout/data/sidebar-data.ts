@@ -126,6 +126,36 @@ function getUserNavGroups(locale: AppLocale): NavGroup[] {
         },
       ],
     },
+    {
+      title: copy.consultation,
+      items: [
+        {
+          title: copy.nutritionists,
+          url: '/nutrition/nutritionists',
+          icon: Star,
+        },
+        {
+          title: copy.bookings,
+          url: '/nutrition/bookings',
+          icon: CalendarCheck,
+        },
+        {
+          title: copy.reviews,
+          url: '/nutrition/reviews',
+          icon: Star,
+        },
+      ],
+    },
+    {
+      title: copy.content,
+      items: [
+        {
+          title: copy.notifications,
+          url: '/nutrition/notifications',
+          icon: Bell,
+        },
+      ],
+    },
     // {
     //   title: copy.ai,
     //   items: [
@@ -133,21 +163,6 @@ function getUserNavGroups(locale: AppLocale): NavGroup[] {
     //       title: copy.aiAdvisor,
     //       url: '/nutrition/ai-advisor',
     //       icon: Bot,
-    //     },
-    //   ],
-    // },
-    // {
-    //   title: copy.content,
-    //   items: [
-    //     {
-    //       title: copy.articles,
-    //       url: '/nutrition/articles',
-    //       icon: BookOpenText,
-    //     },
-    //     {
-    //       title: copy.notifications,
-    //       url: '/nutrition/notifications',
-    //       icon: Bell,
     //     },
     //   ],
     // },
@@ -167,7 +182,7 @@ function getStaffNavGroups(
         title: copy.overview,
         items: [
           {
-            title: 'Dashboard',
+            title: 'Bảng điều khiển',
             url: '/admin/dashboard',
             icon: LayoutDashboard,
           },
@@ -207,7 +222,7 @@ function getStaffNavGroups(
             icon: CheckSquare,
           },
           {
-            title: 'Nutritionist',
+            title: 'Chuyên gia dinh dưỡng',
             url: '/admin/nutritionists',
             icon: Star,
           },

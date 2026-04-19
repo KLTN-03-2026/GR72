@@ -10,7 +10,13 @@ import { BookingService } from './booking.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([LichHenEntity, ThanhToanTuVanEntity, DanhGiaEntity, ChuyenGiaDinhDuongEntity, TaiKhoanEntity]),
+    TypeOrmModule.forFeature([
+      LichHenEntity,
+      ThanhToanTuVanEntity,
+      DanhGiaEntity,
+      ChuyenGiaDinhDuongEntity,
+      TaiKhoanEntity,
+    ]),
   ],
   controllers: [BookingController],
   providers: [BookingService],

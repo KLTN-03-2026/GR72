@@ -45,13 +45,14 @@ import { PageHeading } from '@/features/nutrition/components/page-heading'
 import { ConfirmActionDialog } from '@/components/confirm-action-dialog'
 
 const PAGE_SIZE = 10
+const MIN_SESSION_DURATION = 15
+const MAX_SESSION_DURATION = 240
 
 type PackageFormState = {
   ten: string
   moTa: string
   gia: string
   thoiLuongPhut: string
-  soLanDungMienPhi: string
   trangThai: string
 }
 
@@ -60,7 +61,6 @@ const emptyForm: PackageFormState = {
   moTa: '',
   gia: '',
   thoiLuongPhut: '30',
-  soLanDungMienPhi: '0',
   trangThai: 'dang_ban',
 }
 
@@ -95,7 +95,7 @@ export function NutritionistConsultationPackages() {
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
       const result = await getNutriPackages({
@@ -109,9 +109,9 @@ export function NutritionistConsultationPackages() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [pagination.pageIndex, pagination.pageSize])
 
-  useEffect(() => { loadData() }, [pagination])
+  useEffect(() => { void loadData() }, [loadData])
 
   function openCreate() {
     setEditingId(null)
@@ -126,7 +126,6 @@ export function NutritionistConsultationPackages() {
       moTa: item.moTa ?? '',
       gia: String(item.gia),
       thoiLuongPhut: String(item.thoiLuongPhut),
-      soLanDungMienPhi: String(item.soLanDungMienPhi),
       trangThai: item.trangThai,
     })
     setDialogOpen(true)
@@ -137,7 +136,10 @@ export function NutritionistConsultationPackages() {
     const gia = Number(form.gia)
     if (isNaN(gia) || gia < 0) { toast.error('Giá phải >= 0'); return }
     const thoiLuong = Number(form.thoiLuongPhut)
-    if (isNaN(thoiLuong) || thoiLuong <= 0) { toast.error('Thời lượng phải > 0'); return }
+    if (!Number.isInteger(thoiLuong) || thoiLuong < MIN_SESSION_DURATION || thoiLuong > MAX_SESSION_DURATION) {
+      toast.error(`Thời lượng mỗi buổi phải trong khoảng ${MIN_SESSION_DURATION}-${MAX_SESSION_DURATION} phút`)
+      return
+    }
 
     setSaving(true)
     try {
@@ -147,7 +149,6 @@ export function NutritionistConsultationPackages() {
           moTa: form.moTa.trim() || undefined,
           gia,
           thoiLuongPhut: thoiLuong,
-          soLanDungMienPhi: Number(form.soLanDungMienPhi) || 0,
           trangThai: form.trangThai,
         })
         toast.success('Đã cập nhật gói tư vấn')
@@ -157,7 +158,6 @@ export function NutritionistConsultationPackages() {
           moTa: form.moTa.trim() || undefined,
           gia,
           thoiLuongPhut: thoiLuong,
-          soLanDungMienPhi: Number(form.soLanDungMienPhi) || 0,
         })
         toast.success('Đã tạo gói tư vấn')
       }
@@ -207,14 +207,16 @@ export function NutritionistConsultationPackages() {
     },
     {
       accessorKey: 'thoiLuongPhut',
-      header: 'Thời lượng',
+      header: 'Thời lượng mỗi buổi',
       cell: ({ row }) => <span>{row.original.thoiLuongPhut} phút</span>,
     },
     {
-      accessorKey: 'soLanDungMienPhi',
-      header: 'Dùng thử',
+      accessorKey: 'soLuotSuDung',
+      header: 'Đã sử dụng',
       cell: ({ row }) => (
-        <span>{row.original.soLanDungMienPhi > 0 ? `${row.original.soLanDungMienPhi} lần` : '—'}</span>
+        <span className='font-medium'>
+          {row.original.soLuotSuDung} lượt
+        </span>
       ),
     },
     {
@@ -351,44 +353,37 @@ export function NutritionistConsultationPackages() {
                 />
               </div>
               <div className='space-y-2'>
-                <Label>Thời lượng (phút) <span className='text-destructive'>*</span></Label>
+                <Label>Thời lượng mỗi buổi (phút) <span className='text-destructive'>*</span></Label>
                 <Input
                   type='number'
                   value={form.thoiLuongPhut}
                   onChange={(e) => setForm((f) => ({ ...f, thoiLuongPhut: e.target.value }))}
                   placeholder='30'
-                  min={1}
+                  min={MIN_SESSION_DURATION}
+                  max={MAX_SESSION_DURATION}
+                  step={15}
                 />
+                <p className='text-xs text-muted-foreground'>
+                  Mỗi gói hiện tương ứng với 1 buổi tư vấn. Thời lượng hợp lệ: {MIN_SESSION_DURATION}-{MAX_SESSION_DURATION} phút.
+                </p>
               </div>
             </div>
 
-            <div className='grid grid-cols-2 gap-4'>
+            {editingId && (
               <div className='space-y-2'>
-                <Label>Dùng thử miễn phí</Label>
-                <Input
-                  type='number'
-                  value={form.soLanDungMienPhi}
-                  onChange={(e) => setForm((f) => ({ ...f, soLanDungMienPhi: e.target.value }))}
-                  placeholder='0'
-                  min={0}
-                />
+                <Label>Trạng thái</Label>
+                <Select value={form.trangThai} onValueChange={(v) => setForm((f) => ({ ...f, trangThai: v }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='dang_ban'>Đang bán</SelectItem>
+                    <SelectItem value='ngung_ban'>Ngừng bán</SelectItem>
+                    <SelectItem value='ban_nhap'>Bản nháp</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              {editingId && (
-                <div className='space-y-2'>
-                  <Label>Trạng thái</Label>
-                  <Select value={form.trangThai} onValueChange={(v) => setForm((f) => ({ ...f, trangThai: v }))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value='dang_ban'>Đang bán</SelectItem>
-                      <SelectItem value='ngung_ban'>Ngừng bán</SelectItem>
-                      <SelectItem value='ban_nhap'>Bản nháp</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
           <DialogFooter>

@@ -9,8 +9,17 @@ import {
   Min,
 } from 'class-validator';
 
-const STATUSES = ['cho_kich_hoat', 'dang_hoat_dong', 'het_han', 'da_huy'] as const;
-const SOURCES = ['nguoi_dung_tu_nang_cap', 'quan_tri_cap', 'khuyen_mai'] as const;
+const STATUSES = [
+  'cho_kich_hoat',
+  'dang_hoat_dong',
+  'het_han',
+  'da_huy',
+] as const;
+const SOURCES = [
+  'nguoi_dung_tu_nang_cap',
+  'quan_tri_cap',
+  'khuyen_mai',
+] as const;
 
 export class SubscriptionQueryDto {
   @IsOptional()

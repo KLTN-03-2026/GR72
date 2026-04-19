@@ -110,6 +110,7 @@ export function AppSidebar() {
           teams={visibleTeams}
           activeTeam={activeTeam}
           onTeamChange={handleTeamChange}
+          disabled={auth.user?.vai_tro === 'nguoi_dung' || visibleTeams.length <= 1}
         />
 
         {/* Replace <TeamSwitch /> with the following <AppTitle />

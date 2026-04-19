@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { CreateMealLogDto } from './dto/create-meal-log.dto';
@@ -43,7 +53,11 @@ export class UserMealLogController {
     @Param('id') id: string,
     @Body() dto: UpdateMealLogDto,
   ) {
-    return this.mealLogService.updateMealLog(request.user?.sub, Number(id), dto);
+    return this.mealLogService.updateMealLog(
+      request.user?.sub,
+      Number(id),
+      dto,
+    );
   }
 
   @Delete('meal-logs/:id')

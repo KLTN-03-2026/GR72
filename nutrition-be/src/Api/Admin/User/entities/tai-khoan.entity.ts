@@ -1,9 +1,4 @@
-import {
-  Column,
-  Entity,
-  OneToOne,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, Entity, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 import type { UserRole, UserStatus } from '../user.types';
 import { HoSoEntity } from './ho-so.entity';
 

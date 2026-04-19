@@ -52,7 +52,9 @@ export class PackageFeatureService {
 
   async findAllByPackage(
     packageId: number,
-  ): Promise<SuccessResponse<{ items: PublicPackageFeature[]; package_name: string }>> {
+  ): Promise<
+    SuccessResponse<{ items: PublicPackageFeature[]; package_name: string }>
+  > {
     await this.ensurePackageExists(packageId);
 
     const pkg = await this.packageRepository.findOne({
@@ -126,11 +128,15 @@ export class PackageFeatureService {
       throw new NotFoundException('Chuc nang khong ton tai');
     }
 
-    if (dto.tenChucNang !== undefined) entity.ten_chuc_nang = dto.tenChucNang.trim();
+    if (dto.tenChucNang !== undefined)
+      entity.ten_chuc_nang = dto.tenChucNang.trim();
     if (dto.moTa !== undefined) entity.mo_ta = dto.moTa?.trim() || null;
-    if (dto.duocPhepSuDung !== undefined) entity.duoc_phep_su_dung = dto.duocPhepSuDung;
-    if (dto.gioiHanSoLan !== undefined) entity.gioi_han_so_lan = dto.gioiHanSoLan;
-    if (dto.gioiHanTheo !== undefined) entity.gioi_han_theo = dto.gioiHanTheo as LimitType;
+    if (dto.duocPhepSuDung !== undefined)
+      entity.duoc_phep_su_dung = dto.duocPhepSuDung;
+    if (dto.gioiHanSoLan !== undefined)
+      entity.gioi_han_so_lan = dto.gioiHanSoLan;
+    if (dto.gioiHanTheo !== undefined)
+      entity.gioi_han_theo = dto.gioiHanTheo as LimitType;
 
     entity.cap_nhat_luc = new Date();
 

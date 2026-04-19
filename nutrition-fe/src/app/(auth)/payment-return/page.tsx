@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
-import { CheckCircle, XCircle, Loader2, LogIn } from 'lucide-react'
+import { CheckCircle, XCircle, LogIn } from 'lucide-react'
 import Link from 'next/link'
 import { AuthLayout } from '@/features/auth/auth-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,7 +12,7 @@ export default function PaymentReturnPage() {
   const paramStatus = searchParams.get('status')
   const rawMessage = searchParams.get('message')
 
-  const status: 'loading' | 'success' | 'failed' =
+  const status: 'success' | 'failed' =
     paramStatus === 'success' ? 'success' : 'failed'
 
   const message =
@@ -27,12 +27,10 @@ export default function PaymentReturnPage() {
       <Card className='max-w-md w-full'>
         <CardHeader className='text-center pb-2'>
           <div className='mx-auto mb-4'>
-            {status === 'loading' && <Loader2 className='size-14 animate-spin text-primary' />}
             {status === 'success' && <CheckCircle className='size-14 text-emerald-500' />}
             {status === 'failed' && <XCircle className='size-14 text-red-500' />}
           </div>
           <CardTitle className='text-xl'>
-            {status === 'loading' && 'Đang kiểm tra kết quả...'}
             {status === 'success' && 'Thanh toán thành công!'}
             {status === 'failed' && 'Thanh toán không thành công'}
           </CardTitle>

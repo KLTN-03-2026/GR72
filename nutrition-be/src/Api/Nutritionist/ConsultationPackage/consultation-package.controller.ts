@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { NutritionistConsultationPackageService } from './consultation-package.service';
@@ -8,11 +19,21 @@ import { CreatePackageDto, UpdatePackageDto } from './dto/package.dto';
 @Roles('chuyen_gia_dinh_duong')
 @Controller('nutritionist/consultation-packages')
 export class NutritionistConsultationPackageController {
-  constructor(private readonly packageService: NutritionistConsultationPackageService) {}
+  constructor(
+    private readonly packageService: NutritionistConsultationPackageService,
+  ) {}
 
   @Get()
-  async findAll(@Req() req: any, @Query('page') page = '1', @Query('limit') limit = '10') {
-    return this.packageService.findAll(req.user?.sub, Number(page), Number(limit));
+  async findAll(
+    @Req() req: any,
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+  ) {
+    return this.packageService.findAll(
+      req.user?.sub,
+      Number(page),
+      Number(limit),
+    );
   }
 
   @Get(':id')
@@ -26,7 +47,11 @@ export class NutritionistConsultationPackageController {
   }
 
   @Patch(':id')
-  async update(@Req() req: any, @Param('id') id: string, @Body() dto: UpdatePackageDto) {
+  async update(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: UpdatePackageDto,
+  ) {
     return this.packageService.update(req.user?.sub, Number(id), dto);
   }
 

@@ -6,9 +6,7 @@ import {
   TableIndex,
 } from 'typeorm';
 
-export class CreateUserHealthTables1744340000000
-  implements MigrationInterface
-{
+export class CreateUserHealthTables1744340000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     const hasMucTieuTable = await queryRunner.hasTable('muc_tieu');
     if (!hasMucTieuTable) {

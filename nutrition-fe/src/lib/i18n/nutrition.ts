@@ -39,6 +39,7 @@ export const nutritionMessages: Record<
         mealPlans: string
         nutritionists: string
         bookings: string
+        payments: string
         reviews: string
         aiAdvisor: string
         articles: string
@@ -116,6 +117,7 @@ export const nutritionMessages: Record<
         mealPlans: 'Thực đơn cá nhân',
         nutritionists: 'Chuyên gia dinh dưỡng',
         bookings: 'Lịch tư vấn',
+        payments: 'Thanh toán tư vấn',
         reviews: 'Đánh giá',
         aiAdvisor: 'AI tư vấn',
         articles: 'Bài viết',
@@ -192,6 +194,7 @@ export const nutritionMessages: Record<
         mealPlans: 'Meal Plans',
         nutritionists: 'Nutritionists',
         bookings: 'Consultation Bookings',
+        payments: 'Consultation Payments',
         reviews: 'Reviews',
         aiAdvisor: 'AI Advisor',
         articles: 'Articles',

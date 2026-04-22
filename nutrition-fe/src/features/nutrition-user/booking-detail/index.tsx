@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { CalendarClock, ChevronLeft, CreditCard, LoaderCircle, RefreshCw, XCircle } from 'lucide-react'
+import { CalendarClock, ChevronLeft, CreditCard, LoaderCircle, MessageSquare, RefreshCw, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -390,6 +390,24 @@ export function NutritionUserBookingDetail({ bookingId }: Props) {
                 </Card>
               </div>
             </div>
+
+            <Card className='border-dashed'>
+              <CardHeader>
+                <CardTitle className='text-base'>Phòng chat với Nutritionist</CardTitle>
+              </CardHeader>
+              <CardContent className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
+                <p className='text-sm text-muted-foreground'>
+                  Mở room chat riêng để trao đổi với Nutritionist. Phòng chỉ mở khi booking đã
+                  check-in và sẽ khóa ngay sau giờ kết thúc.
+                </p>
+                <Button asChild className='w-fit'>
+                  <Link href={`/nutrition/bookings/${data.id}/chat`}>
+                    <MessageSquare className='mr-1.5 size-4' />
+                    Vào phòng chat
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
 
             {data.lich_su_thanh_toan && data.lich_su_thanh_toan.length > 0 && (
               <Card>

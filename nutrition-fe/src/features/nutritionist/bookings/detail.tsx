@@ -9,6 +9,7 @@ import {
   LoaderCircle,
   MapPin,
   NotebookPen,
+  MessageSquare,
   RefreshCw,
   UserRound,
   XCircle,
@@ -514,6 +515,24 @@ export function NutritionistBookingDetail({ bookingId }: Props) {
                 </CardContent>
               </Card>
             </div>
+
+            <Card className='border-dashed'>
+              <CardHeader>
+                <CardTitle className='text-base'>Phòng chat với User</CardTitle>
+              </CardHeader>
+              <CardContent className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
+                <p className='text-sm text-muted-foreground'>
+                  Mở room chat riêng để trao đổi với User. Phòng chỉ mở khi booking đã check-in và
+                  sẽ khóa ngay sau giờ kết thúc.
+                </p>
+                <Button size='sm' asChild>
+                  <Link to={`/nutritionist/bookings/${booking.id}/chat`}>
+                    <MessageSquare className='mr-1.5 size-4' />
+                    Vào phòng chat
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         )}
       </Main>

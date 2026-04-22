@@ -15,12 +15,14 @@ import {
   LayoutDashboard,
   Layers3,
   NotebookPen,
+  MessageSquare,
   Package,
   Salad,
   ShieldPlus,
   Soup,
   Star,
   Users,
+  Wallet,
 } from 'lucide-react'
 import { nutritionMessages } from '@/lib/i18n/nutrition'
 import type { AppLocale } from '@/lib/i18n/types'
@@ -138,6 +140,16 @@ function getUserNavGroups(locale: AppLocale): NavGroup[] {
           title: copy.bookings,
           url: '/nutrition/bookings',
           icon: CalendarCheck,
+        },
+        {
+          title: 'Chat tư vấn',
+          url: '/nutrition/bookings',
+          icon: MessageSquare,
+        },
+        {
+          title: copy.payments,
+          url: '/nutrition/payments',
+          icon: Wallet,
         },
         {
           title: copy.reviews,
@@ -336,6 +348,11 @@ function getStaffNavGroups(
           title: copy.bookings,
           url: '/nutritionist/bookings',
           icon: CalendarCheck,
+        },
+        {
+          title: 'Chat tư vấn',
+          url: '/nutritionist/bookings',
+          icon: MessageSquare,
         },
       ],
     },

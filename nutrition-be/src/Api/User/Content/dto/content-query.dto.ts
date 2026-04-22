@@ -1,5 +1,12 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class UserArticleQueryDto {
   @IsOptional()
@@ -51,4 +58,31 @@ export class CopyMealPlanFromTemplateDto {
   @IsOptional()
   @IsString()
   tieuDe?: string;
+}
+
+export class UserMealPlanQueryDto {
+  @IsOptional()
+  @IsIn(['ban_nhap', 'dang_ap_dung', 'hoan_thanh', 'luu_tru'])
+  trangThai?: 'ban_nhap' | 'dang_ap_dung' | 'hoan_thanh' | 'luu_tru';
+
+  @IsOptional()
+  @IsString()
+  from?: string;
+
+  @IsOptional()
+  @IsString()
+  to?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  limit?: number;
 }

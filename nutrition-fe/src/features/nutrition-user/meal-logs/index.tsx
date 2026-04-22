@@ -21,15 +21,21 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { Main } from '@/components/layout/main'
 import { MacroProgress } from '@/features/nutrition/components/macro-progress'
 import { NutritionTopbar } from '@/features/nutrition/components/topbar'
 import { PageHeading } from '@/features/nutrition/components/page-heading'
 import { StatCard } from '@/features/nutrition/components/stat-card'
 import {
+  deleteMealLog,
   getMealLogs,
   getNutritionSummary,
   MEAL_TYPE_LABELS,
+  updateMealLog,
+  type MealType,
   type MealLogDetail,
   type MealLogItem,
 } from '@/services/meals/api'
@@ -69,6 +75,12 @@ export function NutritionUserMealLogs() {
     tong_fat_g: number
     so_bua_da_ghi: number
   } | null>(null)
+  const [editingLogId, setEditingLogId] = useState<number | null>(null)
+  const [editingDate, setEditingDate] = useState('')
+  const [editingMealType, setEditingMealType] = useState<MealType>('bua_sang')
+  const [editingNote, setEditingNote] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const mealSections = useMemo<MealSection[]>(
     () => [
@@ -139,6 +151,60 @@ export function NutritionUserMealLogs() {
     void loadData(selectedDate)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate])
+
+  function startEdit(log: MealLogItem) {
+    setEditingLogId(log.id)
+    setEditingDate(log.ngay_ghi)
+    setEditingMealType(log.loai_bua_an)
+    setEditingNote(log.ghi_chu ?? '')
+  }
+
+  function cancelEdit() {
+    setEditingLogId(null)
+    setEditingDate('')
+    setEditingMealType('bua_sang')
+    setEditingNote('')
+  }
+
+  async function saveEdit() {
+    if (!editingLogId) return
+    if (!editingDate) {
+      toast.error('Vui lòng chọn ngày ghi.')
+      return
+    }
+
+    setSavingEdit(true)
+    try {
+      const response = await updateMealLog(editingLogId, {
+        ngayGhi: editingDate,
+        loaiBuaAn: editingMealType,
+        ghiChu: editingNote.trim() || undefined,
+      })
+      toast.success(response.message)
+      cancelEdit()
+      await loadData(selectedDate)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Không thể cập nhật nhật ký bữa ăn.')
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
+  async function handleDelete(logId: number) {
+    const ok = window.confirm('Bạn chắc chắn muốn xóa nhật ký bữa ăn này?')
+    if (!ok) return
+
+    setDeletingId(logId)
+    try {
+      const response = await deleteMealLog(logId)
+      toast.success(response.message)
+      await loadData(selectedDate)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Không thể xóa nhật ký bữa ăn.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   return (
     <>
@@ -215,6 +281,55 @@ export function NutritionUserMealLogs() {
                             kcal
                           </Badge>
                         </div>
+                        {editingLogId === entry.id ? (
+                          <div className='mt-3 space-y-3 rounded-lg border bg-muted/30 p-3'>
+                            <div className='grid gap-2 md:grid-cols-2'>
+                              <Input
+                                type='date'
+                                value={editingDate}
+                                onChange={(event) => setEditingDate(event.target.value)}
+                              />
+                              <Select
+                                value={editingMealType}
+                                onValueChange={(value) => setEditingMealType(value as MealType)}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Object.entries(MEAL_TYPE_LABELS).map(([value, label]) => (
+                                    <SelectItem key={value} value={value}>
+                                      {label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <Textarea
+                              rows={2}
+                              value={editingNote}
+                              onChange={(event) => setEditingNote(event.target.value)}
+                              placeholder='Ghi chú bữa ăn (tùy chọn)'
+                            />
+                            <div className='flex flex-wrap gap-2'>
+                              <Button
+                                size='sm'
+                                onClick={() => void saveEdit()}
+                                disabled={savingEdit}
+                              >
+                                {savingEdit ? 'Đang lưu...' : 'Lưu cập nhật'}
+                              </Button>
+                              <Button
+                                size='sm'
+                                variant='outline'
+                                onClick={cancelEdit}
+                                disabled={savingEdit}
+                              >
+                                Hủy
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null}
                         <div className='mt-2 space-y-1 text-sm text-muted-foreground'>
                           {entry.chi_tiet.map((detail) => (
                             <p key={detail.id}>
@@ -226,6 +341,23 @@ export function NutritionUserMealLogs() {
                               · {detail.so_luong} {detail.don_vi}
                             </p>
                           ))}
+                        </div>
+                        <div className='mt-3 flex flex-wrap gap-2'>
+                          <Button
+                            size='sm'
+                            variant='outline'
+                            onClick={() => startEdit(entry)}
+                          >
+                            Sửa
+                          </Button>
+                          <Button
+                            size='sm'
+                            variant='destructive'
+                            onClick={() => void handleDelete(entry.id)}
+                            disabled={deletingId === entry.id}
+                          >
+                            {deletingId === entry.id ? 'Đang xóa...' : 'Xóa'}
+                          </Button>
                         </div>
                       </div>
                     ))
@@ -289,13 +421,14 @@ export function NutritionUserMealLogs() {
                   <TableHead>Số món</TableHead>
                   <TableHead>Calories</TableHead>
                   <TableHead>Macro</TableHead>
+                  <TableHead>Thao tác</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {historyLogs.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={5}
+                      colSpan={6}
                       className='h-20 text-center text-muted-foreground'
                     >
                       Chưa có nhật ký ăn uống.
@@ -334,6 +467,25 @@ export function NutritionUserMealLogs() {
                         <TableCell className='text-muted-foreground'>
                           P {protein.toFixed(1)} / C {carb.toFixed(1)} / F{' '}
                           {fat.toFixed(1)}
+                        </TableCell>
+                        <TableCell>
+                          <div className='flex flex-wrap gap-2'>
+                            <Button
+                              size='sm'
+                              variant='outline'
+                              onClick={() => startEdit(log)}
+                            >
+                              Sửa
+                            </Button>
+                            <Button
+                              size='sm'
+                              variant='destructive'
+                              onClick={() => void handleDelete(log.id)}
+                              disabled={deletingId === log.id}
+                            >
+                              {deletingId === log.id ? 'Đang xóa...' : 'Xóa'}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     )

@@ -40,6 +40,7 @@ import {
   PhienTuVanAiEntity,
   KhuyenNghiAiEntity,
 } from '../Api/User/Recommendation/entities/khuyen-nghi-ai.entity';
+import { TinNhanEntity } from '../Api/ConsultationChat/entities/tin-nhan.entity';
 import type { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import type { DataSourceOptions } from 'typeorm';
 
@@ -83,6 +84,7 @@ export function getTypeOrmConfig(): TypeOrmModuleOptions & DataSourceOptions {
       PhanBoDoanhThuBookingEntity,
       ThanhToanTuVanEntity,
       DanhGiaEntity,
+      TinNhanEntity,
     ],
     migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
     synchronize: false,

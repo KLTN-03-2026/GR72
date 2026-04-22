@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { CalendarClock, CreditCard, SearchX } from 'lucide-react'
+import { CalendarClock, CreditCard, MessageSquare, SearchX } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -112,6 +112,9 @@ export function NutritionUserBookings() {
                 <SelectItem value='vo_hieu_hoa'>Vô hiệu hóa</SelectItem>
               </SelectContent>
             </Select>
+            <Button variant='outline' asChild>
+              <Link href='/nutrition/payments'>Lịch sử thanh toán</Link>
+            </Button>
           </CardContent>
         </Card>
 
@@ -166,6 +169,12 @@ export function NutritionUserBookings() {
                       <Link href={`/nutrition/bookings/${booking.id}`}>
                         <CalendarClock className='mr-1.5 size-4' />
                         Xem chi tiết
+                      </Link>
+                    </Button>
+                    <Button variant='outline' asChild>
+                      <Link href={`/nutrition/bookings/${booking.id}/chat`}>
+                        <MessageSquare className='mr-1.5 size-4' />
+                        Vào chat
                       </Link>
                     </Button>
                     {booking.trang_thai === 'cho_thanh_toan' && (

@@ -68,6 +68,40 @@ export type CopiedMealPlan = {
   }[]
 }
 
+export type UserMealPlan = {
+  id: number
+  loai_nguon: string
+  nguon_id: number | null
+  tieu_de: string
+  mo_ta: string | null
+  ngay_ap_dung: string
+  trang_thai: 'ban_nhap' | 'dang_ap_dung' | 'hoan_thanh' | 'luu_tru'
+  tong_calories: number | null
+  tong_protein_g: number | null
+  tong_carb_g: number | null
+  tong_fat_g: number | null
+  tao_luc: string
+  cap_nhat_luc: string
+}
+
+export type UserMealPlanDetail = UserMealPlan & {
+  chi_tiet: {
+    id: number
+    loai_bua_an: string
+    cong_thuc_id: number | null
+    thuc_pham_id: number | null
+    ten_mon: string | null
+    so_luong: number | null
+    don_vi: string | null
+    calories: number | null
+    protein_g: number | null
+    carb_g: number | null
+    fat_g: number | null
+    ghi_chu: string | null
+    thu_tu: number
+  }[]
+}
+
 async function request<T>(path: string, init?: RequestInit) {
   const response = await fetch(`/api${path}`, {
     ...init,
@@ -163,5 +197,31 @@ export async function copyMealPlanFromTemplate(
       body: JSON.stringify(payload ?? {}),
     },
   )
+  return response.data
+}
+
+export async function getUserMealPlans(query?: {
+  page?: number
+  limit?: number
+  trangThai?: 'ban_nhap' | 'dang_ap_dung' | 'hoan_thanh' | 'luu_tru'
+  from?: string
+  to?: string
+}) {
+  const queryString = buildQueryString({
+    page: query?.page ?? 1,
+    limit: query?.limit ?? 20,
+    trangThai: query?.trangThai,
+    from: query?.from,
+    to: query?.to,
+  })
+  const response = await request<{
+    items: UserMealPlan[]
+    pagination: { page: number; limit: number; total: number }
+  }>(`/me/meal-plans${queryString}`)
+  return response.data
+}
+
+export async function getUserMealPlanDetail(id: number) {
+  const response = await request<UserMealPlanDetail>(`/me/meal-plans/${id}`)
   return response.data
 }

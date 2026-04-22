@@ -10,7 +10,7 @@ import {
   getPaginationRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { CalendarRange, CheckCircle, Eye, XCircle } from 'lucide-react'
+import { CalendarRange, CheckCircle, Eye, MessageSquare, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   getNutriBookings,
@@ -219,6 +219,11 @@ export function NutritionistBookings() {
             <Button size='icon' variant='ghost' asChild>
               <Link to={`/nutritionist/bookings/${booking.id}`}>
                 <Eye className='size-4' />
+              </Link>
+            </Button>
+            <Button size='icon' variant='ghost' asChild title='Vào chat'>
+              <Link to={`/nutritionist/bookings/${booking.id}/chat`}>
+                <MessageSquare className='size-4' />
               </Link>
             </Button>
             {canAct && (

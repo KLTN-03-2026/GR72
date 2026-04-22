@@ -13,6 +13,7 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import {
   CopyMealPlanFromTemplateDto,
   UserArticleQueryDto,
+  UserMealPlanQueryDto,
   UserMealTemplateQueryDto,
 } from './dto/content-query.dto';
 import { UserContentService } from './content.service';
@@ -74,5 +75,21 @@ export class UserContentController {
       templateId,
       dto,
     );
+  }
+
+  @Get('me/meal-plans')
+  getUserMealPlans(
+    @Req() request: Request & { user?: { sub?: number } },
+    @Query() query: UserMealPlanQueryDto,
+  ) {
+    return this.contentService.getUserMealPlans(request.user?.sub, query);
+  }
+
+  @Get('me/meal-plans/:id')
+  getUserMealPlanDetail(
+    @Req() request: Request & { user?: { sub?: number } },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.contentService.getUserMealPlanDetail(request.user?.sub, id);
   }
 }

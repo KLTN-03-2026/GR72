@@ -77,6 +77,19 @@ export async function createMealLog(dto: CreateMealLogDto) {
   })
 }
 
+export type UpdateMealLogDto = {
+  ngayGhi?: string
+  loaiBuaAn?: MealType
+  ghiChu?: string
+  chiTiet?: {
+    loaiNguon: 'thuc_pham' | 'cong_thuc'
+    thucPhamId?: number
+    congThucId?: number
+    soLuong: number
+    donVi: string
+  }[]
+}
+
 export async function getMealLogs(params?: {
   date?: string
   from?: string
@@ -91,6 +104,23 @@ export async function getMealLogs(params?: {
   if (params?.page) q.set('page', String(params.page))
   if (params?.limit) q.set('limit', String(params.limit))
   return apiFetch<{ success: boolean; message: string; data: { items: MealLogItem[]; pagination: { page: number; limit: number; total: number } } }>(`/me/meal-logs?${q.toString()}`)
+}
+
+export async function getMealLogById(id: number) {
+  return apiFetch<MealLogResponse>(`/me/meal-logs/${id}`)
+}
+
+export async function updateMealLog(id: number, dto: UpdateMealLogDto) {
+  return apiFetch<MealLogResponse>(`/me/meal-logs/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(dto),
+  })
+}
+
+export async function deleteMealLog(id: number) {
+  return apiFetch<{ success: boolean; message: string }>(`/me/meal-logs/${id}`, {
+    method: 'DELETE',
+  })
 }
 
 export type NutritionSummaryItem = {

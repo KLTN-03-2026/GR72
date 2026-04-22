@@ -29,6 +29,7 @@ import {
 import {
   CopyMealPlanFromTemplateDto,
   UserArticleQueryDto,
+  UserMealPlanQueryDto,
   UserMealTemplateQueryDto,
 } from './dto/content-query.dto';
 
@@ -386,6 +387,101 @@ export class UserContentService {
     };
   }
 
+  async getUserMealPlans(
+    userId: number | undefined,
+    query: UserMealPlanQueryDto,
+  ) {
+    const user = await this.getActiveUser(userId);
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.max(1, Math.min(50, query.limit ?? 10));
+
+    const qb = this.mealPlanRepo
+      .createQueryBuilder('plan')
+      .where('plan.tai_khoan_id = :userId', { userId: user.id });
+
+    if (query.trangThai) {
+      qb.andWhere('plan.trang_thai = :status', { status: query.trangThai });
+    }
+    if (query.from) {
+      qb.andWhere('plan.ngay_ap_dung >= :from', { from: query.from });
+    }
+    if (query.to) {
+      qb.andWhere('plan.ngay_ap_dung <= :to', { to: query.to });
+    }
+
+    qb.orderBy('plan.ngay_ap_dung', 'DESC')
+      .addOrderBy('plan.id', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [items, total] = await qb.getManyAndCount();
+
+    return {
+      success: true,
+      message: 'Lay danh sach ke hoach an thanh cong',
+      data: {
+        items: items.map((item) => this.toUserMealPlanSummary(item)),
+        pagination: { page, limit, total },
+      },
+    };
+  }
+
+  async getUserMealPlanDetail(userId: number | undefined, mealPlanId: number) {
+    const user = await this.getActiveUser(userId);
+    if (!Number.isFinite(mealPlanId) || mealPlanId <= 0) {
+      throw new BadRequestException('ID ke hoach an khong hop le');
+    }
+
+    const mealPlan = await this.mealPlanRepo.findOne({
+      where: { id: mealPlanId, tai_khoan_id: user.id },
+    });
+    if (!mealPlan) {
+      throw new NotFoundException('Khong tim thay ke hoach an');
+    }
+
+    const details = await this.mealPlanDetailRepo.find({
+      where: { ke_hoach_an_id: mealPlan.id },
+      order: { loai_bua_an: 'ASC', thu_tu: 'ASC', id: 'ASC' },
+    });
+    const recipeMap = await this.getRecipeMap(
+      details.map((item) => item.cong_thuc_id),
+    );
+    const foodMap = await this.getFoodMap(
+      details.map((item) => item.thuc_pham_id),
+    );
+
+    return {
+      success: true,
+      message: 'Lay chi tiet ke hoach an thanh cong',
+      data: {
+        ...this.toUserMealPlanSummary(mealPlan),
+        chi_tiet: details.map((detail) => ({
+          id: detail.id,
+          loai_bua_an: detail.loai_bua_an,
+          cong_thuc_id: detail.cong_thuc_id,
+          thuc_pham_id: detail.thuc_pham_id,
+          ten_mon:
+            (detail.cong_thuc_id
+              ? recipeMap.get(detail.cong_thuc_id)?.ten
+              : null) ||
+            (detail.thuc_pham_id
+              ? foodMap.get(detail.thuc_pham_id)?.ten
+              : null) ||
+            null,
+          so_luong: detail.so_luong !== null ? Number(detail.so_luong) : null,
+          don_vi: detail.don_vi,
+          calories: detail.calories !== null ? Number(detail.calories) : null,
+          protein_g:
+            detail.protein_g !== null ? Number(detail.protein_g) : null,
+          carb_g: detail.carb_g !== null ? Number(detail.carb_g) : null,
+          fat_g: detail.fat_g !== null ? Number(detail.fat_g) : null,
+          ghi_chu: detail.ghi_chu,
+          thu_tu: detail.thu_tu,
+        })),
+      },
+    };
+  }
+
   private resolveNutrition(
     detail: ChiTietThucDonMauEntity,
     recipeMap: Map<number, CongThucEntity>,
@@ -469,6 +565,26 @@ export class UserContentService {
           }
         : null,
       xuat_ban_luc: item.xuat_ban_luc,
+      tao_luc: item.tao_luc,
+      cap_nhat_luc: item.cap_nhat_luc,
+    };
+  }
+
+  private toUserMealPlanSummary(item: KeHoachAnEntity) {
+    return {
+      id: item.id,
+      loai_nguon: item.loai_nguon,
+      nguon_id: item.nguon_id,
+      tieu_de: item.tieu_de,
+      mo_ta: item.mo_ta,
+      ngay_ap_dung: item.ngay_ap_dung,
+      trang_thai: item.trang_thai,
+      tong_calories:
+        item.tong_calories !== null ? Number(item.tong_calories) : null,
+      tong_protein_g:
+        item.tong_protein_g !== null ? Number(item.tong_protein_g) : null,
+      tong_carb_g: item.tong_carb_g !== null ? Number(item.tong_carb_g) : null,
+      tong_fat_g: item.tong_fat_g !== null ? Number(item.tong_fat_g) : null,
       tao_luc: item.tao_luc,
       cap_nhat_luc: item.cap_nhat_luc,
     };

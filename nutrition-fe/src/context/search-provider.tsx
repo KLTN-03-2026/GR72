@@ -16,8 +16,11 @@ type SearchProviderProps = {
 
 export function SearchProvider({ children }: SearchProviderProps) {
   const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+
     const down = (e: KeyboardEvent) => {
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
@@ -31,9 +34,11 @@ export function SearchProvider({ children }: SearchProviderProps) {
   return (
     <SearchContext value={{ open, setOpen }}>
       {children}
-      <Suspense fallback={null}>
-        <CommandMenu />
-      </Suspense>
+      {mounted ? (
+        <Suspense fallback={null}>
+          <CommandMenu />
+        </Suspense>
+      ) : null}
     </SearchContext>
   )
 }

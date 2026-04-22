@@ -34,6 +34,7 @@ import { UserRecommendationModule } from './Api/User/Recommendation/recommendati
 import { UserConsultationModule } from './Api/User/Consultation/consultation.module';
 import { UserNotificationsModule } from './Api/User/Notifications/user-notifications.module';
 import { UserContentModule } from './Api/User/Content/content.module';
+import { ConsultationChatModule } from './Api/ConsultationChat/consultation-chat.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AdminUserModule } from './Api/Admin/User/user.module';
@@ -86,6 +87,7 @@ import { getTypeOrmConfig } from './database/typeorm.config';
     UserConsultationModule,
     UserNotificationsModule,
     UserContentModule,
+    ConsultationChatModule,
   ],
   controllers: [AppController],
   providers: [

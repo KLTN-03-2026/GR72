@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { CalendarClock, CreditCard, MessageSquare, SearchX } from 'lucide-react'
+import { CalendarClock, CreditCard, MessageSquare, SearchX, Video } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ import { Main } from '@/components/layout/main'
 import { NutritionTopbar } from '@/features/nutrition/components/topbar'
 import { PageHeading } from '@/features/nutrition/components/page-heading'
 import { PaginationControls } from '@/features/nutrition/components/pagination-controls'
+import { openStandaloneCallWindow } from '@/features/consultation-call/open-window'
 import { getUserBookings, type UserBooking } from '@/services/consultation/api'
 
 function getStatusBadge(status: string) {
@@ -119,74 +120,104 @@ export function NutritionUserBookings() {
         </Card>
 
         {loading ? (
-          <div className='grid gap-4'>
+          <div className='grid gap-4 sm:grid-cols-2'>
             {Array.from({ length: 4 }).map((_, index) => (
-              <Card key={index} className='h-36 animate-pulse bg-muted/30' />
+              <div key={index} className='h-40 animate-pulse rounded-xl border bg-muted/30' />
             ))}
           </div>
         ) : items.length === 0 ? (
-          <Card className='border-dashed'>
-            <CardContent className='py-16 text-center'>
-              <SearchX className='mx-auto size-8 text-muted-foreground/40' />
-              <p className='mt-4 text-lg font-medium'>Chưa có booking nào phù hợp</p>
-              <p className='mt-2 text-sm text-muted-foreground'>
-                Hãy bắt đầu từ danh sách nutritionist để tạo lịch tư vấn đầu tiên.
-              </p>
-              <Button asChild className='mt-4'>
-                <Link href='/nutrition/nutritionists'>Khám phá nutritionist</Link>
-              </Button>
-            </CardContent>
-          </Card>
+          <div className='flex flex-col items-center justify-center rounded-xl border border-dashed py-20'>
+            <SearchX className='size-10 text-muted-foreground/30' />
+            <p className='mt-4 text-base font-semibold text-muted-foreground'>Chưa có booking nào</p>
+            <p className='mt-1.5 text-sm text-muted-foreground/60'>
+              Hãy bắt đầu từ danh sách nutritionist để tạo lịch tư vấn đầu tiên.
+            </p>
+            <Button asChild className='mt-5'>
+              <Link href='/nutrition/nutritionists'>Khám phá nutritionist</Link>
+            </Button>
+          </div>
         ) : (
-          <div className='grid gap-4'>
+          <div className='grid gap-4 sm:grid-cols-2'>
             {items.map((booking) => (
-              <Card key={booking.id} className='transition hover:border-primary/30'>
-                <CardContent className='flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between'>
-                  <div className='space-y-2'>
-                    <div className='flex flex-wrap items-center gap-2'>
-                      <p className='font-semibold'>{booking.ma_lich_hen}</p>
+              <div
+                key={booking.id}
+                className='flex flex-col rounded-xl border p-5 transition hover:border-primary/30 hover:shadow-sm'
+              >
+                <div className='mb-4 flex flex-wrap items-start justify-between gap-3'>
+                  <div>
+                    <div className='flex items-center gap-2'>
+                      <p className='font-mono text-xs text-muted-foreground'>{booking.ma_lich_hen}</p>
                       {getStatusBadge(booking.trang_thai)}
                     </div>
-                    <p className='text-sm text-muted-foreground'>
-                      {booking.nutritionist?.ho_ten ?? 'Nutritionist'} · {booking.goi_tu_van?.ten ?? 'Gói tư vấn'}
+                    <p className='mt-1.5 text-sm font-semibold'>
+                      {booking.nutritionist?.ho_ten ?? 'Nutritionist'}
                     </p>
-                    <div className='flex flex-wrap gap-4 text-sm text-muted-foreground'>
-                      <span>{new Date(booking.ngay_hen).toLocaleDateString('vi-VN')}</span>
-                      <span>
-                        {booking.gio_bat_dau.slice(0, 5)} - {booking.gio_ket_thuc.slice(0, 5)}
-                      </span>
-                      {booking.goi_tu_van && <span>{formatCurrency(booking.goi_tu_van.gia)}</span>}
-                    </div>
-                    {booking.trang_thai === 'cho_thanh_toan' && booking.co_the_tiep_tuc_thanh_toan && (
-                      <p className='inline-flex items-center gap-2 text-sm text-amber-600'>
-                        <CreditCard className='size-4' />
-                        Còn {booking.so_phut_con_lai} phút để tiếp tục thanh toán
+                    <p className='text-xs text-muted-foreground'>
+                      {booking.goi_tu_van?.ten ?? 'Gói tư vấn'}
+                    </p>
+                  </div>
+                  {booking.goi_tu_van && (
+                    <div className='text-right'>
+                      <p className='font-mono text-xs font-semibold text-emerald-600'>
+                        {formatCurrency(booking.goi_tu_van.gia)}
                       </p>
-                    )}
+                      <p className='text-xs text-muted-foreground'>
+                        {booking.goi_tu_van.thoi_luong_phut} phút
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className='mb-4 space-y-1'>
+                  <div className='flex items-center gap-1.5 text-xs text-muted-foreground'>
+                    <CalendarClock className='size-3.5 shrink-0' />
+                    <span>{new Date(booking.ngay_hen).toLocaleDateString('vi-VN')}</span>
+                    <span className='text-muted-foreground/40'>·</span>
+                    <span>
+                      {booking.gio_bat_dau.slice(0, 5)} – {booking.gio_ket_thuc.slice(0, 5)}
+                    </span>
                   </div>
-                  <div className='flex flex-wrap gap-2'>
-                    <Button variant='outline' asChild>
-                      <Link href={`/nutrition/bookings/${booking.id}`}>
-                        <CalendarClock className='mr-1.5 size-4' />
-                        Xem chi tiết
+                  {booking.trang_thai === 'cho_thanh_toan' && booking.co_the_tiep_tuc_thanh_toan && (
+                    <div className='flex items-center gap-1.5 text-xs font-medium text-amber-600'>
+                      <CreditCard className='size-3.5 shrink-0' />
+                      <span>Còn {booking.so_phut_con_lai} phút để thanh toán</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className='mt-auto flex flex-wrap gap-2'>
+                  <Button size='sm' variant='outline' asChild className='flex-1 text-xs'>
+                    <Link href={`/nutrition/bookings/${booking.id}`}>
+                      <CalendarClock className='mr-1 size-3' />
+                      Chi tiết
+                    </Link>
+                  </Button>
+                  <Button size='sm' variant='outline' asChild className='flex-1 text-xs'>
+                    <Link href={`/nutrition/bookings/${booking.id}/chat`}>
+                      <MessageSquare className='mr-1 size-3' />
+                      Chat
+                    </Link>
+                  </Button>
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    type='button'
+                    className='flex-1 text-xs'
+                    onClick={() => openStandaloneCallWindow('nutrition', booking.id)}
+                  >
+                    <Video className='mr-1 size-3' />
+                    Call
+                  </Button>
+                  {booking.trang_thai === 'cho_thanh_toan' && (
+                    <Button size='sm' asChild className='flex-1 text-xs'>
+                      <Link href={`/nutrition/bookings/${booking.id}/payment`}>
+                        <CreditCard className='mr-1 size-3' />
+                        Thanh toán
                       </Link>
                     </Button>
-                    <Button variant='outline' asChild>
-                      <Link href={`/nutrition/bookings/${booking.id}/chat`}>
-                        <MessageSquare className='mr-1.5 size-4' />
-                        Vào chat
-                      </Link>
-                    </Button>
-                    {booking.trang_thai === 'cho_thanh_toan' && (
-                      <Button asChild>
-                        <Link href={`/nutrition/bookings/${booking.id}/payment`}>
-                          Tiếp tục thanh toán
-                        </Link>
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
         )}

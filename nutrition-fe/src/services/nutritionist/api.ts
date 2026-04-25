@@ -38,6 +38,42 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return payload.data as T
 }
 
+async function requestFormData<T>(path: string, formData: FormData): Promise<T> {
+  let res: Response
+  try {
+    res = await fetch(`/api${path}`, {
+      method: 'POST',
+      credentials: 'include',
+      cache: 'no-store',
+      body: formData,
+    })
+  } catch (err) {
+    console.error('[Nutritionist API] Network error:', path, err)
+    throw new ApiError('Lỗi kết nối server', 0)
+  }
+
+  const text = await res.text()
+  let payload: { success?: boolean; data?: T; message?: string | string[] } | null = null
+  try {
+    payload = text ? JSON.parse(text) : null
+  } catch {
+    console.error('[Nutritionist API] Non-JSON response:', path, res.status, text.slice(0, 200))
+    throw new ApiError('Server trả về dữ liệu không hợp lệ', res.status)
+  }
+
+  if (!res.ok) {
+    const m = payload?.message
+    const msg = Array.isArray(m) ? m.join(', ') : (m || `Lỗi ${res.status}`)
+    throw new ApiError(String(msg), res.status)
+  }
+
+  if (!payload || payload.data === undefined) {
+    return (payload as unknown) as T
+  }
+
+  return payload.data as T
+}
+
 // ====== FOODS ======
 export type NFood = {
   id: number; ten: string; nhom_thuc_pham_id: number
@@ -122,6 +158,17 @@ export type NArticle = {
   xuat_ban_luc: string | null; tao_luc: string; cap_nhat_luc: string
 }
 
+export type NArticleUploadResponse = {
+  items: Array<{
+    file_name: string
+    original_name: string
+    size: number
+    mime_type: string
+    url: string
+  }>
+  urls: string[]
+}
+
 export async function getNutriArticles(q?: { trangThai?: string; page?: number; limit?: number }) {
   const p = new URLSearchParams()
   if (q?.trangThai) p.set('trangThai', q.trangThai)
@@ -156,6 +203,12 @@ export async function archiveNutriArticle(id: number) {
 
 export async function deleteNutriArticle(id: number) {
   return request<null>(`/nutritionist/articles/${id}`, { method: 'DELETE' })
+}
+
+export async function uploadNutriArticleImages(files: File[]) {
+  const formData = new FormData()
+  files.forEach((file) => formData.append('files', file))
+  return requestFormData<NArticleUploadResponse>('/nutritionist/articles/upload-images', formData)
 }
 
 // ====== RECIPES ======

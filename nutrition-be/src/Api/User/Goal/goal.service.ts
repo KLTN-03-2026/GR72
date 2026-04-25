@@ -77,6 +77,15 @@ export class UserGoalService {
       }
 
       const now = new Date();
+      const ngayBatDau = dto.ngayBatDau ?? now.toISOString().slice(0, 10);
+      const ngayMucTieu = dto.ngayMucTieu ?? null;
+
+      this.assertValidGoalRange(ngayBatDau, ngayMucTieu);
+      await this.assertNoOverlappingGoals(manager, user.id, {
+        start: ngayBatDau,
+        end: ngayMucTieu,
+      });
+
       await goalRepository.update(
         { tai_khoan_id: user.id, trang_thai: 'dang_ap_dung' },
         { trang_thai: 'luu_tru', cap_nhat_luc: now },
@@ -104,8 +113,8 @@ export class UserGoalService {
             dto.mucTieuCarbG !== undefined ? dto.mucTieuCarbG.toFixed(2) : null,
           muc_tieu_fat_g:
             dto.mucTieuFatG !== undefined ? dto.mucTieuFatG.toFixed(2) : null,
-          ngay_bat_dau: dto.ngayBatDau ?? now.toISOString().slice(0, 10),
-          ngay_muc_tieu: dto.ngayMucTieu ?? null,
+          ngay_bat_dau: ngayBatDau,
+          ngay_muc_tieu: ngayMucTieu,
           tao_luc: now,
           cap_nhat_luc: now,
         }),
@@ -147,6 +156,19 @@ export class UserGoalService {
           { trang_thai: 'luu_tru', cap_nhat_luc: new Date() },
         );
       }
+
+      const nextStart = dto.ngayBatDau ?? goal.ngay_bat_dau ?? null;
+      const nextEnd = dto.ngayMucTieu ?? goal.ngay_muc_tieu ?? null;
+      if (!nextStart) {
+        throw new BadRequestException('Mục tiêu phải có ngày bắt đầu hợp lệ');
+      }
+      this.assertValidGoalRange(nextStart, nextEnd);
+      await this.assertNoOverlappingGoals(
+        manager,
+        user.id,
+        { start: nextStart, end: nextEnd },
+        goal.id,
+      );
 
       if (dto.loaiMucTieu !== undefined) goal.loai_muc_tieu = dto.loaiMucTieu;
       if (dto.trangThai !== undefined) goal.trang_thai = dto.trangThai;
@@ -237,5 +259,54 @@ export class UserGoalService {
       tao_luc: goal.tao_luc,
       cap_nhat_luc: goal.cap_nhat_luc,
     };
+  }
+
+  private assertValidGoalRange(start: string, end: string | null) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) {
+      throw new BadRequestException('Ngày bắt đầu không hợp lệ');
+    }
+    if (end && !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+      throw new BadRequestException('Ngày mục tiêu không hợp lệ');
+    }
+    if (end && this.toDateNumber(start) > this.toDateNumber(end)) {
+      throw new BadRequestException(
+        'Ngày mục tiêu phải lớn hơn hoặc bằng ngày bắt đầu',
+      );
+    }
+  }
+
+  private async assertNoOverlappingGoals(
+    manager: DataSource['manager'],
+    userId: number,
+    range: { start: string; end: string | null },
+    ignoreGoalId?: number,
+  ) {
+    const goalRepository = manager.getRepository(MucTieuEntity);
+    const goals = await goalRepository.find({
+      where: { tai_khoan_id: userId },
+      select: ['id', 'ngay_bat_dau', 'ngay_muc_tieu'],
+    });
+
+    const nextStart = range.start;
+    const nextEnd = range.end ?? '9999-12-31';
+
+    for (const goal of goals) {
+      if (ignoreGoalId && goal.id === ignoreGoalId) continue;
+      const currentStart = goal.ngay_bat_dau ?? '0001-01-01';
+      const currentEnd = goal.ngay_muc_tieu ?? '9999-12-31';
+      const hasOverlap =
+        this.toDateNumber(nextStart) <= this.toDateNumber(currentEnd) &&
+        this.toDateNumber(currentStart) <= this.toDateNumber(nextEnd);
+      if (hasOverlap) {
+        throw new BadRequestException(
+          'Khoảng thời gian mục tiêu bị trùng với mục tiêu khác. Vui lòng chọn khoảng ngày không giao nhau.',
+        );
+      }
+    }
+  }
+
+  private toDateNumber(value: string) {
+    const [year, month, day] = value.split('-').map(Number);
+    return Date.UTC(year, month - 1, day);
   }
 }

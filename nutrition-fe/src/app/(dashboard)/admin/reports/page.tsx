@@ -1,2 +1,5 @@
-import { AdminReports } from '@/features/admin-reports'
-export default function ReportsPage() { return <AdminReports /> }
+import { redirect } from 'next/navigation'
+
+export default function ReportsPage() {
+  redirect('/admin/system-revenue')
+}

@@ -76,14 +76,37 @@ export type MarkChatSeenResponse = {
   affected: number
 }
 
-function buildBaseUrl() {
-  const env = process.env.NEXT_PUBLIC_BACKEND_URL?.trim()
-  return env || 'http://localhost:8009'
+function normalizePathPrefix(value: string | undefined, fallback: string) {
+  const trimmed = value?.trim()
+  if (!trimmed) {
+    return fallback
+  }
+  return trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed
 }
 
 function buildWsUrl(path: string) {
-  const base = buildBaseUrl().replace(/^http/i, 'ws')
-  return `${base}/api${path}`
+  const apiBase = normalizePathPrefix(process.env.NEXT_PUBLIC_API_URL, '/api')
+  const isAbsoluteApiBase = /^https?:\/\//i.test(apiBase)
+
+  if (isAbsoluteApiBase) {
+    const url = new URL(apiBase)
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+    return `${url.origin}${url.pathname}${path}`
+  }
+
+  if (typeof window !== 'undefined') {
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+    const origin = `${wsProtocol}://${window.location.host}`
+    return `${origin}${apiBase}${path}`
+  }
+
+  const backendBase = normalizePathPrefix(
+    process.env.NEXT_PUBLIC_BACKEND_URL,
+    'http://localhost:8009',
+  )
+  const backendUrl = new URL(backendBase)
+  backendUrl.protocol = backendUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${backendUrl.origin}/api${path}`
 }
 
 async function request<T>(path: string, init?: RequestInit) {

@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ThanhToanGoiDichVuEntity } from '../Payment/entities/thanh-toan-goi-dich-vu.entity';
 import { DangKyGoiDichVuEntity } from '../Subscription/entities/dang-ky-goi-dich-vu.entity';
+import { PhanBoDoanhThuBookingEntity } from '../Booking/entities/phan-bo-doanh-thu-booking.entity';
+import { ChuyenGiaDinhDuongEntity } from '../ChuyenGiaDinhDuong/entities/chuyen-gia-dinh-duong.entity';
 
 @Injectable()
 export class ReportService {
@@ -11,6 +13,10 @@ export class ReportService {
     private readonly paymentRepository: Repository<ThanhToanGoiDichVuEntity>,
     @InjectRepository(DangKyGoiDichVuEntity)
     private readonly subscriptionRepository: Repository<DangKyGoiDichVuEntity>,
+    @InjectRepository(PhanBoDoanhThuBookingEntity)
+    private readonly bookingAllocationRepository: Repository<PhanBoDoanhThuBookingEntity>,
+    @InjectRepository(ChuyenGiaDinhDuongEntity)
+    private readonly nutritionistRepository: Repository<ChuyenGiaDinhDuongEntity>,
   ) {}
 
   async getRevenue() {
@@ -110,5 +116,190 @@ export class ReportService {
         },
       },
     };
+  }
+
+  async getSystemRevenue(query?: { startDate?: string; endDate?: string }) {
+    const range = this.resolveRange(query?.startDate, query?.endDate);
+    const registrationFee = Number(
+      process.env.NUTRITIONIST_REGISTRATION_FEE ?? 500000,
+    );
+
+    const [
+      registrationSummaryRaw,
+      commissionSummaryRaw,
+      registrationByMonthRaw,
+      commissionByMonthRaw,
+    ] = await Promise.all([
+      this.nutritionistRepository
+        .createQueryBuilder('cg')
+        .select('COUNT(cg.id)', 'so_luot')
+        .where("cg.trang_thai_thanh_toan = 'thanh_cong'")
+        .andWhere('DATE(cg.ngay_thanh_toan) >= :startDate', {
+          startDate: range.startDate,
+        })
+        .andWhere('DATE(cg.ngay_thanh_toan) <= :endDate', {
+          endDate: range.endDate,
+        })
+        .getRawOne<{ so_luot: string | null }>(),
+      this.bookingAllocationRepository
+        .createQueryBuilder('pb')
+        .innerJoin('pb.lich_hen', 'lh')
+        .select('COUNT(pb.id)', 'so_luot')
+        .addSelect('COALESCE(SUM(pb.so_tien_hoa_hong), 0)', 'tong_hoa_hong')
+        .where("pb.trang_thai = 'da_ghi_nhan'")
+        .andWhere("lh.trang_thai = 'hoan_thanh'")
+        .andWhere('DATE(pb.cap_nhat_luc) >= :startDate', {
+          startDate: range.startDate,
+        })
+        .andWhere('DATE(pb.cap_nhat_luc) <= :endDate', {
+          endDate: range.endDate,
+        })
+        .getRawOne<{ so_luot: string | null; tong_hoa_hong: string | null }>(),
+      this.nutritionistRepository
+        .createQueryBuilder('cg')
+        .select("DATE_FORMAT(cg.ngay_thanh_toan, '%Y-%m')", 'thang')
+        .addSelect('COUNT(cg.id)', 'so_luot')
+        .where("cg.trang_thai_thanh_toan = 'thanh_cong'")
+        .andWhere('DATE(cg.ngay_thanh_toan) >= :startDate', {
+          startDate: range.startDate,
+        })
+        .andWhere('DATE(cg.ngay_thanh_toan) <= :endDate', {
+          endDate: range.endDate,
+        })
+        .groupBy('thang')
+        .orderBy('thang', 'ASC')
+        .getRawMany<{ thang: string; so_luot: string }>(),
+      this.bookingAllocationRepository
+        .createQueryBuilder('pb')
+        .innerJoin('pb.lich_hen', 'lh')
+        .select("DATE_FORMAT(pb.cap_nhat_luc, '%Y-%m')", 'thang')
+        .addSelect('COUNT(pb.id)', 'so_booking')
+        .addSelect('COALESCE(SUM(pb.so_tien_hoa_hong), 0)', 'tong_hoa_hong')
+        .where("pb.trang_thai = 'da_ghi_nhan'")
+        .andWhere("lh.trang_thai = 'hoan_thanh'")
+        .andWhere('DATE(pb.cap_nhat_luc) >= :startDate', {
+          startDate: range.startDate,
+        })
+        .andWhere('DATE(pb.cap_nhat_luc) <= :endDate', {
+          endDate: range.endDate,
+        })
+        .groupBy('thang')
+        .orderBy('thang', 'ASC')
+        .getRawMany<{
+          thang: string;
+          so_booking: string;
+          tong_hoa_hong: string;
+        }>(),
+    ]);
+
+    const registrationCount = Number(registrationSummaryRaw?.so_luot ?? 0);
+    const registrationRevenue = registrationCount * registrationFee;
+    const commissionCount = Number(commissionSummaryRaw?.so_luot ?? 0);
+    const commissionRevenue = Number(commissionSummaryRaw?.tong_hoa_hong ?? 0);
+
+    const monthMap = new Map<
+      string,
+      {
+        thang: string;
+        doanh_thu_phi_dang_ky: number;
+        doanh_thu_hoa_hong: number;
+        tong_doanh_thu_he_thong: number;
+        so_dang_ky_thanh_cong: number;
+        so_booking_tinh_hoa_hong: number;
+      }
+    >();
+
+    for (const row of registrationByMonthRaw) {
+      const count = Number(row.so_luot ?? 0);
+      const current = monthMap.get(row.thang) ?? {
+        thang: row.thang,
+        doanh_thu_phi_dang_ky: 0,
+        doanh_thu_hoa_hong: 0,
+        tong_doanh_thu_he_thong: 0,
+        so_dang_ky_thanh_cong: 0,
+        so_booking_tinh_hoa_hong: 0,
+      };
+      current.so_dang_ky_thanh_cong = count;
+      current.doanh_thu_phi_dang_ky = count * registrationFee;
+      current.tong_doanh_thu_he_thong =
+        current.doanh_thu_phi_dang_ky + current.doanh_thu_hoa_hong;
+      monthMap.set(row.thang, current);
+    }
+
+    for (const row of commissionByMonthRaw) {
+      const amount = Number(row.tong_hoa_hong ?? 0);
+      const count = Number(row.so_booking ?? 0);
+      const current = monthMap.get(row.thang) ?? {
+        thang: row.thang,
+        doanh_thu_phi_dang_ky: 0,
+        doanh_thu_hoa_hong: 0,
+        tong_doanh_thu_he_thong: 0,
+        so_dang_ky_thanh_cong: 0,
+        so_booking_tinh_hoa_hong: 0,
+      };
+      current.doanh_thu_hoa_hong = amount;
+      current.so_booking_tinh_hoa_hong = count;
+      current.tong_doanh_thu_he_thong =
+        current.doanh_thu_phi_dang_ky + current.doanh_thu_hoa_hong;
+      monthMap.set(row.thang, current);
+    }
+
+    return {
+      success: true,
+      message: 'Bao cao doanh thu he thong',
+      data: {
+        pham_vi: {
+          start_date: range.startDate,
+          end_date: range.endDate,
+        },
+        tong_quan: {
+          tong_doanh_thu_he_thong: registrationRevenue + commissionRevenue,
+          tong_phi_dang_ky_chuyen_gia: registrationRevenue,
+          tong_hoa_hong_booking: commissionRevenue,
+          so_luot_dang_ky_chuyen_gia_thanh_cong: registrationCount,
+          so_booking_tinh_hoa_hong: commissionCount,
+          muc_phi_dang_ky_hien_tai: registrationFee,
+        },
+        theo_thang: Array.from(monthMap.values()).sort((a, b) =>
+          a.thang.localeCompare(b.thang),
+        ),
+      },
+    };
+  }
+
+  private resolveRange(startDate?: string, endDate?: string) {
+    const today = new Date();
+    const defaultStart = new Date(today.getFullYear(), today.getMonth() - 11, 1);
+    const defaultEnd = today;
+
+    const normalizedStart = this.normalizeDate(startDate) ?? defaultStart;
+    const normalizedEnd = this.normalizeDate(endDate) ?? defaultEnd;
+
+    let start = normalizedStart;
+    let end = normalizedEnd;
+    if (start.getTime() > end.getTime()) {
+      start = normalizedEnd;
+      end = normalizedStart;
+    }
+
+    return {
+      startDate: this.toDateOnly(start),
+      endDate: this.toDateOnly(end),
+    };
+  }
+
+  private normalizeDate(value?: string) {
+    if (!value) return null;
+    const matched = value.match(/^\d{4}-\d{2}-\d{2}$/);
+    if (!matched) return null;
+    const parsed = new Date(`${value}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  private toDateOnly(date: Date) {
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 }

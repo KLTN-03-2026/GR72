@@ -23,6 +23,8 @@ import { GoiTuVanEntity } from '../../Api/Admin/ChuyenGiaDinhDuong/entities/goi-
 import { LichHenEntity } from '../../Api/Admin/Booking/entities/lich-hen.entity';
 import { ThanhToanTuVanEntity } from '../../Api/Admin/Booking/entities/thanh-toan-tu-van.entity';
 import { DanhGiaEntity } from '../../Api/Admin/Booking/entities/danh-gia.entity';
+import { PhanBoDoanhThuBookingEntity } from '../../Api/Admin/Booking/entities/phan-bo-doanh-thu-booking.entity';
+import { In, IsNull } from 'typeorm';
 import { ChiSoSucKhoeEntity } from '../../Api/User/HealthAssessment/entities/chi-so-suc-khoe.entity';
 import { DanhGiaSucKhoeEntity } from '../../Api/User/HealthAssessment/entities/danh-gia-suc-khoe.entity';
 import {
@@ -482,6 +484,200 @@ async function seedFoodCatalog() {
       },
     ],
     ['slug'],
+  );
+}
+
+async function seedBulkFoodCatalog() {
+  const enabledRaw = (process.env.SEED_BULK ?? '').toLowerCase();
+  const enabled = ['1', 'true', 'yes', 'on'].includes(enabledRaw);
+  if (!enabled) return;
+
+  const targetFoods = (() => {
+    const parsed = Number(process.env.SEED_BULK_FOODS ?? 1200);
+    if (!Number.isFinite(parsed) || parsed < 0) return 1200;
+    return Math.floor(parsed);
+  })();
+  if (targetFoods <= 0) return;
+
+  const groupRepository = AppDataSource.getRepository(NhomThucPhamEntity);
+  const foodRepository = AppDataSource.getRepository(ThucPhamEntity);
+  const userRepository = AppDataSource.getRepository(TaiKhoanEntity);
+  const now = new Date();
+
+  const [groups, adminUser, existingCount] = await Promise.all([
+    groupRepository.find(),
+    userRepository.findOne({ where: { email: 'admin@nutriwise.vn' } }),
+    foodRepository.count(),
+  ]);
+
+  if (groups.length === 0) {
+    console.log('Bulk food seed skipped: no food groups');
+    return;
+  }
+
+  if (existingCount >= targetFoods) {
+    console.log(
+      `Bulk food seed skipped: existing foods (${existingCount}) >= target (${targetFoods})`,
+    );
+    return;
+  }
+
+  const groupBySlug = new Map(groups.map((group) => [group.slug, group]));
+  const templates: Array<{
+    groupSlug: string;
+    prefix: string;
+    tags: string[];
+    unit: 'g' | 'ml';
+    base: {
+      calories: [number, number];
+      protein: [number, number];
+      carb: [number, number];
+      fat: [number, number];
+      fiber: [number, number];
+      sugar: [number, number];
+      sodium: [number, number];
+    };
+  }> = [
+    {
+      groupSlug: 'tinh-bot',
+      prefix: 'Tinh bột',
+      tags: ['carb', 'nang-luong', 'bulk'],
+      unit: 'g',
+      base: {
+        calories: [100, 360],
+        protein: [1, 10],
+        carb: [20, 75],
+        fat: [0.1, 6],
+        fiber: [0.2, 8],
+        sugar: [0, 12],
+        sodium: [0, 180],
+      },
+    },
+    {
+      groupSlug: 'dam',
+      prefix: 'Đạm',
+      tags: ['protein', 'lean', 'bulk'],
+      unit: 'g',
+      base: {
+        calories: [80, 300],
+        protein: [10, 35],
+        carb: [0, 12],
+        fat: [0.5, 18],
+        fiber: [0, 2],
+        sugar: [0, 5],
+        sodium: [20, 300],
+      },
+    },
+    {
+      groupSlug: 'rau-cu',
+      prefix: 'Rau củ',
+      tags: ['rau-xanh', 'fiber', 'bulk'],
+      unit: 'g',
+      base: {
+        calories: [15, 120],
+        protein: [0.5, 8],
+        carb: [2, 22],
+        fat: [0.1, 4],
+        fiber: [1, 10],
+        sugar: [0.5, 12],
+        sodium: [5, 200],
+      },
+    },
+    {
+      groupSlug: 'trai-cay',
+      prefix: 'Trái cây',
+      tags: ['fruit', 'snack', 'bulk'],
+      unit: 'g',
+      base: {
+        calories: [30, 140],
+        protein: [0.3, 4],
+        carb: [6, 32],
+        fat: [0.1, 3],
+        fiber: [1, 9],
+        sugar: [3, 26],
+        sodium: [0, 80],
+      },
+    },
+    {
+      groupSlug: 'do-uong',
+      prefix: 'Đồ uống',
+      tags: ['drink', 'hydration', 'bulk'],
+      unit: 'ml',
+      base: {
+        calories: [8, 90],
+        protein: [0, 8],
+        carb: [0, 16],
+        fat: [0, 6],
+        fiber: [0, 2],
+        sugar: [0, 14],
+        sodium: [0, 120],
+      },
+    },
+  ];
+
+  const toCreate = targetFoods - existingCount;
+  const rows: Array<Record<string, unknown>> = [];
+  const adminId = adminUser?.id ?? null;
+  const seedTag = process.env.SEED_BULK_TAG?.trim() || 'bulk';
+
+  for (let i = 0; i < toCreate; i += 1) {
+    const template = templates[i % templates.length];
+    const group = groupBySlug.get(template.groupSlug) ?? groups[0];
+    const n = existingCount + i + 1;
+    const serial = String(n).padStart(6, '0');
+
+    const calories = randomBetween(
+      template.base.calories[0],
+      template.base.calories[1],
+    );
+    const protein = randomBetween(
+      template.base.protein[0],
+      template.base.protein[1],
+    );
+    const carb = randomBetween(template.base.carb[0], template.base.carb[1]);
+    const fat = randomBetween(template.base.fat[0], template.base.fat[1]);
+    const fiber = randomBetween(template.base.fiber[0], template.base.fiber[1]);
+    const sugar = randomBetween(template.base.sugar[0], template.base.sugar[1]);
+    const sodium = randomBetween(
+      template.base.sodium[0],
+      template.base.sodium[1],
+    );
+
+    rows.push({
+      nhom_thuc_pham_id: group.id,
+      ten: `${template.prefix} mẫu ${serial}`,
+      slug: `bulk-${seedTag}-${template.groupSlug}-${serial}`,
+      mo_ta: `Thực phẩm seed tự động #${serial} cho kiểm thử dữ liệu lớn`,
+      the_gan: template.tags,
+      loai_nguon: 'noi_bo',
+      ten_nguon: 'NutriWise Bulk Seeder',
+      ma_nguon: `BULK-${template.groupSlug.toUpperCase()}-${serial}`,
+      khau_phan_tham_chieu: '100',
+      don_vi_khau_phan: template.unit,
+      calories_100g: calories.toFixed(2),
+      protein_100g: protein.toFixed(2),
+      carb_100g: carb.toFixed(2),
+      fat_100g: fat.toFixed(2),
+      chat_xo_100g: fiber.toFixed(2),
+      duong_100g: sugar.toFixed(2),
+      natri_100g: sodium.toFixed(2),
+      du_lieu_goc: { provider: 'bulk_seed', serial },
+      da_xac_minh: true,
+      tao_boi: adminId,
+      cap_nhat_boi: adminId,
+      tao_luc: now,
+      cap_nhat_luc: now,
+      xoa_luc: null,
+    });
+  }
+
+  if (rows.length > 0) {
+    await foodRepository.upsert(rows, ['slug']);
+  }
+
+  const finalCount = await foodRepository.count();
+  console.log(
+    `Bulk food seed completed: +${rows.length} foods (total=${finalCount})`,
   );
 }
 
@@ -1295,13 +1491,8 @@ async function seedArticles() {
   }
 
   const articleRepo = AppDataSource.getRepository(BaiVietEntity);
-  const existing = await articleRepo.count({ where: { tac_gia_id: nutri.id } });
-  if (existing > 0) {
-    console.log(`Articles already seeded (${existing} found)`);
-    return;
-  }
-
   const now = new Date();
+  const oneDay = 24 * 60 * 60 * 1000;
   const articles = [
     {
       tieu_de: 'Dinh dưỡng cho người tập gym',
@@ -1309,8 +1500,11 @@ async function seedArticles() {
       danh_muc: 'dinh_duong',
       tom_tat: 'Hướng dẫn chế độ ăn phù hợp cho người tập gym.',
       noi_dung:
-        'Protein là dưỡng chất quan trọng nhất cho việc phát triển cơ bắp. Bạn nên tiêu thụ 1.6-2.2g protein/kg cân nặng mỗi ngày. Ngoài ra, carbohydrate cung cấp năng lượng cho buổi tập, và chất béo cần thiết cho hormone...',
+        '## Vì sao cần tối ưu dinh dưỡng khi tập gym?\n\nProtein là dưỡng chất quan trọng cho việc phát triển và duy trì cơ bắp. Hầu hết người tập gym có thể bắt đầu với mức 1.6-2.2g protein/kg cân nặng/ngày.\n\n![goi-y-bua-gym](https://picsum.photos/seed/nutri-gym-inline/1200/720)\n\n### Nguyên tắc xây bữa ăn\n\n- Ưu tiên protein nạc trong mỗi bữa chính.\n- Kết hợp carb phức hợp trước tập 2-3 giờ.\n- Bổ sung rau xanh và chất béo tốt để cân bằng hormone.\n\n### Gợi ý nhanh trong ngày\n\nBữa sáng có thể dùng yến mạch + trứng + trái cây. Bữa sau tập ưu tiên protein dễ hấp thu kèm tinh bột vừa đủ để phục hồi glycogen.',
+      the_gan: ['gym', 'protein', 'meal-prep'],
+      anh_dai_dien_url: 'https://picsum.photos/seed/nutri-gym/1200/675',
       trang_thai: 'xuat_ban' as const,
+      xuat_ban_luc: new Date(now.getTime() - 10 * oneDay),
       huong_dan_ai: {
         context: 'gym_nutrition',
         rules: [
@@ -1326,8 +1520,11 @@ async function seedArticles() {
       danh_muc: 'suc_khoe',
       tom_tat: 'Hướng dẫn kiểm soát đường huyết qua chế độ ăn.',
       noi_dung:
-        'Người tiểu đường type 2 cần kiểm soát lượng carbohydrate, ưu tiên thực phẩm có chỉ số đường huyết thấp (GI < 55). Rau xanh, ngũ cốc nguyên hạt, và protein nạc là nền tảng. Hạn chế đường tinh luyện, nước ngọt...',
+        '## Nguyên tắc kiểm soát đường huyết bền vững\n\nNgười tiểu đường type 2 nên ưu tiên thực phẩm có chỉ số đường huyết thấp, tăng lượng chất xơ và chia khẩu phần hợp lý để tránh dao động đường huyết lớn.\n\n![thuc-pham-gi-thap](https://picsum.photos/seed/nutri-diabetes-inline/1200/720)\n\n### Checklist khi chọn món\n\n- Chọn ngũ cốc nguyên hạt thay vì tinh bột tinh luyện.\n- Mỗi bữa có rau xanh + protein nạc.\n- Hạn chế đồ uống có đường và món tráng miệng ngọt.\n\nTheo dõi phản ứng cơ thể sau ăn để điều chỉnh khẩu phần phù hợp từng cá nhân.',
+      the_gan: ['tieu-duong', 'duong-huyet', 'gi-thap'],
+      anh_dai_dien_url: 'https://picsum.photos/seed/nutri-diabetes/1200/675',
       trang_thai: 'xuat_ban' as const,
+      xuat_ban_luc: new Date(now.getTime() - 8 * oneDay),
       huong_dan_ai: {
         context: 'diabetes_diet',
         rules: [
@@ -1343,8 +1540,11 @@ async function seedArticles() {
       danh_muc: 'dinh_duong',
       tom_tat: 'Omega-3 và vai trò với sức khỏe não bộ.',
       noi_dung:
-        'Omega-3 (DHA, EPA) đóng vai trò quan trọng trong phát triển và bảo vệ não bộ. Các nguồn thực phẩm giàu omega-3 gồm cá hồi, cá thu, hạt chia, hạt lanh, quả óc chó...',
+        '## Omega-3 ảnh hưởng thế nào đến não bộ?\n\nDHA và EPA hỗ trợ cấu trúc màng tế bào thần kinh, góp phần cải thiện tập trung và ghi nhớ khi dùng đều đặn theo thời gian.\n\n### Nhóm thực phẩm nên ưu tiên\n\n- Cá béo: cá hồi, cá thu, cá mòi.\n- Hạt: chia, lanh, óc chó.\n- Có thể cân nhắc bổ sung nếu khẩu phần ăn thiếu kéo dài.',
+      the_gan: ['omega-3', 'nao-bo', 'suc-khoe'],
+      anh_dai_dien_url: 'https://picsum.photos/seed/nutri-omega3/1200/675',
       trang_thai: 'ban_nhap' as const,
+      xuat_ban_luc: null,
       huong_dan_ai: null,
     },
     {
@@ -1353,8 +1553,11 @@ async function seedArticles() {
       danh_muc: 'suc_khoe',
       tom_tat: 'Phương pháp detox khoa học và hiệu quả.',
       noi_dung:
-        'Detox không cần nhịn ăn cực đoan. Uống đủ nước (2-3L/ngày), ăn nhiều rau xanh, hạn chế thực phẩm chế biến sẵn, ngủ đủ 7-8h là những cách detox tự nhiên và an toàn nhất...',
+        '## Detox đúng nghĩa là hỗ trợ cơ thể hoạt động tốt hơn\n\nDetox không đồng nghĩa nhịn ăn cực đoan. Mục tiêu là giảm tải thực phẩm siêu chế biến, tăng nước, chất xơ và ngủ đủ.\n\n![detox-safe](https://picsum.photos/seed/nutri-detox-inline/1200/720)\n\n### 4 việc nên làm mỗi ngày\n\n- Uống đủ 2-3L nước.\n- Mỗi bữa có rau và trái cây ít đường.\n- Hạn chế rượu bia, đồ uống ngọt.\n- Ngủ 7-8 giờ để cơ thể tự phục hồi.',
+      the_gan: ['detox', 'song-lanh-manh', 'thoi-quen'],
+      anh_dai_dien_url: 'https://picsum.photos/seed/nutri-detox/1200/675',
       trang_thai: 'xuat_ban' as const,
+      xuat_ban_luc: new Date(now.getTime() - 5 * oneDay),
       huong_dan_ai: {
         context: 'detox',
         rules: [
@@ -1370,32 +1573,55 @@ async function seedArticles() {
       danh_muc: 'dinh_duong',
       tom_tat: 'Vitamin D giúp hấp thụ canxi và bảo vệ xương.',
       noi_dung:
-        'Vitamin D giúp cơ thể hấp thụ canxi hiệu quả. Thiếu vitamin D dẫn đến loãng xương ở người lớn tuổi. Nguồn vitamin D: ánh nắng mặt trời, cá béo, trứng, nấm...',
+        '## Vai trò của vitamin D trong chuyển hóa xương\n\nVitamin D giúp hấp thụ canxi hiệu quả hơn. Thiếu kéo dài có thể làm tăng nguy cơ loãng xương và yếu cơ.\n\n### Nguồn bổ sung tự nhiên\n\n- Ánh nắng phù hợp theo khung giờ an toàn.\n- Cá béo, lòng đỏ trứng, nấm.\n- Kết hợp với chế độ ăn giàu canxi và vận động chịu lực.',
+      the_gan: ['vitamin-d', 'xuong-khop', 'vi-chat'],
+      anh_dai_dien_url: 'https://picsum.photos/seed/nutri-vitd/1200/675',
       trang_thai: 'ban_nhap' as const,
+      xuat_ban_luc: null,
       huong_dan_ai: null,
+    },
+    {
+      tieu_de: 'Meal prep 3 ngày cho người bận rộn',
+      slug: 'meal-prep-3-ngay-nguoi-ban-ron',
+      danh_muc: 'thuc_don',
+      tom_tat:
+        'Mẫu chuẩn bị bữa ăn 3 ngày giúp tiết kiệm thời gian mà vẫn đủ macro.',
+      noi_dung:
+        '## Chuẩn bị trước giúp ăn đúng kế hoạch dễ hơn\n\nMeal prep 2-3 ngày/lần giúp bạn giảm quyết định trong ngày và hạn chế ăn lệch mục tiêu.\n\n![meal-prep-box](https://picsum.photos/seed/nutri-mealprep-inline/1200/720)\n\n### Gợi ý chia suất\n\n- Protein: 120-150g mỗi hộp.\n- Carb: 100-150g mỗi hộp tùy mục tiêu.\n- Rau xanh: tối thiểu 1 nắm tay lớn mỗi bữa.\n\nBạn có thể thay đổi gia vị theo ngày để tránh nhàm chán nhưng vẫn giữ cấu trúc macro tương tự.',
+      the_gan: ['meal-prep', 'thuc-don', 'quan-ly-thoi-gian'],
+      anh_dai_dien_url: 'https://picsum.photos/seed/nutri-mealprep/1200/675',
+      trang_thai: 'xuat_ban' as const,
+      xuat_ban_luc: new Date(now.getTime() - 2 * oneDay),
+      huong_dan_ai: {
+        context: 'meal_prep',
+        rules: [
+          'Ưu tiên công thức nấu nhanh dưới 30 phút',
+          'Giữ tỷ lệ protein cao cho bữa trưa',
+          'Biến thể gia vị để tăng tuân thủ',
+        ],
+      },
     },
   ];
 
-  for (const a of articles) {
-    await articleRepo.save(
-      articleRepo.create({
-        tac_gia_id: nutri.id,
-        tieu_de: a.tieu_de,
-        slug: a.slug,
-        danh_muc: a.danh_muc,
-        tom_tat: a.tom_tat,
-        noi_dung: a.noi_dung,
-        the_gan: [a.danh_muc],
-        anh_dai_dien_url: null,
-        huong_dan_ai: a.huong_dan_ai,
-        trang_thai: a.trang_thai,
-        xuat_ban_luc: a.trang_thai === 'xuat_ban' ? now : null,
-        tao_luc: now,
-        cap_nhat_luc: now,
-      }),
-    );
-  }
-  console.log(`Seeded ${articles.length} articles`);
+  const upsertRows = articles.map((a) => ({
+    tac_gia_id: nutri.id,
+    tieu_de: a.tieu_de,
+    slug: a.slug,
+    danh_muc: a.danh_muc,
+    tom_tat: a.tom_tat,
+    noi_dung: a.noi_dung,
+    the_gan: a.the_gan,
+    anh_dai_dien_url: a.anh_dai_dien_url,
+    huong_dan_ai: a.huong_dan_ai,
+    trang_thai: a.trang_thai,
+    xuat_ban_luc: a.xuat_ban_luc,
+    tao_luc: now,
+    cap_nhat_luc: now,
+    xoa_luc: null,
+  }));
+
+  await articleRepo.upsert(upsertRows, ['slug']);
+  console.log(`Seeded/updated ${articles.length} articles`);
 }
 
 async function seedRecipes() {
@@ -1956,61 +2182,854 @@ async function seedDanhGia() {
     return;
   }
 
-  const danhGiaData = [
+  const existingReviews = await dgRepo.find({
+    select: ['lich_hen_id'],
+    where: {
+      lich_hen_id: In(completedBookings.map((booking) => booking.id)),
+    },
+  });
+  const reviewedBookingIds = new Set(
+    existingReviews.map((review) => String(review.lich_hen_id)),
+  );
+  const availableBookings = completedBookings.filter(
+    (booking) => !reviewedBookingIds.has(String(booking.id)),
+  );
+
+  if (availableBookings.length === 0) {
+    console.log('Completed bookings already have danh gia, skipping');
+    return;
+  }
+
+  const reviewTemplates = [
     {
       diem: 5,
       noi_dung:
         'Chuyên gia tư vấn rất nhiệt tình, đưa ra lời khuyên cụ thể và phù hợp với tình trạng sức khỏe của tôi. Đã giảm được 2kg sau 2 tuần.',
-      tai_khoan_id: completedBookings[0].tai_khoan_id,
-      lich_hen_id: completedBookings[0].id,
-      ngay_tao: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+      offsetDays: 5,
     },
     {
       diem: 4,
       noi_dung:
         'Buổi tư vấn khá tốt, chuyên gia có kiến thức chuyên sâu. Tuy nhiên thời gian hơi ngắn.',
-      tai_khoan_id:
-        completedBookings.length > 1
-          ? completedBookings[1].tai_khoan_id
-          : completedBookings[0].tai_khoan_id,
-      lich_hen_id:
-        completedBookings.length > 1
-          ? completedBookings[1].id
-          : completedBookings[0].id,
-      ngay_tao: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      offsetDays: 3,
     },
     {
       diem: 5,
       noi_dung:
         'Rất hài lòng! Chế độ ăn được cá nhân hóa, dễ thực hiện và hiệu quả.',
-      tai_khoan_id:
-        completedBookings.length > 2
-          ? completedBookings[2].tai_khoan_id
-          : completedBookings[0].tai_khoan_id,
-      lich_hen_id:
-        completedBookings.length > 2
-          ? completedBookings[2].id
-          : completedBookings[0].id,
-      ngay_tao: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      offsetDays: 1,
     },
   ];
 
-  for (const dg of danhGiaData) {
-    await dgRepo.save(
-      dgRepo.create({
-        lich_hen_id: dg.lich_hen_id,
-        tai_khoan_id: dg.tai_khoan_id,
-        chuyen_gia_dinh_duong_id: activeNutri.id,
-        diem: dg.diem,
-        noi_dung: dg.noi_dung,
-        tra_loi: null,
-        tra_loi_luc: null,
-        tao_luc: dg.ngay_tao,
-        cap_nhat_luc: dg.ngay_tao,
+  const danhGiaData = availableBookings
+    .slice(0, reviewTemplates.length)
+    .map((booking, index) => {
+      const template = reviewTemplates[index];
+      return {
+        diem: template.diem,
+        noi_dung: template.noi_dung,
+        tai_khoan_id: booking.tai_khoan_id,
+        lich_hen_id: booking.id,
+        ngay_tao: new Date(Date.now() - template.offsetDays * 24 * 60 * 60 * 1000),
+      };
+    });
+
+  await dgRepo.upsert(
+    danhGiaData.map((dg) => ({
+      lich_hen_id: dg.lich_hen_id,
+      tai_khoan_id: dg.tai_khoan_id,
+      chuyen_gia_dinh_duong_id: activeNutri.id,
+      diem: dg.diem,
+      noi_dung: dg.noi_dung,
+      tra_loi: null,
+      tra_loi_luc: null,
+      tao_luc: dg.ngay_tao,
+      cap_nhat_luc: dg.ngay_tao,
+    })),
+    ['lich_hen_id'],
+  );
+  console.log(`Seeded ${danhGiaData.length} danh gia`);
+}
+
+async function seedSystemRevenueFixtures() {
+  const userRepo = AppDataSource.getRepository(TaiKhoanEntity);
+  const profileRepo = AppDataSource.getRepository(HoSoEntity);
+  const cgRepo = AppDataSource.getRepository(ChuyenGiaDinhDuongEntity);
+  const lhRepo = AppDataSource.getRepository(LichHenEntity);
+  const ttRepo = AppDataSource.getRepository(ThanhToanTuVanEntity);
+  const allocationRepo = AppDataSource.getRepository(PhanBoDoanhThuBookingEntity);
+
+  const now = new Date();
+  const registrationFee = Number(
+    process.env.NUTRITIONIST_REGISTRATION_FEE ?? 500000,
+  );
+
+  const registrationProfiles = [
+    {
+      email: 'revenue.nutri.1@nutriwise.vn',
+      hoTen: 'Revenue Nutritionist 1',
+      paymentOffsetDays: 120,
+      approvalOffsetDays: 118,
+    },
+    {
+      email: 'revenue.nutri.2@nutriwise.vn',
+      hoTen: 'Revenue Nutritionist 2',
+      paymentOffsetDays: 85,
+      approvalOffsetDays: 83,
+    },
+    {
+      email: 'revenue.nutri.3@nutriwise.vn',
+      hoTen: 'Revenue Nutritionist 3',
+      paymentOffsetDays: 32,
+      approvalOffsetDays: 31,
+    },
+  ];
+
+  for (const item of registrationProfiles) {
+    let user = await userRepo.findOne({ where: { email: item.email } });
+    if (!user) {
+      const passwordHash = await hashPassword(getSeedDefaultPassword());
+      user = await userRepo.save(
+        userRepo.create({
+          email: item.email,
+          ho_ten: item.hoTen,
+          vai_tro: 'chuyen_gia_dinh_duong',
+          trang_thai: 'hoat_dong',
+          mat_khau_ma_hoa: passwordHash,
+          ma_dat_lai_mat_khau: null,
+          het_han_ma_dat_lai: null,
+          dang_nhap_cuoi_luc: null,
+          tao_luc: now,
+          cap_nhat_luc: now,
+          xoa_luc: null,
+        }),
+      );
+    }
+
+    await profileRepo.upsert(
+      {
+        tai_khoan_id: user.id,
+        gioi_tinh: null,
+        ngay_sinh: null,
+        chieu_cao_cm: null,
+        can_nang_hien_tai_kg: null,
+        muc_do_van_dong: null,
+        che_do_an_uu_tien: null,
+        di_ung: null,
+        thuc_pham_khong_thich: null,
+        anh_dai_dien_url: null,
+        tao_luc: now,
+        cap_nhat_luc: now,
+      },
+      ['tai_khoan_id'],
+    );
+
+    const existingCg = await cgRepo.findOne({
+      where: { tai_khoan_id: user.id },
+    });
+    const paidAt = new Date(
+      Date.now() - item.paymentOffsetDays * 24 * 60 * 60 * 1000,
+    );
+    const approvedAt = new Date(
+      Date.now() - item.approvalOffsetDays * 24 * 60 * 60 * 1000,
+    );
+
+    await cgRepo.save(
+      cgRepo.create({
+        id: existingCg?.id,
+        tai_khoan_id: user.id,
+        chuyen_mon: 'Dinh dưỡng tổng quát',
+        mo_ta: 'Hồ sơ demo cho báo cáo doanh thu hệ thống.',
+        kinh_nghiem: '2 năm tư vấn dinh dưỡng',
+        hoc_vi: 'Cử nhân Dinh dưỡng',
+        chung_chi: 'Chứng chỉ tư vấn dinh dưỡng',
+        gio_lam_viec: null,
+        anh_dai_dien_url: null,
+        trang_thai: 'hoat_dong',
+        trang_thai_thanh_toan: 'thanh_cong',
+        ngay_thanh_toan: paidAt,
+        lan_thanh_toan: 1,
+        ngay_duyet: approvedAt,
+        tao_luc: existingCg?.tao_luc ?? paidAt,
+        cap_nhat_luc: now,
       }),
     );
   }
-  console.log(`Seeded ${danhGiaData.length} danh gia`);
+
+  const completedBookings = await lhRepo.find({
+    where: { trang_thai: 'hoan_thanh' as any },
+    order: { id: 'ASC' },
+  });
+
+  if (completedBookings.length === 0) {
+    console.log('No completed bookings, skipped system revenue allocation seed');
+    return;
+  }
+
+  const bookingIds = completedBookings.map((item) => item.id);
+  const payments = await ttRepo.find({
+    where: {
+      lich_hen_id: In(bookingIds),
+      trang_thai: 'thanh_cong' as any,
+    },
+    order: { tao_luc: 'DESC' },
+  });
+
+  const paymentByBookingId = new Map<number, ThanhToanTuVanEntity>();
+  for (const payment of payments) {
+    if (!paymentByBookingId.has(payment.lich_hen_id)) {
+      paymentByBookingId.set(payment.lich_hen_id, payment);
+    }
+  }
+
+  let seededAllocationCount = 0;
+  for (const booking of completedBookings) {
+    const payment = paymentByBookingId.get(booking.id);
+    if (!payment) continue;
+
+    const grossAmount = Number(payment.so_tien ?? 0);
+    const commissionAmount = Math.round(grossAmount * 0.05 * 100) / 100;
+    const nutritionistAmount =
+      Math.round((grossAmount - commissionAmount) * 100) / 100;
+    const allocatedAt = payment.thanh_toan_luc ?? booking.cap_nhat_luc ?? now;
+
+    await allocationRepo.upsert(
+      {
+        lich_hen_id: booking.id,
+        thanh_toan_tu_van_id: payment.id,
+        chuyen_gia_dinh_duong_id: booking.chuyen_gia_dinh_duong_id,
+        so_tien_goc: grossAmount.toFixed(2),
+        ty_le_hoa_hong: '5.00',
+        so_tien_hoa_hong: commissionAmount.toFixed(2),
+        so_tien_chuyen_gia_nhan: nutritionistAmount.toFixed(2),
+        trang_thai: 'da_ghi_nhan',
+        tao_luc: allocatedAt,
+        cap_nhat_luc: allocatedAt,
+      },
+      ['lich_hen_id'],
+    );
+    seededAllocationCount += 1;
+  }
+
+  console.log(
+    `Seeded system revenue fixtures: registration_fee=${registrationFee}, booking_allocations=${seededAllocationCount}`,
+  );
+}
+
+function getBulkIntEnv(name: string, fallback: number) {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) return fallback;
+  return Math.floor(parsed);
+}
+
+function randomBetween(min: number, max: number) {
+  return Math.random() * (max - min) + min;
+}
+
+function randomInt(min: number, max: number) {
+  return Math.floor(randomBetween(min, max + 1));
+}
+
+function pickRandomItem<T>(items: T[]): T {
+  return items[randomInt(0, items.length - 1)];
+}
+
+function pickUniqueItems<T>(items: T[], count: number): T[] {
+  const copied = [...items];
+  const result: T[] = [];
+  while (copied.length > 0 && result.length < count) {
+    const idx = randomInt(0, copied.length - 1);
+    result.push(copied[idx]);
+    copied.splice(idx, 1);
+  }
+  return result;
+}
+
+async function seedBulkData() {
+  const enabledRaw = (process.env.SEED_BULK ?? '').toLowerCase();
+  const enabled = ['1', 'true', 'yes', 'on'].includes(enabledRaw);
+  if (!enabled) return;
+
+  const userCount = getBulkIntEnv('SEED_BULK_USERS', 120);
+  const daysPerUser = getBulkIntEnv('SEED_BULK_DAYS', 14);
+  const mealsPerDay = Math.max(
+    1,
+    Math.min(4, getBulkIntEnv('SEED_BULK_MEALS_PER_DAY', 3)),
+  );
+  const plansPerUser = Math.max(
+    1,
+    getBulkIntEnv('SEED_BULK_PLANS_PER_USER', 3),
+  );
+
+  if (userCount <= 0) {
+    console.log(
+      'SEED_BULK enabled but SEED_BULK_USERS <= 0, skipping bulk seed',
+    );
+    return;
+  }
+
+  const userRepo = AppDataSource.getRepository(TaiKhoanEntity);
+  const profileRepo = AppDataSource.getRepository(HoSoEntity);
+  const goalRepo = AppDataSource.getRepository(MucTieuEntity);
+  const metricRepo = AppDataSource.getRepository(ChiSoSucKhoeEntity);
+  const assessmentRepo = AppDataSource.getRepository(DanhGiaSucKhoeEntity);
+  const foodRepo = AppDataSource.getRepository(ThucPhamEntity);
+  const mealLogRepo = AppDataSource.getRepository(NhatKyBuaAnEntity);
+  const mealLogDetailRepo = AppDataSource.getRepository(
+    ChiTietNhatKyBuaAnEntity,
+  );
+  const summaryRepo = AppDataSource.getRepository(TongHopDinhDuongNgayEntity);
+  const mealPlanRepo = AppDataSource.getRepository(KeHoachAnEntity);
+  const mealPlanDetailRepo = AppDataSource.getRepository(
+    ChiTietKeHoachAnEntity,
+  );
+  const aiSessionRepo = AppDataSource.getRepository(PhienTuVanAiEntity);
+  const recommendationRepo = AppDataSource.getRepository(KhuyenNghiAiEntity);
+  const subscriptionRepo = AppDataSource.getRepository(DangKyGoiDichVuEntity);
+  const packageRepo = AppDataSource.getRepository(GoiDichVuEntity);
+  const nutritionistRepo = AppDataSource.getRepository(
+    ChuyenGiaDinhDuongEntity,
+  );
+  const consultationPkgRepo = AppDataSource.getRepository(GoiTuVanEntity);
+  const bookingRepo = AppDataSource.getRepository(LichHenEntity);
+  const consultationPaymentRepo =
+    AppDataSource.getRepository(ThanhToanTuVanEntity);
+  const reviewRepo = AppDataSource.getRepository(DanhGiaEntity);
+  const notificationRepo = AppDataSource.getRepository(ThongBaoEntity);
+
+  const now = new Date();
+  const seedTag = process.env.SEED_BULK_TAG?.trim() || `${Date.now()}`;
+  const defaultPassword = getSeedDefaultPassword();
+  const passwordHash = await hashPassword(defaultPassword);
+  const goalTypes: Array<'giam_can' | 'tang_can' | 'giu_can'> = [
+    'giam_can',
+    'tang_can',
+    'giu_can',
+  ];
+  const subscriptionSources: Array<
+    'nguoi_dung_tu_nang_cap' | 'quan_tri_cap' | 'khuyen_mai'
+  > = ['nguoi_dung_tu_nang_cap', 'quan_tri_cap', 'khuyen_mai'];
+
+  const [foods, activePackage, nutritionists, consultationPackages] =
+    await Promise.all([
+      foodRepo.find({
+        where: { xoa_luc: IsNull(), da_xac_minh: true },
+        take: 300,
+        order: { id: 'ASC' },
+      }),
+      packageRepo.findOne({
+        where: { trang_thai: 'dang_kinh_doanh' },
+        order: { id: 'ASC' },
+      }),
+      nutritionistRepo.find({
+        where: { trang_thai: 'hoat_dong' },
+        take: 20,
+        order: { id: 'ASC' },
+      }),
+      consultationPkgRepo.find({
+        where: { trang_thai: 'dang_ban' },
+        take: 50,
+        order: { id: 'ASC' },
+      }),
+    ]);
+
+  if (foods.length < 3) {
+    console.log('Bulk seed skipped: need at least 3 verified foods');
+    return;
+  }
+
+  const usersToCreate = Array.from({ length: userCount }, (_, idx) => {
+    const serial = `${seedTag}-${String(idx + 1).padStart(5, '0')}`;
+    return userRepo.create({
+      email: `loadtest.user.${serial}@nutriwise.vn`,
+      ho_ten: `Load Test User ${idx + 1}`,
+      vai_tro: 'nguoi_dung',
+      trang_thai: 'hoat_dong',
+      mat_khau_ma_hoa: passwordHash,
+      ma_dat_lai_mat_khau: null,
+      het_han_ma_dat_lai: null,
+      dang_nhap_cuoi_luc: null,
+      tao_luc: now,
+      cap_nhat_luc: now,
+      xoa_luc: null,
+    });
+  });
+
+  const createdUsers = await userRepo.save(usersToCreate, { chunk: 100 });
+  console.log(`Bulk seed: created ${createdUsers.length} users`);
+
+  await profileRepo.save(
+    createdUsers.map((user) => ({
+        tai_khoan_id: user.id,
+        gioi_tinh: pickRandomItem(['nam', 'nu', 'khac']),
+        ngay_sinh: new Date(
+          Date.UTC(randomInt(1985, 2006), randomInt(0, 11), randomInt(1, 28)),
+        )
+          .toISOString()
+          .slice(0, 10),
+        chieu_cao_cm: randomBetween(150, 185).toFixed(2),
+        can_nang_hien_tai_kg: randomBetween(48, 95).toFixed(2),
+        muc_do_van_dong: pickRandomItem([
+          'it_van_dong',
+          'van_dong_nhe',
+          'van_dong_vua',
+          'nang_dong',
+          'rat_nang_dong',
+        ]),
+        che_do_an_uu_tien: pickUniqueItems(
+          ['high_protein', 'it_duong', 'eat_clean', 'can_bang', 'low_carb'],
+          randomInt(1, 2),
+        ),
+        di_ung: Math.random() < 0.2 ? ['hai_san_vo_cung'] : [],
+        thuc_pham_khong_thich: Math.random() < 0.3 ? ['noi_tang'] : [],
+        anh_dai_dien_url: null,
+        tao_luc: now,
+        cap_nhat_luc: now,
+      })),
+    { chunk: 100 },
+  );
+
+  const mealTypes: Array<'bua_sang' | 'bua_trua' | 'bua_toi' | 'bua_phu'> = [
+    'bua_sang',
+    'bua_trua',
+    'bua_toi',
+    'bua_phu',
+  ];
+
+  for (let i = 0; i < createdUsers.length; i += 1) {
+    const user = createdUsers[i];
+    const userNow = new Date(now.getTime() + i * 1000);
+    const startArchived = new Date(
+      Date.now() - (120 + (i % 30)) * 24 * 60 * 60 * 1000,
+    );
+    const endArchived = new Date(
+      startArchived.getTime() + 40 * 24 * 60 * 60 * 1000,
+    );
+    const startActive = new Date(endArchived.getTime() + 24 * 60 * 60 * 1000);
+    const endActive = new Date(
+      startActive.getTime() + 90 * 24 * 60 * 60 * 1000,
+    );
+
+    const archivedGoal = await goalRepo.save({
+        tai_khoan_id: user.id,
+        loai_muc_tieu: pickRandomItem(goalTypes),
+        trang_thai: 'luu_tru',
+        can_nang_bat_dau_kg: randomBetween(55, 90).toFixed(2),
+        can_nang_muc_tieu_kg: randomBetween(52, 88).toFixed(2),
+        muc_tieu_calories_ngay: randomBetween(1700, 2500).toFixed(2),
+        muc_tieu_protein_g: randomBetween(90, 180).toFixed(2),
+        muc_tieu_carb_g: randomBetween(120, 280).toFixed(2),
+        muc_tieu_fat_g: randomBetween(40, 90).toFixed(2),
+        ngay_bat_dau: startArchived.toISOString().slice(0, 10),
+        ngay_muc_tieu: endArchived.toISOString().slice(0, 10),
+        tao_luc: userNow,
+        cap_nhat_luc: userNow,
+      });
+
+    const activeGoal = await goalRepo.save({
+        tai_khoan_id: user.id,
+        loai_muc_tieu: pickRandomItem(goalTypes),
+        trang_thai: 'dang_ap_dung',
+        can_nang_bat_dau_kg: randomBetween(55, 90).toFixed(2),
+        can_nang_muc_tieu_kg: randomBetween(52, 88).toFixed(2),
+        muc_tieu_calories_ngay: randomBetween(1700, 2500).toFixed(2),
+        muc_tieu_protein_g: randomBetween(90, 180).toFixed(2),
+        muc_tieu_carb_g: randomBetween(120, 280).toFixed(2),
+        muc_tieu_fat_g: randomBetween(40, 90).toFixed(2),
+        ngay_bat_dau: startActive.toISOString().slice(0, 10),
+        ngay_muc_tieu: endActive.toISOString().slice(0, 10),
+        tao_luc: userNow,
+        cap_nhat_luc: userNow,
+      });
+
+    const metrics = await metricRepo.save(
+      Array.from({ length: 4 }, (_, idx) => {
+        const measuredAt = new Date(
+          Date.now() - (idx + 1) * 15 * 24 * 60 * 60 * 1000 - i * 1000,
+        );
+        return metricRepo.create({
+          tai_khoan_id: user.id,
+          do_luc: measuredAt,
+          can_nang_kg: randomBetween(50, 95).toFixed(2),
+          chieu_cao_cm: randomBetween(150, 185).toFixed(2),
+          vong_eo_cm: randomBetween(70, 100).toFixed(2),
+          vong_mong_cm: randomBetween(85, 110).toFixed(2),
+          huyet_ap_tam_thu: randomInt(105, 132),
+          huyet_ap_tam_truong: randomInt(65, 90),
+          duong_huyet: randomBetween(4.5, 6.2).toFixed(2),
+          ghi_chu: `Bulk metric ${idx + 1}`,
+          tao_luc: measuredAt,
+          cap_nhat_luc: measuredAt,
+        });
+      }),
+      { chunk: 50 },
+    );
+
+    const latestMetric = metrics[0] ?? null;
+    await assessmentRepo.save(
+      assessmentRepo.create({
+        tai_khoan_id: user.id,
+        chi_so_suc_khoe_id: latestMetric?.id ?? null,
+        muc_tieu_id: activeGoal.id,
+        bmi: randomBetween(18.5, 29.5).toFixed(2),
+        phan_loai_bmi: pickRandomItem([
+          'binh_thuong',
+          'thua_can',
+          'beo_phi_do_1',
+        ]),
+        bmr: randomBetween(1300, 2200).toFixed(2),
+        tdee: randomBetween(1800, 3200).toFixed(2),
+        calories_khuyen_nghi: randomBetween(1700, 2600).toFixed(2),
+        protein_khuyen_nghi_g: randomBetween(90, 180).toFixed(2),
+        carb_khuyen_nghi_g: randomBetween(120, 280).toFixed(2),
+        fat_khuyen_nghi_g: randomBetween(40, 90).toFixed(2),
+        tom_tat: `Danh gia suc khoe bulk user #${user.id}`,
+        tao_luc: userNow,
+        cap_nhat_luc: userNow,
+      }),
+    );
+
+    if (activePackage) {
+      const subscriptionStart = new Date(
+        Date.now() - randomInt(0, 15) * 24 * 60 * 60 * 1000,
+      );
+      const subscriptionEnd = new Date(
+        subscriptionStart.getTime() + 30 * 24 * 60 * 60 * 1000,
+      );
+      await subscriptionRepo.save(
+        {
+          tai_khoan_id: user.id,
+          goi_dich_vu_id: activePackage.id,
+          ma_dang_ky: `BULK-SUB-${seedTag}-${user.id}`,
+          trang_thai: 'dang_hoat_dong',
+          ngay_bat_dau: subscriptionStart,
+          ngay_het_han: subscriptionEnd,
+          tu_dong_gia_han: Boolean(i % 2),
+          nguon_dang_ky: pickRandomItem(subscriptionSources),
+          ghi_chu: 'Bulk seeded subscription',
+          tao_luc: userNow,
+          cap_nhat_luc: userNow,
+        },
+      );
+    }
+
+    for (let p = 0; p < plansPerUser; p += 1) {
+      const applyDate = new Date(Date.now() + (p + 1) * 24 * 60 * 60 * 1000);
+      const plan = await mealPlanRepo.save(
+        mealPlanRepo.create({
+          tai_khoan_id: user.id,
+          loai_nguon: pickRandomItem(['khuyen_nghi_ai', 'thuc_don_mau']),
+          nguon_id: null,
+          tieu_de: `Bulk meal plan ${p + 1} - user ${user.id}`,
+          mo_ta: 'Generated bulk meal plan',
+          ngay_ap_dung: applyDate.toISOString().slice(0, 10),
+          trang_thai: p === 0 ? 'dang_ap_dung' : 'ban_nhap',
+          tong_calories: randomBetween(1700, 2300).toFixed(2),
+          tong_protein_g: randomBetween(90, 170).toFixed(2),
+          tong_carb_g: randomBetween(140, 260).toFixed(2),
+          tong_fat_g: randomBetween(40, 80).toFixed(2),
+          tao_luc: userNow,
+          cap_nhat_luc: userNow,
+        }),
+      );
+
+      const planDetails: ChiTietKeHoachAnEntity[] = [];
+      let order = 1;
+      for (const mealType of mealTypes.slice(0, mealsPerDay)) {
+        const selectedFoods = pickUniqueItems(foods, randomInt(1, 2));
+        for (const food of selectedFoods) {
+          const qty = randomBetween(80, 260);
+          const ratio = qty / 100;
+          planDetails.push(
+            mealPlanDetailRepo.create({
+              ke_hoach_an_id: plan.id,
+              loai_bua_an: mealType,
+              cong_thuc_id: null,
+              thuc_pham_id: food.id,
+              so_luong: qty.toFixed(2),
+              don_vi: food.don_vi_khau_phan ?? 'g',
+              calories: (Number(food.calories_100g ?? 0) * ratio).toFixed(2),
+              protein_g: (Number(food.protein_100g ?? 0) * ratio).toFixed(2),
+              carb_g: (Number(food.carb_100g ?? 0) * ratio).toFixed(2),
+              fat_g: (Number(food.fat_100g ?? 0) * ratio).toFixed(2),
+              ghi_chu: null,
+              thu_tu: order++,
+              tao_luc: userNow,
+              cap_nhat_luc: userNow,
+            }),
+          );
+        }
+      }
+      if (planDetails.length > 0) {
+        await mealPlanDetailRepo.save(planDetails, { chunk: 100 });
+      }
+    }
+
+    for (let d = 0; d < daysPerUser; d += 1) {
+      const dayDate = new Date(Date.now() - d * 24 * 60 * 60 * 1000);
+      const day = dayDate.toISOString().slice(0, 10);
+      let dayCalories = 0;
+      let dayProtein = 0;
+      let dayCarb = 0;
+      let dayFat = 0;
+      let mealsLogged = 0;
+
+      for (const mealType of mealTypes.slice(0, mealsPerDay)) {
+        const log = await mealLogRepo.save(
+          mealLogRepo.create({
+            tai_khoan_id: user.id,
+            ngay_ghi: day,
+            loai_bua_an: mealType,
+            ghi_chu: `Bulk meal ${mealType}`,
+            tao_luc: userNow,
+            cap_nhat_luc: userNow,
+          }),
+        );
+
+        const selectedFoods = pickUniqueItems(foods, randomInt(1, 3));
+        const details = selectedFoods.map((food) => {
+          const qty = randomBetween(70, 280);
+          const ratio = qty / 100;
+          const calories = Number(food.calories_100g ?? 0) * ratio;
+          const protein = Number(food.protein_100g ?? 0) * ratio;
+          const carb = Number(food.carb_100g ?? 0) * ratio;
+          const fat = Number(food.fat_100g ?? 0) * ratio;
+          const fiber = Number(food.chat_xo_100g ?? 0) * ratio;
+          const sodium = Number(food.natri_100g ?? 0) * ratio;
+
+          dayCalories += calories;
+          dayProtein += protein;
+          dayCarb += carb;
+          dayFat += fat;
+
+          return mealLogDetailRepo.create({
+            nhat_ky_bua_an_id: log.id,
+            loai_nguon: 'thuc_pham',
+            nguon_id: food.id,
+            cong_thuc_id: null,
+            thuc_pham_id: food.id,
+            so_luong: qty.toFixed(2),
+            don_vi: food.don_vi_khau_phan ?? 'g',
+            calories: calories.toFixed(2),
+            protein_g: protein.toFixed(2),
+            carb_g: carb.toFixed(2),
+            fat_g: fat.toFixed(2),
+            chat_xo_g: fiber.toFixed(2),
+            natri_mg: sodium.toFixed(2),
+            du_lieu_chup_lai: {
+              ten: food.ten,
+              khau_phan: qty,
+              don_vi: food.don_vi_khau_phan ?? 'g',
+              loai_nguon: 'thuc_pham',
+            },
+            tao_luc: userNow,
+            cap_nhat_luc: userNow,
+          });
+        });
+
+        await mealLogDetailRepo.save(details, { chunk: 100 });
+        mealsLogged += 1;
+      }
+
+      await summaryRepo.save(
+        summaryRepo.create({
+          tai_khoan_id: user.id,
+          ngay: day,
+          tong_calories: dayCalories.toFixed(2),
+          tong_protein_g: dayProtein.toFixed(2),
+          tong_carb_g: dayCarb.toFixed(2),
+          tong_fat_g: dayFat.toFixed(2),
+          so_bua_da_ghi: mealsLogged,
+          tao_luc: userNow,
+          cap_nhat_luc: userNow,
+        }),
+      );
+    }
+
+    const aiSession = await aiSessionRepo.save(
+      aiSessionRepo.create({
+        tai_khoan_id: user.id,
+        tieu_de: `Bulk AI session for user ${user.id}`,
+        trang_thai: 'da_dong',
+        tin_nhan: JSON.stringify([
+          { role: 'user', content: 'Mình cần kế hoạch ăn hôm nay.' },
+          {
+            role: 'assistant',
+            content: 'Đây là gợi ý bữa ăn phù hợp mục tiêu.',
+          },
+        ]),
+        ngu_canh_chup_lai: {
+          seed: 'bulk',
+          userId: user.id,
+        },
+        mo_hinh_cuoi: 'gpt-5.2',
+        tong_token_cuoi: randomInt(300, 1500),
+        loi_cuoi: null,
+        tao_luc: userNow,
+        cap_nhat_luc: userNow,
+      }),
+    );
+
+    await recommendationRepo.save(
+      [
+        recommendationRepo.create({
+          tai_khoan_id: user.id,
+          phien_tu_van_ai_id: aiSession.id,
+          trang_thai: 'da_chap_nhan',
+          loai_khuyen_nghi: 'nutrition',
+          ngay_muc_tieu: now.toISOString().slice(0, 10),
+          muc_tieu_calories: randomBetween(1700, 2400).toFixed(2),
+          muc_tieu_protein_g: randomBetween(90, 170).toFixed(2),
+          muc_tieu_carb_g: randomBetween(140, 260).toFixed(2),
+          muc_tieu_fat_g: randomBetween(40, 80).toFixed(2),
+          canh_bao: ['Du lieu bulk seed - chi de test'],
+          ly_giai: 'Khuyen nghi nutrition duoc tao tu bulk seed',
+          du_lieu_khuyen_nghi: {
+            source: 'bulk',
+            foods_uu_tien: pickUniqueItems(foods, 2).map((f) => ({
+              id: f.id,
+              ten: f.ten,
+            })),
+          },
+          ke_hoach_an_da_ap_dung_id: null,
+          tao_luc: userNow,
+          cap_nhat_luc: userNow,
+        }),
+        recommendationRepo.create({
+          tai_khoan_id: user.id,
+          phien_tu_van_ai_id: aiSession.id,
+          trang_thai: 'cho_xu_ly',
+          loai_khuyen_nghi: 'meal_plan_daily',
+          ngay_muc_tieu: new Date(Date.now() + 24 * 60 * 60 * 1000)
+            .toISOString()
+            .slice(0, 10),
+          muc_tieu_calories: randomBetween(1700, 2400).toFixed(2),
+          muc_tieu_protein_g: randomBetween(90, 170).toFixed(2),
+          muc_tieu_carb_g: randomBetween(140, 260).toFixed(2),
+          muc_tieu_fat_g: randomBetween(40, 80).toFixed(2),
+          canh_bao: [],
+          ly_giai: 'Khuyen nghi meal plan duoc tao tu bulk seed',
+          du_lieu_khuyen_nghi: {
+            source: 'bulk',
+            chi_tiet: pickUniqueItems(foods, 3).map((f, idx) => ({
+              thu_tu: idx + 1,
+              loai_bua_an: mealTypes[idx % mealTypes.length],
+              thuc_pham_id: f.id,
+              ten_mon: f.ten,
+            })),
+          },
+          ke_hoach_an_da_ap_dung_id: null,
+          tao_luc: userNow,
+          cap_nhat_luc: userNow,
+        }),
+      ],
+      { chunk: 50 },
+    );
+
+    await notificationRepo.save(
+      [
+        notificationRepo.create({
+          tai_khoan_id: user.id,
+          nguoi_gui_id: null,
+          loai: 'he_thong',
+          tieu_de: 'Du lieu bulk seed',
+          noi_dung: 'Thong bao demo cho user bulk',
+          trang_thai: 'chua_doc',
+          duong_dan_hanh_dong: '/nutrition/dashboard',
+          tao_luc: userNow,
+          doc_luc: null,
+          cap_nhat_luc: userNow,
+        }),
+        notificationRepo.create({
+          tai_khoan_id: user.id,
+          nguoi_gui_id: null,
+          loai: 'khuyen_nghi_ai',
+          tieu_de: 'Co khuyen nghi moi',
+          noi_dung: 'He thong da tao khuyen nghi moi cho ban',
+          trang_thai: 'chua_doc',
+          duong_dan_hanh_dong: '/nutrition/ai-advisor',
+          tao_luc: userNow,
+          doc_luc: null,
+          cap_nhat_luc: userNow,
+        }),
+      ],
+      { chunk: 50 },
+    );
+
+    if (nutritionists.length > 0 && consultationPackages.length > 0) {
+      const nutritionist = pickRandomItem(nutritionists);
+      const pkg = pickRandomItem(consultationPackages);
+      const bookingDate = new Date(
+        Date.now() - randomInt(1, 30) * 24 * 60 * 60 * 1000,
+      );
+      const booking = await bookingRepo.save(
+        bookingRepo.create({
+          chuyen_gia_dinh_duong_id: nutritionist.id,
+          tai_khoan_id: user.id,
+          goi_tu_van_id: pkg.id,
+          ma_lich_hen: `BULK-LH-${seedTag}-${user.id}`,
+          muc_dich: 'Tu van dinh duong bulk',
+          ngay_hen: bookingDate.toISOString().slice(0, 10),
+          gio_bat_dau: '09:00:00',
+          gio_ket_thuc: '09:45:00',
+          dia_diem: 'Online',
+          trang_thai: 'hoan_thanh',
+          ly_do_huy: null,
+          huy_boi: null,
+          huy_luc: null,
+          ghi_chu_nutritionist: 'Bulk booking note',
+          tao_luc: userNow,
+          cap_nhat_luc: userNow,
+        }),
+      );
+
+      await consultationPaymentRepo.save(
+        consultationPaymentRepo.create({
+          lich_hen_id: booking.id,
+          tai_khoan_id: user.id,
+          ma_giao_dich: `BULK-TT-${seedTag}-${user.id}`,
+          phuong_thuc: 'vnpay',
+          so_tien: randomBetween(120000, 450000).toFixed(2),
+          trang_thai: 'thanh_cong',
+          thanh_toan_luc: bookingDate,
+          du_lieu_thanh_toan: { source: 'bulk-seed' },
+          xac_nhan_boi: null,
+          xac_nhan_luc: null,
+          tao_luc: userNow,
+          cap_nhat_luc: userNow,
+        }),
+      );
+
+      await reviewRepo.save(
+        reviewRepo.create({
+          lich_hen_id: booking.id,
+          tai_khoan_id: user.id,
+          chuyen_gia_dinh_duong_id: nutritionist.id,
+          diem: randomInt(3, 5),
+          noi_dung: 'Danh gia bulk cho buoi tu van.',
+          tra_loi: null,
+          tra_loi_luc: null,
+          tao_luc: userNow,
+          cap_nhat_luc: userNow,
+        }),
+      );
+    }
+
+    if ((i + 1) % 10 === 0 || i + 1 === createdUsers.length) {
+      console.log(
+        `Bulk seed progress: ${i + 1}/${createdUsers.length} users processed`,
+      );
+    }
+
+    // keep archivedGoal used for explicit seeding reference to avoid accidental regression
+    void archivedGoal;
+  }
+
+  console.log(
+    `Bulk seed completed: users=${userCount}, daysPerUser=${daysPerUser}, mealsPerDay=${mealsPerDay}, plansPerUser=${plansPerUser}`,
+  );
 }
 
 async function run() {
@@ -2020,6 +3039,7 @@ async function run() {
     await seedUsers();
     await seedUserHealthData();
     await seedFoodCatalog();
+    await seedBulkFoodCatalog();
     await seedUserNutritionTrackingAndRecommendations();
     await seedFoodReviewRequests();
     await seedNotifications();
@@ -2033,6 +3053,8 @@ async function run() {
     await seedGoiTuVan();
     await seedLichHenAndThanhToan();
     await seedDanhGia();
+    await seedSystemRevenueFixtures();
+    await seedBulkData();
     console.log('Seed du lieu thanh cong');
   } finally {
     await AppDataSource.destroy();

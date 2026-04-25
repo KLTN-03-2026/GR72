@@ -222,9 +222,25 @@ export class UserRecommendationService {
       .map(({ score, ...rest }) => rest);
 
     if (suggestions.length === 0) {
-      throw new NotFoundException(
-        'Khong tim thay goi y bua an phu hop voi che do hien tai',
-      );
+      // Không có recipes xuat_ban — vẫn trả 200 với cảnh báo
+      const emptyRecommendation = await this.saveRecommendation(context.user.id, {
+        loai: 'meal_next',
+        mucTieuCalories: mealTargetCalories,
+        mucTieuProtein: null,
+        mucTieuCarb: null,
+        mucTieuFat: null,
+        warnings: ['Hiện chưa có công thức nào được xuất bản để gợi ý.'],
+        lyGiai: `Chưa có công thức món ăn nào được xuất bản để gợi ý cho bữa ăn tiếp theo.`,
+        duLieu: {
+          loai_bua_an_goi_y: nextMealType,
+          recipes: [],
+        },
+      });
+      return {
+        success: true,
+        message: 'Chưa có gợi ý bữa ăn',
+        data: this.toRecommendationResponse(emptyRecommendation),
+      };
     }
 
     const recommendation = await this.saveRecommendation(context.user.id, {
@@ -273,7 +289,29 @@ export class UserRecommendationService {
     });
 
     if (!candidateTemplates.length) {
-      throw new NotFoundException('Khong tim thay thuc don mau phu hop');
+      // Không có template xuat_ban — vẫn trả 200 với cảnh báo
+      const emptyRecommendation = await this.saveRecommendation(context.user.id, {
+        loai: 'meal_plan_daily',
+        mucTieuCalories: targetCalories,
+        mucTieuProtein: null,
+        mucTieuCarb: null,
+        mucTieuFat: null,
+        warnings: ['Hiện chưa có thực đơn mẫu nào được xuất bản. Hãy thử lại sau hoặc liên hệ chuyên gia dinh dưỡng.'],
+        lyGiai: `Chưa có thực đơn mẫu phù hợp để gợi ý. Vui lòng thiết lập mục tiêu và thử lại sau.`,
+        duLieu: {
+          thuc_don_mau_id: null,
+          tieu_de: null,
+          mo_ta: null,
+          loai_muc_tieu_phu_hop: null,
+          calories_muc_tieu: targetCalories,
+          chi_tiet: [],
+        },
+      });
+      return {
+        success: true,
+        message: 'Chưa có thực đơn mẫu để gợi ý',
+        data: this.toRecommendationResponse(emptyRecommendation),
+      };
     }
 
     const detailRows = await this.mealTemplateDetailRepository.find({
@@ -323,7 +361,29 @@ export class UserRecommendationService {
 
     const selectedBundle = matchingTemplates[0];
     if (!selectedBundle) {
-      throw new NotFoundException('Khong tim thay thuc don mau phu hop');
+      // Không có template nào phù hợp sau khi lọc — trả 200 với cảnh báo
+      const emptyRecommendation = await this.saveRecommendation(context.user.id, {
+        loai: 'meal_plan_daily',
+        mucTieuCalories: targetCalories,
+        mucTieuProtein: null,
+        mucTieuCarb: null,
+        mucTieuFat: null,
+        warnings: ['Không tìm thấy thực đơn mẫu phù hợp với mục tiêu hiện tại.'],
+        lyGiai: `Hệ thống chưa có thực đơn mẫu phù hợp với loại mục tiêu của bạn. Vui lòng liên hệ chuyên gia để được tư vấn.`,
+        duLieu: {
+          thuc_don_mau_id: null,
+          tieu_de: null,
+          mo_ta: null,
+          loai_muc_tieu_phu_hop: null,
+          calories_muc_tieu: targetCalories,
+          chi_tiet: [],
+        },
+      });
+      return {
+        success: true,
+        message: 'Không tìm thấy thực đơn phù hợp',
+        data: this.toRecommendationResponse(emptyRecommendation),
+      };
     }
 
     const selected = selectedBundle.template;
@@ -972,9 +1032,8 @@ export class UserRecommendationService {
         },
       });
       if (!recipe) {
-        throw new NotFoundException(
-          'Khong tim thay cong thuc hop le de tao ke hoach an',
-        );
+        // Recipe đã bị xóa hoặc không còn xuất bản — giữ nguyên detail, không có macro
+        return nextDetail;
       }
 
       const servingCount =
@@ -999,9 +1058,8 @@ export class UserRecommendationService {
         },
       });
       if (!food || (!food.da_xac_minh && food.loai_nguon !== 'noi_bo')) {
-        throw new NotFoundException(
-          'Khong tim thay thuc pham hop le de tao ke hoach an',
-        );
+        // Thực phẩm đã bị xóa hoặc không còn hợp lệ — giữ nguyên detail
+        return nextDetail;
       }
 
       const unit = this.normalizeText(

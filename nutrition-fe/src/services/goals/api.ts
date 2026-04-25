@@ -120,3 +120,10 @@ export async function updateGoal(
     body: JSON.stringify(payload),
   })
 }
+
+/** Xóa mục tiêu theo id */
+export async function deleteGoal(goalId: number): Promise<void> {
+  return request<void>(`/me/goals/${goalId}`, {
+    method: 'DELETE',
+  })
+}

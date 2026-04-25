@@ -250,7 +250,7 @@ export class ConsultationChatService {
       }),
     );
 
-    const response = this.mapMessage(saved);
+    const response = this.mapSavedMessageWithSender(saved, participant);
     this.broadcastToRoom(booking.id, {
       type: 'message_created',
       data: response,
@@ -667,6 +667,23 @@ export class ConsultationChatService {
     message: TinNhanEntity,
   ): ChatMessageResponse {
     const sender = this.mapSender(message.nguoi_gui);
+    return {
+      id: message.id,
+      lich_hen_id: message.lich_hen_id,
+      nguoi_gui: sender,
+      loai: message.loai,
+      noi_dung: message.noi_dung,
+      tep_dinh_kem: message.tep_dinh_kem,
+      da_doc_luc: message.da_doc_luc?.toISOString() ?? null,
+      tao_luc: message.tao_luc.toISOString(),
+      cap_nhat_luc: message.cap_nhat_luc.toISOString(),
+    };
+  }
+
+  private mapSavedMessageWithSender(
+    message: TinNhanEntity,
+    sender: BookingParticipant,
+  ): ChatMessageResponse {
     return {
       id: message.id,
       lich_hen_id: message.lich_hen_id,

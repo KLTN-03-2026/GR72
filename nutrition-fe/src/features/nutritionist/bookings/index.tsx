@@ -1,16 +1,18 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from '@/lib/router'
 import {
-  type ColumnDef,
-  type PaginationState,
-  flexRender,
-  getCoreRowModel,
-  getPaginationRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
-import { CalendarRange, CheckCircle, Eye, MessageSquare, XCircle } from 'lucide-react'
+  CalendarRange,
+  CheckCircle,
+  Clock3,
+  DollarSign,
+  Eye,
+  MessageSquare,
+  Star,
+  Video,
+  XCircle,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import {
   getNutriBookings,
@@ -18,7 +20,6 @@ import {
   cancelNutriBooking,
   type NBooking,
 } from '@/services/nutritionist/api'
-import { DataTablePagination } from '@/components/data-table'
 import { Main } from '@/components/layout/main'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -30,20 +31,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { NutritionTopbar } from '@/features/nutrition/components/topbar'
 import { PageHeading } from '@/features/nutrition/components/page-heading'
+import { PaginationControls } from '@/features/nutrition/components/pagination-controls'
+import { openStandaloneCallWindow } from '@/features/consultation-call/open-window'
 
 const PAGE_SIZE = 10
 
@@ -88,9 +82,12 @@ function formatDateVN(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('vi-VN')
 }
 
-function formatTime(timeStr: string) {
-  const [h, m] = timeStr.split(':')
-  return `${h}:${m}`
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    maximumFractionDigits: 0,
+  }).format(amount)
 }
 
 export function NutritionistBookings() {
@@ -173,86 +170,6 @@ export function NutritionistBookings() {
     setNote('')
   }
 
-  const columns: ColumnDef<NBooking>[] = useMemo(() => [
-    {
-      accessorKey: 'ngayHen',
-      header: 'Ngày',
-      cell: ({ row }) => formatDateVN(row.original.ngayHen),
-    },
-    {
-      accessorKey: 'gioBatDau',
-      header: 'Giờ',
-      cell: ({ row }) => `${formatTime(row.original.gioBatDau)} - ${formatTime(row.original.gioKetThuc)}`,
-    },
-    {
-      accessorKey: 'tenUser',
-      header: 'User',
-      cell: ({ row }) => row.original.tenUser,
-    },
-    {
-      accessorKey: 'tenGoiTuVan',
-      header: 'Gói',
-      cell: ({ row }) => (
-        <div>
-          <p className='font-medium'>{row.original.tenGoiTuVan}</p>
-          <p className='text-xs text-muted-foreground'>{row.original.thoiLuongPhut} phút</p>
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'trangThai',
-      header: 'Trạng thái',
-      cell: ({ row }) => (
-        <div className='space-y-1'>
-          <div>{getStatusBadge(row.original.trangThai)}</div>
-          {getPaymentRefundBadge(row.original.trangThaiThanhToan, row.original.refundStatus)}
-        </div>
-      ),
-    },
-    {
-      id: 'actions',
-      cell: ({ row }) => {
-        const booking = row.original
-        const canAct = booking.trangThai === 'da_checkin' || booking.trangThai === 'dang_tu_van'
-        return (
-          <div className='flex items-center gap-1'>
-            <Button size='icon' variant='ghost' asChild>
-              <Link to={`/nutritionist/bookings/${booking.id}`}>
-                <Eye className='size-4' />
-              </Link>
-            </Button>
-            <Button size='icon' variant='ghost' asChild title='Vào chat'>
-              <Link to={`/nutritionist/bookings/${booking.id}/chat`}>
-                <MessageSquare className='size-4' />
-              </Link>
-            </Button>
-            {canAct && (
-              <>
-                <Button size='icon' variant='ghost' onClick={() => openCompleteDialog(booking.id)} title='Hoàn thành'>
-                  <CheckCircle className='size-4 text-green-600' />
-                </Button>
-                <Button size='icon' variant='ghost' onClick={() => openCancelDialog(booking.id)} title='Hủy'>
-                  <XCircle className='size-4 text-red-600' />
-                </Button>
-              </>
-            )}
-          </div>
-        )
-      },
-    },
-  ], [])
-
-  const table = useReactTable({
-    data,
-    columns,
-    pageCount: Math.ceil(total / PAGE_SIZE),
-    state: { pagination },
-    onPaginationChange: setPagination,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    manualPagination: true,
-  })
-
   return (
     <>
       <NutritionTopbar staff />
@@ -262,12 +179,14 @@ export function NutritionistBookings() {
           description='Nhận và xử lý các lịch hẹn tư vấn từ người dùng.'
         />
 
-        {/* Status Filter */}
-        <div className='flex items-center gap-4'>
-          <Select value={statusFilter} onValueChange={(v) => {
-            setStatusFilter(v === 'all' ? '' : v)
-            setPagination(p => ({ ...p, pageIndex: 0 }))
-          }}>
+        <div className='flex flex-wrap items-center gap-3'>
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => {
+              setStatusFilter(v === 'all' ? '' : v)
+              setPagination((p) => ({ ...p, pageIndex: 0 }))
+            }}
+          >
             <SelectTrigger className='w-52'>
               <SelectValue placeholder='Tất cả trạng thái' />
             </SelectTrigger>
@@ -284,49 +203,130 @@ export function NutritionistBookings() {
           </Select>
         </div>
 
-        <div className='rounded-lg border'>
-          <table className='w-full'>
-            <thead>
-              <tr className='border-b bg-muted/50'>
-                {table.getHeaderGroups().map((hg) =>
-                  hg.headers.map((header) => (
-                    <th key={header.id} className='px-4 py-3 text-left text-sm font-medium'>
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={columns.length} className='px-4 py-12 text-center'>
-                    <div className='mx-auto size-6 animate-spin rounded-full border-2 border-primary border-t-transparent' />
-                  </td>
-                </tr>
-              ) : data.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length} className='px-4 py-12 text-center text-muted-foreground'>
-                    <CalendarRange className='mx-auto mb-2 size-8 opacity-30' />
-                    <p>Chưa có booking nào.</p>
-                  </td>
-                </tr>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className='border-b hover:bg-muted/50'>
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className='px-4 py-3 text-sm'>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        {loading ? (
+          <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className='h-52 animate-pulse rounded-xl border bg-muted/30' />
+            ))}
+          </div>
+        ) : data.length === 0 ? (
+          <div className='flex flex-col items-center justify-center rounded-xl border border-dashed py-16'>
+            <CalendarRange className='size-8 text-muted-foreground/30' />
+            <p className='mt-4 font-medium text-muted-foreground'>Chưa có booking nào</p>
+          </div>
+        ) : (
+          <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
+            {data.map((booking) => {
+              const canAct =
+                booking.trangThai === 'da_checkin' || booking.trangThai === 'dang_tu_van'
+              return (
+                <div
+                  key={booking.id}
+                  className='flex flex-col rounded-xl border p-4 transition hover:border-primary/30 hover:shadow-sm'
+                >
+                  <div className='mb-3 flex flex-wrap items-start justify-between gap-2'>
+                    <div>
+                      <p className='font-mono text-xs font-semibold text-muted-foreground'>
+                        {booking.maLichHen}
+                      </p>
+                      <p className='mt-0.5 text-sm font-semibold'>{booking.tenUser}</p>
+                    </div>
+                    {getStatusBadge(booking.trangThai)}
+                  </div>
 
-        <DataTablePagination table={table} />
+                  <div className='mb-3 space-y-1.5'>
+                    <div className='flex items-center gap-1.5 text-xs text-muted-foreground'>
+                      <CalendarRange className='size-3.5 shrink-0' />
+                      <span>{formatDateVN(booking.ngayHen)}</span>
+                    </div>
+                    <div className='flex items-center gap-1.5 text-xs text-muted-foreground'>
+                      <Clock3 className='size-3.5 shrink-0' />
+                      <span>
+                        {booking.gioBatDau.slice(0, 5)} – {booking.gioKetThuc.slice(0, 5)}
+                      </span>
+                    </div>
+                    <div className='flex items-center gap-1.5 text-xs text-muted-foreground'>
+                      <Star className='size-3.5 shrink-0' />
+                      <span>{booking.tenGoiTuVan}</span>
+                    </div>
+                    <div className='flex items-center gap-1.5 text-xs font-medium text-foreground'>
+                      <DollarSign className='size-3.5 shrink-0' />
+                      <span className='text-emerald-600'>{formatCurrency(booking.giaGoi)}</span>
+                    </div>
+                  </div>
+
+                  {getPaymentRefundBadge(booking.trangThaiThanhToan, booking.refundStatus) && (
+                    <div className='mb-3'>
+                      {getPaymentRefundBadge(booking.trangThaiThanhToan, booking.refundStatus)}
+                    </div>
+                  )}
+
+                  <div className='mt-auto flex flex-wrap gap-1.5'>
+                    <Button size='sm' variant='outline' asChild className='flex-1 text-xs'>
+                      <Link to={`/nutritionist/bookings/${booking.id}`}>
+                        <Eye className='mr-1 size-3' />
+                        Chi tiết
+                      </Link>
+                    </Button>
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      asChild
+                      className='flex-1 text-xs'
+                      title='Vào chat'
+                    >
+                      <Link to={`/nutritionist/bookings/${booking.id}/chat`}>
+                        <MessageSquare className='mr-1 size-3' />
+                        Chat
+                      </Link>
+                    </Button>
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      type='button'
+                      className='flex-1 text-xs'
+                      title='Vào call'
+                      onClick={() => openStandaloneCallWindow('nutritionist', booking.id)}
+                    >
+                      <Video className='mr-1 size-3' />
+                      Call
+                    </Button>
+                    {canAct && (
+                      <>
+                        <Button
+                          size='sm'
+                          variant='ghost'
+                          className='h-8 w-8 p-0'
+                          onClick={() => openCompleteDialog(booking.id)}
+                          title='Hoàn thành'
+                        >
+                          <CheckCircle className='size-4 text-green-600' />
+                        </Button>
+                        <Button
+                          size='sm'
+                          variant='ghost'
+                          className='h-8 w-8 p-0'
+                          onClick={() => openCancelDialog(booking.id)}
+                          title='Hủy'
+                        >
+                          <XCircle className='size-4 text-red-600' />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {!loading && data.length > 0 && (
+          <PaginationControls
+            page={pagination.pageIndex + 1}
+            totalPages={Math.ceil(total / PAGE_SIZE)}
+            onPageChange={(next) => setPagination((p) => ({ ...p, pageIndex: next - 1 }))}
+          />
+        )}
       </Main>
 
       {/* Complete Action Dialog */}

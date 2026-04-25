@@ -1,7 +1,6 @@
 import * as React from 'react'
 import {
   Apple,
-  BarChart3,
   Bell,
   BookOpenText,
   Bot,
@@ -162,6 +161,11 @@ function getUserNavGroups(locale: AppLocale): NavGroup[] {
       title: copy.content,
       items: [
         {
+          title: copy.articles,
+          url: '/nutrition/articles',
+          icon: BookOpenText,
+        },
+        {
           title: copy.notifications,
           url: '/nutrition/notifications',
           icon: Bell,
@@ -270,9 +274,9 @@ function getStaffNavGroups(
             icon: CalendarRange,
           },
           {
-            title: 'Báo cáo',
-            url: '/admin/reports',
-            icon: BarChart3,
+            title: 'Doanh thu hệ thống',
+            url: '/admin/system-revenue',
+            icon: Wallet,
           },
           {
             title: 'Thông báo',
@@ -373,7 +377,7 @@ export const sidebarData: SidebarData = {
   user: {
     name: 'Minh Anh',
     email: 'minhanh@nutriwise.vn',
-    avatar: '/avatars/shadcn.jpg',
+    avatar: '/images/shadcn-admin.png',
   },
   teams: getTeams('vi'),
   navGroups: getUserNavGroups('vi'),
@@ -403,13 +407,13 @@ export function getSidebarUser(teamId: TeamId, staffRole: StaffPortalRole) {
         staffRole === 'admin'
           ? 'admin@nutriwise.vn'
           : 'nutritionist@nutriwise.vn',
-      avatar: '/avatars/shadcn.jpg',
+      avatar: '/images/shadcn-admin.png',
     }
   }
 
   return {
     name: 'Minh Anh',
     email: 'member@nutriwise.vn',
-    avatar: '/avatars/shadcn.jpg',
+    avatar: '/images/shadcn-admin.png',
   }
 }

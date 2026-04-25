@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? '/api').replace(/\/$/, '')
 
 async function apiFetch<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${url}`, {

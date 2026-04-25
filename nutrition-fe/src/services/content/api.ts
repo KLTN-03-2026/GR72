@@ -42,7 +42,6 @@ export type UserPublishedMealTemplateDetail = {
     loai_bua_an: string
     cong_thuc_id: number | null
     thuc_pham_id: number | null
-    ten_mon: string | null
     so_luong: number | null
     don_vi: string | null
     ghi_chu: string | null

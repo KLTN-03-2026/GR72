@@ -49,7 +49,9 @@ import {
 } from '@/services/foods/api'
 import {
   createMealLog,
+  getMealLogs,
   MEAL_TYPE_LABELS,
+  updateMealLog,
   type MealType,
 } from '@/services/meals/api'
 
@@ -171,17 +173,47 @@ function AddToMealLogModal({
 
     setSaving(true)
     try {
-      await createMealLog({
-        ngayGhi: today,
-        loaiBuaAn: mealType,
-        ghiChu: note || undefined,
-        chiTiet: [{
-          loaiNguon: 'thuc_pham',
-          thucPhamId: food.id,
-          soLuong: qty,
-          donVi: servingUnit,
-        }],
+      const logsResponse = await getMealLogs({
+        date: today,
+        page: 1,
+        limit: 50,
       })
+      const existingLog = logsResponse.data.items.find(
+        (item) => item.loai_bua_an === mealType,
+      )
+
+      const newDetail = {
+        loaiNguon: 'thuc_pham' as const,
+        thucPhamId: food.id,
+        soLuong: qty,
+        donVi: servingUnit,
+      }
+
+      if (existingLog) {
+        const nextDetails = [
+          ...existingLog.chi_tiet.map((detail) => ({
+            loaiNguon: detail.loai_nguon,
+            thucPhamId: detail.thuc_pham_id ?? undefined,
+            congThucId: detail.cong_thuc_id ?? undefined,
+            soLuong: detail.so_luong,
+            donVi: detail.don_vi,
+          })),
+          newDetail,
+        ]
+
+        await updateMealLog(existingLog.id, {
+          chiTiet: nextDetails,
+          ghiChu: note || undefined,
+        })
+      } else {
+        await createMealLog({
+          ngayGhi: today,
+          loaiBuaAn: mealType,
+          ghiChu: note || undefined,
+          chiTiet: [newDetail],
+        })
+      }
+
       toast.success(`Đã thêm "${food.ten}" vào ${MEAL_TYPE_LABELS[mealType]}`)
       onSuccess()
       onClose()
@@ -379,9 +411,6 @@ function FoodDetailPanel({ food, onAddToMeal, onCompare, onClose }: {
             <Button variant='outline' className='flex-1' onClick={onCompare}>
               <BarChart3 className='mr-1.5 size-3.5' />
               So sánh
-            </Button>
-            <Button variant='outline' className='flex-1'>
-              Thêm vào kế hoạch ăn
             </Button>
           </div>
         </div>

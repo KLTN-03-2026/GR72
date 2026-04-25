@@ -21,6 +21,7 @@ import {
   createConsultationChatSocketUrl,
   markConsultationChatSeen,
   getConsultationChatRoom,
+  sendConsultationChatMessage,
   type ChatMessage,
   type ChatParticipant,
   type ConsultationChatRoom,
@@ -207,6 +208,7 @@ export function ConsultationChat({
   const shouldReconnectRef = useRef(false)
   const pollTimerRef = useRef<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const messageListRef = useRef<HTMLDivElement | null>(null)
   const roomRef = useRef<ConsultationChatRoom | null>(null)
   const [room, setRoom] = useState<ConsultationChatRoom | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -219,6 +221,7 @@ export function ConsultationChat({
   const [socketRetryToken, setSocketRetryToken] = useState(0)
 
   const canChat = room?.room_state.can_chat ?? false
+  const roomId = room?.booking.id ?? null
   const currentRoomLabel = useMemo(() => roomStateLabel(room), [room])
 
   useEffect(() => {
@@ -227,12 +230,16 @@ export function ConsultationChat({
 
   const syncSeenState = useCallback(
     async (sourceRoom: ConsultationChatRoom, sourceMessages: ChatMessage[]) => {
-      if (!sourceRoom.messages.length) {
+      if (!Array.isArray(sourceMessages) || sourceMessages.length === 0) {
+        return
+      }
+      const participantId = sourceRoom.participant?.id
+      if (!participantId) {
         return
       }
 
       const unreadMessages = sourceMessages.filter(
-        (message) => message.nguoi_gui.id !== sourceRoom.participant.id && !message.da_doc_luc,
+        (message) => message.nguoi_gui.id !== participantId && !message.da_doc_luc,
       )
       const lastUnreadMessage = unreadMessages[unreadMessages.length - 1]
 
@@ -278,10 +285,11 @@ export function ConsultationChat({
     setLoading(true)
     try {
       const data = await getConsultationChatRoom(bookingId)
+      const normalizedMessages = Array.isArray(data.messages) ? data.messages : []
       setRoom(data)
-      setMessages(data.messages)
+      setMessages(normalizedMessages)
       setLoadError(null)
-      void syncSeenState(data, data.messages)
+      void syncSeenState(data, normalizedMessages)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không thể tải phòng chat'
       setLoadError(message)
@@ -358,10 +366,13 @@ export function ConsultationChat({
         | { type: 'pong' }
 
       if (payload.type === 'room_state') {
+        const normalizedMessages = Array.isArray(payload.data.messages)
+          ? payload.data.messages
+          : []
         setRoom(payload.data)
-        setMessages(payload.data.messages)
+        setMessages(normalizedMessages)
         shouldReconnectRef.current = payload.data.room_state.can_chat
-        void syncSeenState(payload.data, payload.data.messages)
+        void syncSeenState(payload.data, normalizedMessages)
         return
       }
 
@@ -371,7 +382,7 @@ export function ConsultationChat({
             ? current
             : [...current, payload.data],
         )
-        if (payload.data.nguoi_gui.id !== roomRef.current?.participant.id) {
+        if (payload.data.nguoi_gui.id !== roomRef.current?.participant?.id) {
           void markConsultationChatSeen(bookingId, payload.data.id)
         }
         return
@@ -385,7 +396,7 @@ export function ConsultationChat({
                 room_state: {
                   ...current.room_state,
                   unread_count:
-                    payload.data.reader_id === current.participant.id
+                    payload.data.reader_id === current.participant?.id
                       ? 0
                       : current.room_state.unread_count,
                 },
@@ -472,6 +483,21 @@ export function ConsultationChat({
     }
   }, [])
 
+  useEffect(() => {
+    if (!roomId || loading) {
+      return
+    }
+
+    const list = messageListRef.current
+    if (!list) {
+      return
+    }
+
+    window.requestAnimationFrame(() => {
+      list.scrollTop = list.scrollHeight
+    })
+  }, [loading, messages.length, roomId])
+
   async function handleSend() {
     if (!room || !canChat) {
       toast.error('Phòng chat hiện chưa mở')
@@ -487,11 +513,6 @@ export function ConsultationChat({
 
     if (file && file.size > 10 * 1024 * 1024) {
       toast.error('File đính kèm không được vượt quá 10MB')
-      return
-    }
-
-    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
-      toast.error('Kết nối chat chưa sẵn sàng')
       return
     }
 
@@ -512,12 +533,21 @@ export function ConsultationChat({
         }
       }
 
-      socketRef.current.send(
-        JSON.stringify({
-          type: 'send_message',
-          payload,
-        }),
-      )
+      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+        socketRef.current.send(
+          JSON.stringify({
+            type: 'send_message',
+            payload,
+          }),
+        )
+      } else {
+        const sent = await sendConsultationChatMessage(bookingId, payload)
+        setMessages((current) =>
+          current.some((item) => isSameMessage(item, sent))
+            ? current
+            : [...current, sent],
+        )
+      }
 
       setDraft('')
       setAttachment(null)
@@ -537,9 +567,10 @@ export function ConsultationChat({
       : room?.room_state.can_chat
         ? 'default'
         : 'outline'
+  const selfParticipantId = room?.participant?.id
 
   return (
-    <section className='flex min-h-[calc(100vh-12rem)] flex-col gap-3'>
+    <section className='flex h-[calc(100svh-10.5rem)] min-h-0 flex-col gap-3'>
       <header className='flex items-center justify-between gap-4'>
         <p className='text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground'>
           Phòng chat booking
@@ -563,8 +594,8 @@ export function ConsultationChat({
           </Button>
         </div>
       ) : room ? (
-        <div className='grid flex-1 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]'>
-          <aside className='space-y-4 rounded-xl border bg-background p-4 shadow-sm'>
+        <div className='grid min-h-0 flex-1 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]'>
+          <aside className='min-h-0 space-y-4 overflow-y-auto rounded-xl border bg-background p-4 shadow-sm'>
             <div className='rounded-lg bg-muted/30 px-4 py-3 text-sm'>
               <div className='flex items-center gap-2 text-muted-foreground'>
                 <CalendarClock className='size-4' />
@@ -577,8 +608,8 @@ export function ConsultationChat({
             </div>
 
             <div className='space-y-3'>
-              <ParticipantChip participant={room.participant} />
-              <ParticipantChip participant={room.counterpart} />
+              {room.participant ? <ParticipantChip participant={room.participant} /> : null}
+              {room.counterpart ? <ParticipantChip participant={room.counterpart} /> : null}
             </div>
 
             {!room.room_state.can_chat && room.room_state.lock_reason === 'not_checked_in' ? (
@@ -589,8 +620,11 @@ export function ConsultationChat({
             ) : null}
           </aside>
 
-          <main className='flex min-h-[70vh] flex-col overflow-hidden rounded-xl border bg-background shadow-sm'>
-            <div className='flex-1 overflow-y-auto bg-[linear-gradient(180deg,rgba(15,23,42,0.02),transparent_40%)] px-5 py-5'>
+          <main className='flex min-h-0 h-full flex-col overflow-hidden rounded-xl border bg-background shadow-sm'>
+            <div
+              ref={messageListRef}
+              className='min-h-0 flex-1 overflow-y-auto bg-[linear-gradient(180deg,rgba(15,23,42,0.02),transparent_40%)] px-5 py-5'
+            >
               <div className='space-y-3'>
                 {messages.length === 0 ? (
                   <div className='flex h-48 flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-background/80 text-center text-sm text-muted-foreground'>
@@ -602,15 +636,15 @@ export function ConsultationChat({
                     <MessageBubble
                       key={message.id}
                       message={message}
-                      isSelf={message.nguoi_gui.id === room.participant.id}
-                      showStatus={message.nguoi_gui.id === room.participant.id}
+                      isSelf={Boolean(selfParticipantId) && message.nguoi_gui.id === selfParticipantId}
+                      showStatus={Boolean(selfParticipantId) && message.nguoi_gui.id === selfParticipantId}
                     />
                   ))
                 )}
               </div>
             </div>
 
-            <div className='border-t bg-muted/20 px-5 py-4'>
+            <div className='shrink-0 border-t bg-muted/20 px-5 py-3'>
               <div className='mt-3 space-y-3'>
                 <div className='relative rounded-xl border border-border/70 bg-background p-3 pr-24 shadow-sm'>
                   <Textarea

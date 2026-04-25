@@ -12,6 +12,7 @@ import {
   MessageSquare,
   RefreshCw,
   UserRound,
+  Video,
   XCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -46,6 +47,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { NutritionTopbar } from '@/features/nutrition/components/topbar'
 import { PageHeading } from '@/features/nutrition/components/page-heading'
+import { openStandaloneCallWindow } from '@/features/consultation-call/open-window'
 
 type Props = { bookingId: number }
 
@@ -291,48 +293,49 @@ export function NutritionistBookingDetail({ bookingId }: Props) {
                     <span>Thông tin lịch hẹn</span>
                     {getStatusBadge(booking.trangThai)}
                   </CardTitle>
+                  <CardDescription>
+                    Mã lịch hẹn <span className='font-mono font-medium text-foreground'>{booking.maLichHen}</span>
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className='grid gap-4 sm:grid-cols-2'>
-                  <div className='rounded-sm border bg-muted/20 p-4'>
-                    <p className='text-xs text-muted-foreground'>Mã lịch hẹn</p>
-                    <p className='mt-1 font-medium'>{booking.maLichHen}</p>
-                  </div>
-                  <div className='rounded-sm border bg-muted/20 p-4'>
-                    <p className='text-xs text-muted-foreground'>Trạng thái</p>
-                    <div className='mt-1'>{getStatusBadge(booking.trangThai)}</div>
-                  </div>
-                  <div className='rounded-sm border bg-muted/20 p-4'>
-                    <p className='text-xs text-muted-foreground'>Ngày hẹn</p>
-                    <p className='mt-1 font-medium'>{formatDateVN(booking.ngayHen)}</p>
-                  </div>
-                  <div className='rounded-sm border bg-muted/20 p-4'>
-                    <p className='text-xs text-muted-foreground'>Khung giờ</p>
-                    <p className='mt-1 font-medium'>
-                      {formatTime(booking.gioBatDau)} - {formatTime(booking.gioKetThuc)}
-                    </p>
-                  </div>
-                  <div className='rounded-sm border bg-muted/20 p-4 sm:col-span-2'>
-                    <p className='text-xs text-muted-foreground'>Mô tả trạng thái</p>
-                    <p className='mt-1 text-sm'>{getStatusDescription(booking.trangThai)}</p>
+                <CardContent className='space-y-3'>
+                  <div className='grid gap-3 sm:grid-cols-2'>
+                    <div className='flex items-center gap-3 rounded-xl border p-3'>
+                      <CalendarClock className='size-4 shrink-0 text-muted-foreground' />
+                      <div>
+                        <p className='text-xs text-muted-foreground'>Ngày hẹn</p>
+                        <p className='text-sm font-semibold'>{formatDateVN(booking.ngayHen)}</p>
+                      </div>
+                    </div>
+                    <div className='flex items-center gap-3 rounded-xl border p-3'>
+                      <CalendarClock className='size-4 shrink-0 text-muted-foreground' />
+                      <div>
+                        <p className='text-xs text-muted-foreground'>Khung giờ</p>
+                        <p className='text-sm font-semibold'>
+                          {formatTime(booking.gioBatDau)} – {formatTime(booking.gioKetThuc)}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                   {booking.diaDiem && (
-                    <div className='rounded-sm border bg-muted/20 p-4 sm:col-span-2'>
+                    <div className='rounded-xl border p-3'>
                       <p className='text-xs text-muted-foreground'>Địa điểm / Link tư vấn</p>
-                      <p className='mt-1 font-medium break-all'>{booking.diaDiem}</p>
+                      <p className='mt-1 text-sm break-all'>{booking.diaDiem}</p>
                     </div>
                   )}
                   {booking.mucDich && (
-                    <div className='rounded-sm border bg-muted/20 p-4 sm:col-span-2'>
+                    <div className='rounded-xl border p-3'>
                       <p className='text-xs text-muted-foreground'>Mục đích tư vấn</p>
                       <p className='mt-1 text-sm leading-relaxed'>{booking.mucDich}</p>
                     </div>
                   )}
+                  <div className='rounded-xl border border-blue-50 bg-blue-50 p-3'>
+                    <p className='text-xs text-blue-700'>Mô tả trạng thái</p>
+                    <p className='mt-1 text-sm text-blue-900'>{getStatusDescription(booking.trangThai)}</p>
+                  </div>
                   {booking.ghiChuNutritionist && (
-                    <div className='rounded-sm border bg-muted/20 p-4 sm:col-span-2'>
+                    <div className='rounded-xl border p-3'>
                       <p className='text-xs text-muted-foreground'>Ghi chú sau tư vấn</p>
-                      <p className='mt-1 text-sm leading-relaxed'>
-                        {booking.ghiChuNutritionist}
-                      </p>
+                      <p className='mt-1 text-sm leading-relaxed'>{booking.ghiChuNutritionist}</p>
                     </div>
                   )}
                 </CardContent>
@@ -342,27 +345,27 @@ export function NutritionistBookingDetail({ bookingId }: Props) {
                 <CardHeader>
                   <CardTitle className='text-base'>Xử lý booking</CardTitle>
                 </CardHeader>
-                <CardContent className='flex flex-wrap gap-3'>
+                <CardContent className='flex flex-wrap gap-2'>
                   {booking.trangThai === 'da_xac_nhan' && (
-                    <Button onClick={handleConfirm}>
-                      <CheckCircle className='mr-1 size-4' />
+                    <Button size='sm' onClick={handleConfirm}>
+                      <CheckCircle className='mr-1.5 size-3.5' />
                       Xác nhận đã nhận lịch
                     </Button>
                   )}
                   {canCompleteOrCancel && (
                     <>
-                      <Button variant='outline' onClick={openCompleteDialog}>
-                        <NotebookPen className='mr-1 size-4' />
+                      <Button size='sm' variant='outline' onClick={openCompleteDialog}>
+                        <NotebookPen className='mr-1.5 size-3.5' />
                         Hoàn thành tư vấn
                       </Button>
-                      <Button variant='destructive' onClick={openCancelDialog}>
-                        <XCircle className='mr-1 size-4' />
+                      <Button size='sm' variant='destructive' onClick={openCancelDialog}>
+                        <XCircle className='mr-1.5 size-3.5' />
                         Hủy booking
                       </Button>
                     </>
                   )}
                   {!canCompleteOrCancel && booking.trangThai !== 'da_xac_nhan' && (
-                    <p className='text-sm text-muted-foreground'>
+                    <p className='text-xs text-muted-foreground'>
                       Booking hiện không có thao tác trực tiếp nào thêm từ màn hình chuyên gia.
                     </p>
                   )}
@@ -370,55 +373,65 @@ export function NutritionistBookingDetail({ bookingId }: Props) {
               </Card>
             </div>
 
-            <div className='space-y-6'>
+            <div className='space-y-4'>
               <Card>
                 <CardHeader>
                   <CardTitle className='text-base'>Doanh thu booking</CardTitle>
                 </CardHeader>
                 <CardContent className='space-y-3'>
-                  <div className='rounded-sm border bg-muted/20 p-4'>
-                    <div className='flex items-center gap-2 text-xs text-muted-foreground'>
-                      <DollarSign className='size-3.5' />
-                      <span>Giá gói</span>
+                  <div className='flex items-center gap-3 rounded-xl border p-3'>
+                    <DollarSign className='size-4 shrink-0 text-muted-foreground' />
+                    <div>
+                      <p className='text-xs text-muted-foreground'>Giá gói</p>
+                      <p className='text-sm font-semibold'>{formatCurrency(booking.giaGoi)}</p>
                     </div>
-                    <p className='mt-1 text-lg font-semibold'>{formatCurrency(booking.giaGoi)}</p>
                   </div>
-                  <div className='rounded-sm border bg-muted/20 p-4'>
-                    <p className='text-xs text-muted-foreground'>Hoa hồng hệ thống (5%)</p>
-                    <p className='mt-1 text-lg font-semibold text-amber-600'>
-                      {formatCurrency(booking.hoaHongHeThong)}
-                    </p>
+                  <div className='flex items-center gap-3 rounded-xl border p-3'>
+                    <div className='flex size-8 items-center justify-center rounded-full bg-amber-50'>
+                      <p className='text-xs font-semibold text-amber-600'>5%</p>
+                    </div>
+                    <div>
+                      <p className='text-xs text-muted-foreground'>Hoa hồng hệ thống</p>
+                      <p className='text-sm font-semibold text-amber-600'>
+                        {formatCurrency(booking.hoaHongHeThong)}
+                      </p>
+                    </div>
                   </div>
-                  <div className='rounded-sm border bg-muted/20 p-4'>
-                    <p className='text-xs text-muted-foreground'>{getIncomeLabel(booking.trangThai)}</p>
-                    <p className='mt-1 text-lg font-semibold text-emerald-600'>
-                      {formatCurrency(
-                        booking.trangThai === 'hoan_thanh'
-                          ? booking.thuNhapThucNhan
-                          : booking.thuNhapDuKien
-                      )}
-                    </p>
-                    <p className='mt-1 text-xs text-muted-foreground'>
-                      {booking.trangThai === 'hoan_thanh'
-                        ? 'Khoản này đã được ghi nhận vào thu nhập của bạn.'
-                        : booking.trangThai === 'da_huy' || booking.trangThai === 'vo_hieu_hoa'
-                          ? 'Booking đã hủy hoặc vô hiệu hóa nên không phát sinh thu nhập.'
-                          : 'Khoản này sẽ được ghi nhận khi chuyên gia hoàn thành booking.'}
-                    </p>
+                  <div className='flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3'>
+                    <div className='flex size-8 items-center justify-center rounded-full bg-emerald-100'>
+                      <DollarSign className='size-4 text-emerald-600' />
+                    </div>
+                    <div>
+                      <p className='text-xs text-emerald-700'>{getIncomeLabel(booking.trangThai)}</p>
+                      <p className='text-base font-bold text-emerald-700'>
+                        {formatCurrency(
+                          booking.trangThai === 'hoan_thanh'
+                            ? booking.thuNhapThucNhan
+                            : booking.thuNhapDuKien
+                        )}
+                      </p>
+                      <p className='text-xs text-emerald-600'>
+                        {booking.trangThai === 'hoan_thanh'
+                          ? 'Đã ghi nhận vào thu nhập'
+                          : booking.trangThai === 'da_huy' || booking.trangThai === 'vo_hieu_hoa'
+                            ? 'Không phát sinh thu nhập'
+                            : 'Ghi nhận khi hoàn thành'}
+                      </p>
+                    </div>
                   </div>
-                  <div className='rounded-sm border bg-muted/20 p-4'>
+                  <div className='rounded-xl border p-3'>
                     <p className='text-xs text-muted-foreground'>Trạng thái thanh toán / phân bổ</p>
                     <div className='mt-2 flex flex-wrap gap-2'>
-                      {booking.trangThaiThanhToan ? (
-                        <Badge variant='outline'>Thanh toán: {booking.trangThaiThanhToan}</Badge>
-                      ) : (
-                        <Badge variant='outline'>Thanh toán: chưa có</Badge>
-                      )}
-                      {booking.trangThaiPhanBoDoanhThu ? (
-                        <Badge variant='outline'>Phân bổ: {booking.trangThaiPhanBoDoanhThu}</Badge>
-                      ) : (
-                        <Badge variant='outline'>Phân bổ: chưa ghi nhận</Badge>
-                      )}
+                      <Badge variant='outline' className='text-xs'>
+                        {booking.trangThaiThanhToan
+                          ? `Thanh toán: ${booking.trangThaiThanhToan}`
+                          : 'Chưa có thanh toán'}
+                      </Badge>
+                      <Badge variant='outline' className='text-xs'>
+                        {booking.trangThaiPhanBoDoanhThu
+                          ? `Phân bổ: ${booking.trangThaiPhanBoDoanhThu}`
+                          : 'Chưa ghi nhận'}
+                      </Badge>
                     </div>
                   </div>
                 </CardContent>
@@ -428,30 +441,34 @@ export function NutritionistBookingDetail({ bookingId }: Props) {
                 booking.trangThaiThanhToan === 'da_hoan_tien' ||
                 booking.refundStatus !== 'not_required') && (
                 <Card>
-                  <CardHeader>
-                    <CardTitle className='text-base'>Hoàn tiền</CardTitle>
+                  <CardHeader className='pb-2'>
+                    <CardTitle className='flex items-center gap-2 text-base'>
+                      <RefreshCw className='size-4 text-muted-foreground' />
+                      Hoàn tiền
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className='space-y-3'>
-                    <div>{getRefundBadge(booking.trangThaiThanhToan, booking.refundStatus)}</div>
+                    {getRefundBadge(booking.trangThaiThanhToan, booking.refundStatus)}
                     {booking.refundMessage && (
-                      <p className='text-sm text-muted-foreground'>{booking.refundMessage}</p>
+                      <p className='text-xs text-muted-foreground'>{booking.refundMessage}</p>
                     )}
                     {(booking.refundStatus === 'processing' || booking.refundStatus === 'bank_sent') && (
                       <Button
                         size='sm'
                         variant='outline'
+                        className='w-full'
                         onClick={() => void handleRefundCheck()}
                         disabled={refundCheckLoading}
                       >
                         {refundCheckLoading ? (
                           <>
-                            <LoaderCircle className='mr-1.5 size-4 animate-spin' />
+                            <LoaderCircle className='mr-1 size-3.5 animate-spin' />
                             Đang kiểm tra...
                           </>
                         ) : (
                           <>
-                            <RefreshCw className='mr-1.5 size-4' />
-                            Kiểm tra trạng thái thanh toán
+                            <RefreshCw className='mr-1 size-3.5' />
+                            Kiểm tra trạng thái hoàn tiền
                           </>
                         )}
                       </Button>
@@ -464,27 +481,27 @@ export function NutritionistBookingDetail({ bookingId }: Props) {
                 <CardHeader>
                   <CardTitle className='text-base'>Người dùng đặt lịch</CardTitle>
                 </CardHeader>
-                <CardContent className='space-y-4'>
-                  <div className='flex items-start gap-3 rounded-sm border bg-muted/20 p-4'>
-                    <UserRound className='mt-0.5 size-4 text-muted-foreground' />
+                <CardContent className='space-y-3'>
+                  <div className='flex items-start gap-3 rounded-xl border p-3'>
+                    <UserRound className='mt-0.5 size-4 shrink-0 text-muted-foreground' />
                     <div>
                       <p className='text-xs text-muted-foreground'>Họ tên</p>
-                      <p className='mt-1 font-medium'>{booking.tenUser}</p>
+                      <p className='text-sm font-semibold'>{booking.tenUser}</p>
                     </div>
                   </div>
-                  <div className='flex items-start gap-3 rounded-sm border bg-muted/20 p-4'>
-                    <Clock3 className='mt-0.5 size-4 text-muted-foreground' />
+                  <div className='flex items-start gap-3 rounded-xl border p-3'>
+                    <Clock3 className='mt-0.5 size-4 shrink-0 text-muted-foreground' />
                     <div>
                       <p className='text-xs text-muted-foreground'>Thời lượng gói</p>
-                      <p className='mt-1 font-medium'>{booking.thoiLuongPhut} phút</p>
+                      <p className='text-sm font-semibold'>{booking.thoiLuongPhut} phút</p>
                     </div>
                   </div>
                   {booking.diaDiem && (
-                    <div className='flex items-start gap-3 rounded-sm border bg-muted/20 p-4'>
-                      <MapPin className='mt-0.5 size-4 text-muted-foreground' />
+                    <div className='flex items-start gap-3 rounded-xl border p-3'>
+                      <MapPin className='mt-0.5 size-4 shrink-0 text-muted-foreground' />
                       <div>
                         <p className='text-xs text-muted-foreground'>Địa điểm / Link</p>
-                        <p className='mt-1 text-sm break-all'>{booking.diaDiem}</p>
+                        <p className='text-xs break-all'>{booking.diaDiem}</p>
                       </div>
                     </div>
                   )}
@@ -496,43 +513,73 @@ export function NutritionistBookingDetail({ bookingId }: Props) {
                   <CardTitle className='text-base'>Gói tư vấn</CardTitle>
                 </CardHeader>
                 <CardContent className='space-y-3'>
-                  <div className='rounded-sm border bg-muted/20 p-4'>
+                  <div className='rounded-xl border p-3'>
                     <p className='text-xs text-muted-foreground'>Tên gói</p>
-                    <p className='mt-1 font-medium'>{booking.tenGoiTuVan}</p>
+                    <p className='mt-1 text-sm font-semibold'>{booking.tenGoiTuVan}</p>
                   </div>
-                  <div className='rounded-sm border bg-muted/20 p-4'>
-                    <p className='text-xs text-muted-foreground'>Tạo lúc</p>
-                    <p className='mt-1 text-sm'>
-                      {new Date(booking.taLuc).toLocaleString('vi-VN')}
-                    </p>
-                  </div>
-                  <div className='rounded-sm border bg-muted/20 p-4'>
-                    <p className='text-xs text-muted-foreground'>Cập nhật cuối</p>
-                    <p className='mt-1 text-sm'>
-                      {new Date(booking.capNhatLuc).toLocaleString('vi-VN')}
-                    </p>
+                  <div className='grid grid-cols-2 gap-3'>
+                    <div className='rounded-xl border p-3'>
+                      <p className='text-xs text-muted-foreground'>Tạo lúc</p>
+                      <p className='mt-1 text-xs'>
+                        {new Date(booking.taLuc).toLocaleString('vi-VN')}
+                      </p>
+                    </div>
+                    <div className='rounded-xl border p-3'>
+                      <p className='text-xs text-muted-foreground'>Cập nhật cuối</p>
+                      <p className='mt-1 text-xs'>
+                        {new Date(booking.capNhatLuc).toLocaleString('vi-VN')}
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            <Card className='border-dashed'>
-              <CardHeader>
-                <CardTitle className='text-base'>Phòng chat với User</CardTitle>
-              </CardHeader>
-              <CardContent className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
-                <p className='text-sm text-muted-foreground'>
-                  Mở room chat riêng để trao đổi với User. Phòng chỉ mở khi booking đã check-in và
-                  sẽ khóa ngay sau giờ kết thúc.
-                </p>
-                <Button size='sm' asChild>
-                  <Link to={`/nutritionist/bookings/${booking.id}/chat`}>
-                    <MessageSquare className='mr-1.5 size-4' />
-                    Vào phòng chat
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
+            <div className='grid gap-4 sm:grid-cols-2'>
+              <Card className='border-dashed'>
+                <CardHeader className='pb-2'>
+                  <CardTitle className='flex items-center gap-2 text-base'>
+                    <MessageSquare className='size-4 text-muted-foreground' />
+                    Phòng chat với User
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className='mb-3 text-sm text-muted-foreground'>
+                    Mở room chat riêng để trao đổi. Phòng chỉ mở khi booking đã check-in và sẽ khóa sau giờ kết thúc.
+                  </p>
+                  <Button size='sm' variant='outline' asChild className='w-full'>
+                    <Link to={`/nutritionist/bookings/${booking.id}/chat`}>
+                      <MessageSquare className='mr-1.5 size-3.5' />
+                      Vào phòng chat
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className='border-dashed'>
+                <CardHeader className='pb-2'>
+                  <CardTitle className='flex items-center gap-2 text-base'>
+                    <Video className='size-4 text-muted-foreground' />
+                    Phòng gọi video
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className='mb-3 text-sm text-muted-foreground'>
+                    Gọi video realtime bằng WebRTC. Chỉ booking đã check-in và chưa quá giờ kết thúc mới có thể vào call.
+                  </p>
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    type='button'
+                    className='w-full'
+                    onClick={() => openStandaloneCallWindow('nutritionist', booking.id)}
+                  >
+                    <Video className='mr-1.5 size-3.5' />
+                    Vào call video
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         )}
       </Main>

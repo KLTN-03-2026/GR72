@@ -43,6 +43,9 @@ type RefundResult = {
 
 @Injectable()
 export class NutritionistBookingService {
+  private readonly refundSyncErrorCooldownMs = 60_000;
+  private readonly refundSyncErrorLoggedAt = new Map<string, number>();
+
   constructor(
     @InjectRepository(LichHenEntity)
     private readonly bookingRepo: Repository<LichHenEntity>,
@@ -607,18 +610,46 @@ export class NutritionistBookingService {
             nutritionistUserId,
           );
         } catch (error) {
-          console.error(
-            '[NutritionistBookingService] Failed to sync refund payment status from VNPay',
-            {
-              bookingId: booking.id,
-              paymentId: payment.id,
-              paymentCode: payment.ma_giao_dich,
-              error,
-            },
-          );
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          const errorKey = `${payment.id}:${errorMessage}`;
+
+          if (this.shouldLogRefundSyncError(errorKey)) {
+            console.error(
+              '[NutritionistBookingService] Failed to sync refund payment status from VNPay',
+              {
+                bookingId: booking.id,
+                paymentId: payment.id,
+                paymentCode: payment.ma_giao_dich,
+                error,
+              },
+            );
+          }
         }
       }
     }
+  }
+
+  private shouldLogRefundSyncError(key: string) {
+    const now = Date.now();
+    const previous = this.refundSyncErrorLoggedAt.get(key);
+
+    if (previous && now - previous < this.refundSyncErrorCooldownMs) {
+      return false;
+    }
+
+    this.refundSyncErrorLoggedAt.set(key, now);
+
+    if (this.refundSyncErrorLoggedAt.size > 200) {
+      const threshold = now - this.refundSyncErrorCooldownMs * 5;
+      for (const [entryKey, timestamp] of this.refundSyncErrorLoggedAt.entries()) {
+        if (timestamp < threshold) {
+          this.refundSyncErrorLoggedAt.delete(entryKey);
+        }
+      }
+    }
+
+    return true;
   }
 
   private async syncSingleRefundPayment(

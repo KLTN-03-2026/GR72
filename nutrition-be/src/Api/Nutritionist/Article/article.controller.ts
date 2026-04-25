@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   NotFoundException,
   Param,
   ParseIntPipe,
@@ -11,10 +12,18 @@ import {
   Post,
   Query,
   Req,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common';
+import { existsSync, mkdirSync } from 'node:fs';
+import { extname, join } from 'node:path';
+import type { Request } from 'express';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, IsNull, Repository } from 'typeorm';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import type { FileFilterCallback } from 'multer';
 import { ArticleStatus, BaiVietEntity } from './entities/bai-viet.entity';
 import {
   IsArray,
@@ -56,6 +65,71 @@ function slugify(str: string): string {
     .replace(/-+/g, '-')
     .trim();
 }
+
+function ensureArticleUploadDir() {
+  const uploadDir = join(process.cwd(), 'uploads', 'articles');
+  if (!existsSync(uploadDir)) {
+    mkdirSync(uploadDir, { recursive: true });
+  }
+  return uploadDir;
+}
+
+function makeUploadFileName(originalName: string) {
+  const ext = extname(originalName).toLowerCase();
+  const base = originalName
+    .replace(ext, '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+  return `${base || 'article'}-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}${ext || '.jpg'}`;
+}
+
+const articleUploadInterceptor = FilesInterceptor('files', 10, {
+  storage: diskStorage({
+    destination: (
+      _req: Request,
+      _file: Express.Multer.File,
+      cb: (error: Error | null, destination: string) => void,
+    ) => cb(null, ensureArticleUploadDir()),
+    filename: (
+      _req: Request,
+      file: Express.Multer.File,
+      cb: (error: Error | null, filename: string) => void,
+    ) => cb(null, makeUploadFileName(file.originalname)),
+  }),
+  fileFilter: (
+    _req: Request,
+    file: Express.Multer.File,
+    cb: FileFilterCallback,
+  ) => {
+    const allowed = new Set([
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/gif',
+      'image/jpg',
+    ]);
+    if (!allowed.has(file.mimetype)) {
+      cb(
+        new BadRequestException(
+          'Chi chap nhan file anh JPEG/PNG/WebP/GIF',
+        ) as any,
+        false,
+      );
+      return;
+    }
+    cb(null, true);
+  },
+  limits: {
+    fileSize: 8 * 1024 * 1024,
+    files: 10,
+  },
+});
 
 @Roles('chuyen_gia_dinh_duong')
 @Controller('nutritionist/articles')
@@ -128,6 +202,30 @@ export class NutritionistArticleController {
       success: true,
       message: 'Tao bai viet thanh cong',
       data: this.toPublic(saved),
+    };
+  }
+
+  @Post('upload-images')
+  @HttpCode(200)
+  @UseInterceptors(articleUploadInterceptor)
+  async uploadImages(@UploadedFiles() files: Express.Multer.File[] = []) {
+    if (!files.length) {
+      throw new BadRequestException('Vui long chon it nhat 1 anh de tai len');
+    }
+
+    return {
+      success: true,
+      message: 'Tai anh bai viet thanh cong',
+      data: {
+        items: files.map((file) => ({
+          file_name: file.filename,
+          original_name: file.originalname,
+          size: file.size,
+          mime_type: file.mimetype,
+          url: `/api/uploads/articles/${file.filename}`,
+        })),
+        urls: files.map((file) => `/api/uploads/articles/${file.filename}`),
+      },
     };
   }
 

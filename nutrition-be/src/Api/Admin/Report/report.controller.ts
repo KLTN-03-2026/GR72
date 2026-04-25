@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { ReportService } from './report.service';
 
@@ -15,5 +15,13 @@ export class ReportController {
   @Get('packages')
   getPackageStats() {
     return this.service.getPackageStats();
+  }
+
+  @Get('system-revenue')
+  getSystemRevenue(
+    @Query('start_date') startDate?: string,
+    @Query('end_date') endDate?: string,
+  ) {
+    return this.service.getSystemRevenue({ startDate, endDate });
   }
 }

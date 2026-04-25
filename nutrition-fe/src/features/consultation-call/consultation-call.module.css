@@ -1,0 +1,304 @@
+.callRoom :global([data-lk-theme]) {
+  color-scheme: light;
+  --lk-bg: #f8fafc;
+  --lk-bg2: #ffffff;
+  --lk-bg3: #eef2f7;
+  --lk-bg4: #e2e8f0;
+  --lk-bg5: #dbe3ef;
+  --lk-fg: #0f172a;
+  --lk-fg2: #1e293b;
+  --lk-fg3: #334155;
+  --lk-fg4: #475569;
+  --lk-fg5: #64748b;
+  --lk-border-color: #dbe3ef;
+  --lk-accent-bg: #1d4ed8;
+  --lk-accent2: #1e40af;
+  --lk-accent3: #1e3a8a;
+  --lk-accent4: #dbeafe;
+  --lk-control-fg: #0f172a;
+  --lk-control-bg: #ffffff;
+  --lk-control-hover-bg: #f1f5f9;
+  --lk-control-active-bg: #e2e8f0;
+  --lk-control-active-hover-bg: #cbd5e1;
+  --lk-border-radius: 0.5rem;
+  --lk-control-bar-height: 64px;
+  --lk-chat-header-height: 56px;
+  --lk-font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+.callRoom :global(.lk-video-conference) {
+  background: #f8fafc;
+  height: 100%;
+  min-height: 0;
+}
+
+.callRoom :global(.lk-video-conference-inner) {
+  border-radius: 0.75rem;
+  overflow: hidden;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.callRoom :global(.lk-focus-layout-wrapper),
+.callRoom :global(.lk-grid-layout-wrapper) {
+  background: #f8fafc;
+  min-height: 0;
+  height: auto;
+  flex: 1 1 auto;
+}
+
+.callRoom :global(.lk-focus-layout),
+.callRoom :global(.lk-grid-layout) {
+  min-height: 0;
+  height: 100%;
+}
+
+.callRoom :global(.lk-focused-participant),
+.callRoom :global(.lk-focus-layout .lk-participant-tile),
+.callRoom :global(.lk-grid-layout .lk-participant-tile) {
+  min-height: 0;
+}
+
+.callRoom :global(.lk-chat) {
+  width: clamp(360px, 34vw, 520px);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  grid-template-rows: 60px minmax(0, 1fr) 80px;
+  background: #ffffff;
+  border-left: 1px solid #d5e0ef;
+}
+
+.callRoom :global(.lk-chat-header) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  background: #0f172a;
+  color: #f8fafc;
+  border-bottom: 1px solid #1e293b;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.callRoom :global(.lk-chat-header .lk-close-button) {
+  display: none;
+}
+
+.callRoom :global(.lk-chat-header)::after {
+  content: "• Online";
+  color: #86efac;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.callRoom :global(.lk-chat-messages) {
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.8rem 0.75rem 0.9rem;
+  background: #f8fbff;
+}
+
+.callRoom :global(.lk-chat-entry) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0 0 0.62rem;
+  width: 100%;
+}
+
+.callRoom :global(.lk-chat-entry[data-lk-message-origin="local"]) {
+  align-items: flex-end;
+  padding-left: 2rem;
+}
+
+.callRoom :global(.lk-chat-entry[data-lk-message-origin="remote"]) {
+  align-items: flex-start;
+  padding-right: 2rem;
+}
+
+.callRoom :global(.lk-chat-entry .lk-meta-data) {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: fit-content;
+  max-width: min(82%, 300px);
+  padding: 0;
+  color: #64748b;
+  font-size: 0.69rem;
+  font-weight: 500;
+}
+
+.callRoom :global(.lk-chat-entry .lk-meta-data .lk-participant-name) {
+  margin-top: 0;
+  padding: 0;
+  background: transparent;
+  color: #334155;
+  font-weight: 600;
+}
+
+.callRoom :global(.lk-chat-entry .lk-meta-data .lk-timestamp) {
+  color: #94a3b8;
+  margin-left: 0.2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.callRoom :global(.lk-chat-entry[data-lk-message-origin="local"] .lk-meta-data) {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.callRoom :global(.lk-chat-entry[data-lk-message-origin="remote"] .lk-meta-data) {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.callRoom :global(.lk-chat-entry .lk-message-body) {
+  display: inline-block;
+  width: fit-content;
+  max-width: min(82%, 300px);
+  max-height: 200px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.52rem 0.74rem;
+  border-radius: 0.62rem;
+  border: 1px solid #d7e2ef;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.92rem;
+  line-height: 1.42;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+}
+
+.callRoom :global(.lk-chat-entry[data-lk-message-origin="local"] .lk-message-body) {
+  background: #dbeafe;
+  border-color: #bfd5f8;
+}
+
+.callRoom :global(.lk-chat-form) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.6rem 0.72rem;
+  border-top: 1px solid #dbe4f0;
+  background: #ffffff;
+  max-height: 80px;
+}
+
+.callRoom :global(.lk-chat-form-input) {
+  width: 100%;
+  min-height: 2.35rem;
+  border-radius: 0.58rem;
+  border: 1px solid #c7d6e8;
+  background: #ffffff;
+  color: #0f172a;
+  padding-inline: 0.7rem;
+}
+
+.callRoom :global(.lk-chat-form-input::placeholder) {
+  color: #94a3b8;
+}
+
+.callRoom :global(.lk-chat-form button) {
+  min-width: 4.8rem;
+  min-height: 2.35rem;
+  border-radius: 0.58rem;
+  border: 1px solid #1d4ed8;
+  background: #1d4ed8;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.callRoom :global(.lk-chat-messages::-webkit-scrollbar) {
+  width: 8px;
+}
+
+.callRoom :global(.lk-chat-messages::-webkit-scrollbar-track) {
+  background: transparent;
+}
+
+.callRoom :global(.lk-chat-messages::-webkit-scrollbar-thumb) {
+  border-radius: 999px;
+  border: 2px solid #f8fbff;
+  background: #cbd5e1;
+}
+
+.callRoom :global(.lk-chat-messages::-webkit-scrollbar-thumb:hover) {
+  background: #b5c3d5;
+}
+
+.callRoom :global(.lk-control-bar) {
+  background: #ffffff;
+  border-top: 1px solid #dbe3ef;
+  position: relative;
+  z-index: 5;
+  flex-shrink: 0;
+  min-height: var(--lk-control-bar-height);
+}
+
+.callRoom :global(.lk-button),
+.callRoom :global(.lk-chat-toggle),
+.callRoom :global(.lk-disconnect-button) {
+  color: #0f172a;
+}
+
+.callRoom :global(.lk-participant-metadata-item) {
+  background: rgba(15, 23, 42, 0.76);
+  color: #ffffff;
+}
+
+.callRoom :global(.lk-participant-metadata-item .lk-participant-name) {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+@media (max-width: 1280px) {
+  .callRoom :global(.lk-chat) {
+    width: clamp(320px, 38vw, 430px);
+  }
+}
+
+@media (max-width: 900px) {
+  .callRoom :global(.lk-chat) {
+    width: min(100vw, 430px);
+    grid-template-rows: 52px minmax(0, 1fr) 72px;
+  }
+
+  .callRoom :global(.lk-chat-header) {
+    padding: 0.68rem 0.78rem;
+    font-size: 0.9rem;
+  }
+
+  .callRoom :global(.lk-chat-header)::after {
+    font-size: 0.64rem;
+  }
+
+  .callRoom :global(.lk-chat-messages) {
+    padding: 0.62rem 0.55rem 0.72rem;
+  }
+
+  .callRoom :global(.lk-chat-entry .lk-message-body) {
+    max-width: min(86%, 260px);
+    font-size: 0.88rem;
+    padding: 0.45rem 0.62rem;
+  }
+
+  .callRoom :global(.lk-chat-form) {
+    padding: 0.52rem 0.55rem;
+    max-height: 72px;
+  }
+
+  .callRoom :global(.lk-chat-form-input),
+  .callRoom :global(.lk-chat-form button) {
+    min-height: 2.16rem;
+  }
+}

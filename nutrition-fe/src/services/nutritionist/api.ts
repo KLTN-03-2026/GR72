@@ -334,6 +334,30 @@ export async function updateNutriProfile(payload: {
   return request<NProfile>('/nutritionist/profile', { method: 'PATCH', body: JSON.stringify(payload) })
 }
 
+export type NNutriReview = {
+  id: number
+  booking_id: number
+  booking_ma: string | null
+  booking_ngay_hen: string | null
+  goi_tu_van_ten: string | null
+  user_id: number
+  user_ho_ten: string | null
+  diem: number
+  noi_dung: string | null
+  tra_loi: string | null
+  tra_loi_luc: string | null
+  tao_luc: string
+  cap_nhat_luc: string
+}
+
+export async function getNutriReviews(q?: { page?: number; limit?: number }) {
+  const p = new URLSearchParams()
+  if (q?.page) p.set('page', String(q.page))
+  if (q?.limit) p.set('limit', String(q.limit))
+  const qs = p.toString()
+  return request<Paginated<NNutriReview>>(`/nutritionist/profile/reviews${qs ? `?${qs}` : ''}`)
+}
+
 // ====== CONSULTATION PACKAGES ======
 export type NPackage = {
   id: number

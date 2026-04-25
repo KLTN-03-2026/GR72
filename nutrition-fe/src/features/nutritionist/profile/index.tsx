@@ -20,9 +20,11 @@ import { Main } from '@/components/layout/main'
 import { NutritionTopbar } from '@/features/nutrition/components/topbar'
 import { PageHeading } from '@/features/nutrition/components/page-heading'
 import {
+  getNutriReviews,
   getNutriProfile,
   updateNutriProfile,
   type NProfile,
+  type NNutriReview,
 } from '@/services/nutritionist/api'
 
 const WEEKDAY_LABELS: Record<string, string> = {
@@ -170,6 +172,8 @@ export function NutritionistProfile() {
   const [profile, setProfile] = useState<NProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [reviews, setReviews] = useState<NNutriReview[]>([])
+  const [reviewsLoading, setReviewsLoading] = useState(false)
 
   const [formData, setFormData] = useState({
     anhDaiDienUrl: '',
@@ -180,6 +184,7 @@ export function NutritionistProfile() {
 
   useEffect(() => {
     loadProfile()
+    void loadReviews()
   }, [])
 
   async function loadProfile() {
@@ -192,6 +197,18 @@ export function NutritionistProfile() {
       toast.error('Không thể tải profile')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadReviews() {
+    setReviewsLoading(true)
+    try {
+      const data = await getNutriReviews({ page: 1, limit: 8 })
+      setReviews(data.items)
+    } catch (error) {
+      toast.error('Không thể tải danh sách đánh giá')
+    } finally {
+      setReviewsLoading(false)
     }
   }
 
@@ -483,6 +500,45 @@ export function NutritionistProfile() {
                   <p className='text-muted-foreground'>Cập nhật cuối</p>
                   <p>{new Date(profile.capNhatLuc).toLocaleString('vi-VN')}</p>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Đánh giá gần đây</CardTitle>
+                <CardDescription>
+                  Các đánh giá mới nhất từ người dùng sau khi hoàn thành tư vấn.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className='space-y-3'>
+                {reviewsLoading ? (
+                  <p className='text-sm text-muted-foreground'>Đang tải đánh giá...</p>
+                ) : reviews.length === 0 ? (
+                  <p className='text-sm text-muted-foreground'>Chưa có đánh giá nào.</p>
+                ) : (
+                  reviews.map((review) => (
+                    <div key={review.id} className='rounded-lg border p-3'>
+                      <div className='flex items-start justify-between gap-2'>
+                        <div>
+                          <p className='text-sm font-medium'>{review.user_ho_ten ?? 'Người dùng'}</p>
+                          <p className='text-xs text-muted-foreground'>
+                            {review.booking_ma ?? `Booking #${review.booking_id}`} •{' '}
+                            {review.booking_ngay_hen
+                              ? new Date(review.booking_ngay_hen).toLocaleDateString('vi-VN')
+                              : 'Không rõ ngày'}
+                          </p>
+                        </div>
+                        <Badge variant='secondary'>{review.diem}/5</Badge>
+                      </div>
+                      <p className='mt-2 text-sm text-foreground'>
+                        {review.noi_dung?.trim() || 'Người dùng chưa để lại nội dung.'}
+                      </p>
+                      <p className='mt-1 text-xs text-muted-foreground'>
+                        {new Date(review.tao_luc).toLocaleString('vi-VN')}
+                      </p>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
           </div>

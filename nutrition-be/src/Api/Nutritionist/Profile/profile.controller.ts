@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Patch, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Patch,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { NutritionistProfileService } from './profile.service';
@@ -18,5 +26,17 @@ export class NutritionistProfileController {
   @Patch()
   async updateProfile(@Req() req: any, @Body() dto: UpdateProfileDto) {
     return this.profileService.updateProfile(req.user?.sub, dto);
+  }
+
+  @Get('reviews')
+  async getReviews(
+    @Req() req: any,
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+  ) {
+    return this.profileService.getReviews(req.user?.sub, {
+      page: Number(page),
+      limit: Number(limit),
+    });
   }
 }

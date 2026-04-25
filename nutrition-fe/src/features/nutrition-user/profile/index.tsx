@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import {
@@ -35,6 +35,7 @@ import { NutritionTopbar } from '@/features/nutrition/components/topbar'
 import { PageHeading } from '@/features/nutrition/components/page-heading'
 import {
   getUserProfile,
+  uploadUserAvatar,
   updateUserProfile,
   type ProfileApiResponse,
 } from '@/services/profile/api'
@@ -159,7 +160,9 @@ export function NutritionUserProfile() {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const avatarFileRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     getUserProfile()
@@ -228,6 +231,41 @@ export function NutritionUserProfile() {
       setIsSaving(false)
     }
   }, [formData, isOnboarding])
+
+  const handleAvatarFileChange = useCallback(async (file?: File | null) => {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast.error('Vui lòng chọn file ảnh hợp lệ.')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ảnh đại diện không được vượt quá 5MB.')
+      return
+    }
+
+    setIsUploadingAvatar(true)
+    try {
+      const uploaded = await uploadUserAvatar(file)
+      const updated = await updateUserProfile({ anhDaiDienUrl: uploaded.url })
+      setProfile((current) =>
+        current
+          ? {
+              ...current,
+              anh_dai_dien_url: updated.anh_dai_dien_url,
+              cap_nhat_luc: updated.cap_nhat_luc,
+            }
+          : updated,
+      )
+      toast.success('Đã cập nhật ảnh đại diện.')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Không thể tải ảnh đại diện')
+    } finally {
+      setIsUploadingAvatar(false)
+      if (avatarFileRef.current) {
+        avatarFileRef.current.value = ''
+      }
+    }
+  }, [])
 
   // Derived preview values
   const weightKg = Number(formData.canNangHienTaiKg) || 0
@@ -329,11 +367,27 @@ export function NutritionUserProfile() {
                   </div>
                 )}
                 <button
+                  type='button'
                   className='absolute bottom-0 right-0 rounded-full bg-primary p-1.5 text-primary-foreground shadow-sm hover:bg-primary/90'
                   title='Đổi ảnh đại diện'
+                  disabled={isUploadingAvatar}
+                  onClick={() => avatarFileRef.current?.click()}
                 >
-                  <Camera className='size-3.5' />
+                  {isUploadingAvatar ? (
+                    <Loader2 className='size-3.5 animate-spin' />
+                  ) : (
+                    <Camera className='size-3.5' />
+                  )}
                 </button>
+                <input
+                  ref={avatarFileRef}
+                  type='file'
+                  accept='image/*'
+                  className='hidden'
+                  onChange={(event) =>
+                    void handleAvatarFileChange(event.target.files?.[0] ?? null)
+                  }
+                />
               </div>
 
               {/* Name + email */}

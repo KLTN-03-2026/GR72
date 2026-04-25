@@ -94,17 +94,24 @@ function buildWsUrl(path: string) {
     return `${url.origin}${url.pathname}${path}`
   }
 
+  const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL?.trim()
+  if (backendBase) {
+    const backendUrl = new URL(backendBase)
+    backendUrl.protocol = backendUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+    return `${backendUrl.origin}${apiBase}${path}`
+  }
+
   if (typeof window !== 'undefined') {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
     const origin = `${wsProtocol}://${window.location.host}`
     return `${origin}${apiBase}${path}`
   }
 
-  const backendBase = normalizePathPrefix(
+  const fallbackBackendBase = normalizePathPrefix(
     process.env.NEXT_PUBLIC_BACKEND_URL,
     'http://localhost:8009',
   )
-  const backendUrl = new URL(backendBase)
+  const backendUrl = new URL(fallbackBackendBase)
   backendUrl.protocol = backendUrl.protocol === 'https:' ? 'wss:' : 'ws:'
   return `${backendUrl.origin}/api${path}`
 }

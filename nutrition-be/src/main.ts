@@ -11,10 +11,13 @@ import { ConsultationChatService } from './Api/ConsultationChat/consultation-cha
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const jsonBodyLimit = process.env.HTTP_JSON_BODY_LIMIT ?? '40mb';
   app.enableCors({
     origin: process.env.CORS_ORIGIN?.split(',') ?? true,
     credentials: true,
   });
+  app.use(express.json({ limit: jsonBodyLimit }));
+  app.use(express.urlencoded({ limit: jsonBodyLimit, extended: true }));
   app.use(cookieParser());
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
   app.useGlobalPipes(

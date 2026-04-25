@@ -6,7 +6,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  IsUrl,
+  Matches,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -75,6 +75,8 @@ export class UpdateUserProfileDto {
   thucPhamKhongThich?: string[];
 
   @IsOptional()
-  @IsUrl({}, { message: 'Ảnh đại diện URL không hợp lệ' })
+  @Matches(/^(https?:\/\/\S+|\/api\/uploads\/\S+)$/, {
+    message: 'Ảnh đại diện URL không hợp lệ',
+  })
   anhDaiDienUrl?: string;
 }

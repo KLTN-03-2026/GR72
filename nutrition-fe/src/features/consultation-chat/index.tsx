@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle,
@@ -20,6 +21,7 @@ import { cn } from '@/lib/utils'
 import {
   createConsultationChatSocketUrl,
   markConsultationChatSeen,
+  getConsultationChatMessages,
   getConsultationChatRoom,
   sendConsultationChatMessage,
   type ChatMessage,
@@ -31,6 +33,12 @@ import {
 type Props = {
   bookingId: number
 }
+
+const CHAT_ATTACHMENT_MAX_MB = Number(process.env.NEXT_PUBLIC_CHAT_ATTACHMENT_MAX_MB ?? 25)
+const CHAT_ATTACHMENT_MAX_BYTES = Math.max(
+  1,
+  (Number.isFinite(CHAT_ATTACHMENT_MAX_MB) ? CHAT_ATTACHMENT_MAX_MB : 25) * 1024 * 1024,
+)
 
 function getInitials(name: string) {
   return name
@@ -48,6 +56,12 @@ function formatTime(timestamp: string) {
     day: '2-digit',
     month: '2-digit',
   })
+}
+
+function formatFileSize(size: number) {
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function roomStateLabel(room?: ConsultationChatRoom | null) {
@@ -125,6 +139,7 @@ function MessageBubble({
 }) {
   const attachment = message.tep_dinh_kem
   const isFile = message.loai === 'file' && attachment
+  const isImage = Boolean(isFile && attachment?.mimeType?.startsWith('image/'))
 
   return (
     <div className={cn('flex', isSelf ? 'justify-end' : 'justify-start')}>
@@ -168,21 +183,45 @@ function MessageBubble({
         ) : null}
 
         {isFile ? (
-          <a
-            href={attachment.dataUrl}
-            download={attachment.name}
-            className={cn(
-              'mt-3 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition',
-              isSelf
-                ? 'border-border/70 bg-background text-foreground hover:border-primary/40'
-                : 'border-border/70 bg-muted/30 text-foreground hover:border-primary/40',
-            )}
-            target='_blank'
-            rel='noreferrer'
-          >
-            <FileText className='size-4' />
-            {attachment.name}
-          </a>
+          isImage ? (
+            <a
+              href={attachment.dataUrl}
+              download={attachment.name}
+              target='_blank'
+              rel='noreferrer'
+              className='mt-3 block w-fit'
+            >
+              <div className='overflow-hidden rounded-lg border border-border/70 bg-muted/20'>
+                <Image
+                  src={attachment.dataUrl}
+                  alt={attachment.name}
+                  width={180}
+                  height={135}
+                  unoptimized
+                  className='h-auto w-[180px] object-cover'
+                />
+              </div>
+              <p className='mt-1 text-xs text-muted-foreground'>
+                {attachment.name} · {formatFileSize(attachment.size)}
+              </p>
+            </a>
+          ) : (
+            <a
+              href={attachment.dataUrl}
+              download={attachment.name}
+              className={cn(
+                'mt-3 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition',
+                isSelf
+                  ? 'border-border/70 bg-background text-foreground hover:border-primary/40'
+                  : 'border-border/70 bg-muted/30 text-foreground hover:border-primary/40',
+              )}
+              target='_blank'
+              rel='noreferrer'
+            >
+              <FileText className='size-4' />
+              {attachment.name}
+            </a>
+          )
         ) : null}
 
         {showStatus ? (
@@ -223,6 +262,20 @@ export function ConsultationChat({
   const canChat = room?.room_state.can_chat ?? false
   const roomId = room?.booking.id ?? null
   const currentRoomLabel = useMemo(() => roomStateLabel(room), [room])
+  const localImagePreviewUrl = useMemo(() => {
+    if (!attachment || !attachment.type?.startsWith('image/')) {
+      return null
+    }
+    return URL.createObjectURL(attachment)
+  }, [attachment])
+
+  useEffect(() => {
+    return () => {
+      if (localImagePreviewUrl) {
+        URL.revokeObjectURL(localImagePreviewUrl)
+      }
+    }
+  }, [localImagePreviewUrl])
 
   useEffect(() => {
     roomRef.current = room
@@ -323,6 +376,18 @@ export function ConsultationChat({
       }
     }
   }, [loadRoom, room])
+
+  const refreshMessages = useCallback(async () => {
+    try {
+      const data = await getConsultationChatMessages(bookingId)
+      const normalizedMessages = Array.isArray(data.messages) ? data.messages : []
+      setRoom(data)
+      setMessages(normalizedMessages)
+      void syncSeenState(data, normalizedMessages)
+    } catch {
+      // Silent fallback refresh; avoid noisy toasts while reconnecting.
+    }
+  }, [bookingId, syncSeenState])
 
   useEffect(() => {
     if (!canChat) {
@@ -472,6 +537,21 @@ export function ConsultationChat({
   }, [bookingId, canChat, socketRetryToken, syncSeenState])
 
   useEffect(() => {
+    if (!canChat || socketConnected) {
+      return
+    }
+
+    void refreshMessages()
+    const timer = window.setInterval(() => {
+      void refreshMessages()
+    }, 4000)
+
+    return () => {
+      window.clearInterval(timer)
+    }
+  }, [canChat, refreshMessages, socketConnected])
+
+  useEffect(() => {
     return () => {
       if (reconnectTimerRef.current) {
         window.clearTimeout(reconnectTimerRef.current)
@@ -511,8 +591,8 @@ export function ConsultationChat({
       return
     }
 
-    if (file && file.size > 10 * 1024 * 1024) {
-      toast.error('File đính kèm không được vượt quá 10MB')
+    if (file && file.size > CHAT_ATTACHMENT_MAX_BYTES) {
+      toast.error(`File đính kèm không được vượt quá ${Math.round(CHAT_ATTACHMENT_MAX_BYTES / (1024 * 1024))}MB`)
       return
     }
 
@@ -533,21 +613,12 @@ export function ConsultationChat({
         }
       }
 
-      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-        socketRef.current.send(
-          JSON.stringify({
-            type: 'send_message',
-            payload,
-          }),
-        )
-      } else {
-        const sent = await sendConsultationChatMessage(bookingId, payload)
-        setMessages((current) =>
-          current.some((item) => isSameMessage(item, sent))
-            ? current
-            : [...current, sent],
-        )
-      }
+      const sent = await sendConsultationChatMessage(bookingId, payload)
+      setMessages((current) =>
+        current.some((item) => isSameMessage(item, sent))
+          ? current
+          : [...current, sent],
+      )
 
       setDraft('')
       setAttachment(null)
@@ -658,9 +729,21 @@ export function ConsultationChat({
 
                   <div className='absolute right-3 top-3 flex items-center gap-2'>
                     {attachment ? (
-                      <Badge variant='secondary' className='max-w-28 truncate'>
-                        {attachment.name}
-                      </Badge>
+                      localImagePreviewUrl ? (
+                        <div className='relative h-8 w-8 overflow-hidden rounded-md border border-border/60'>
+                          <Image
+                            src={localImagePreviewUrl}
+                            alt={attachment.name}
+                            fill
+                            unoptimized
+                            className='object-cover'
+                          />
+                        </div>
+                      ) : (
+                        <Badge variant='secondary' className='max-w-28 truncate'>
+                          {attachment.name}
+                        </Badge>
+                      )
                     ) : null}
                     <Button
                       type='button'

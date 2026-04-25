@@ -146,6 +146,7 @@ export class ConsultationChatService {
   private readonly connectedClients = new Set<ConnectedClient>();
   private readonly roomClients = new Map<number, Set<ConnectedClient>>();
   private readonly roomTimers = new Map<number, NodeJS.Timeout>();
+  private readonly attachmentMaxBytes = this.resolveAttachmentMaxBytes();
 
   constructor(
     @InjectRepository(LichHenEntity)
@@ -233,8 +234,10 @@ export class ConsultationChatService {
       throw new BadRequestException('Vui lòng chọn file đính kèm');
     }
 
-    if (attachment && attachment.size > 10 * 1024 * 1024) {
-      throw new BadRequestException('File đính kèm không được vượt quá 10MB');
+    if (attachment && attachment.size > this.attachmentMaxBytes) {
+      throw new BadRequestException(
+        `File đính kèm không được vượt quá ${Math.round(this.attachmentMaxBytes / (1024 * 1024))}MB`,
+      );
     }
 
     const now = new Date();
@@ -840,5 +843,12 @@ export class ConsultationChatService {
     }, delay);
 
     this.roomTimers.set(bookingId, timer);
+  }
+
+  private resolveAttachmentMaxBytes() {
+    const fallbackMb = 25;
+    const configured = Number(process.env.CHAT_ATTACHMENT_MAX_MB ?? fallbackMb);
+    const safeMb = Number.isFinite(configured) && configured > 0 ? configured : fallbackMb;
+    return Math.floor(safeMb * 1024 * 1024);
   }
 }

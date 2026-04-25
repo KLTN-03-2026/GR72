@@ -32,6 +32,27 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (payload as ApiSuccessResponse<T>).data as T
 }
 
+async function requestFormData<T>(path: string, formData: FormData): Promise<T> {
+  const response = await fetch(`/api${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+    cache: 'no-store',
+  })
+
+  const payload = (await response.json().catch(() => null)) as ApiRes<T> | null
+
+  if (!response.ok) {
+    const rawMessage = payload && 'message' in payload ? (payload as { message?: string | string[] }).message : undefined
+    const message = Array.isArray(rawMessage)
+      ? rawMessage.join(', ')
+      : rawMessage || 'Yêu cầu thất bại'
+    throw new ApiError(message, response.status)
+  }
+
+  return (payload as ApiSuccessResponse<T>).data as T
+}
+
 // ============================================
 // Types trả về từ API
 // ============================================
@@ -81,4 +102,10 @@ export async function updateUserProfile(
     method: 'PATCH',
     body: JSON.stringify(payload),
   })
+}
+
+export async function uploadUserAvatar(file: File): Promise<{ url: string }> {
+  const formData = new FormData()
+  formData.append('file', file)
+  return requestFormData<{ url: string }>('/me/profile/upload-avatar', formData)
 }

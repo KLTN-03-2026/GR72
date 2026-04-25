@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TaiKhoanEntity } from '../../Admin/User/entities/tai-khoan.entity';
 import { ChuyenGiaDinhDuongEntity } from '../../Admin/ChuyenGiaDinhDuong/entities/chuyen-gia-dinh-duong.entity';
+import { DanhGiaEntity } from '../../Admin/Booking/entities/danh-gia.entity';
 import { UpdateProfileDto } from './dto/profile.dto';
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
@@ -24,6 +25,8 @@ export class NutritionistProfileService {
     private readonly userRepo: Repository<TaiKhoanEntity>,
     @InjectRepository(ChuyenGiaDinhDuongEntity)
     private readonly expertRepo: Repository<ChuyenGiaDinhDuongEntity>,
+    @InjectRepository(DanhGiaEntity)
+    private readonly reviewRepo: Repository<DanhGiaEntity>,
   ) {}
 
   async getProfile(userId: number) {
@@ -96,6 +99,56 @@ export class NutritionistProfileService {
 
     await this.expertRepo.save(expert);
     return this.getProfile(userId);
+  }
+
+  async getReviews(
+    userId: number,
+    query: { page?: number; limit?: number },
+  ) {
+    const expert = await this.expertRepo.findOne({
+      where: { tai_khoan_id: userId },
+    });
+    if (!expert) {
+      throw new NotFoundException('Khong tim thay profile chuyen gia');
+    }
+
+    const parsedPage = Number(query.page ?? 1);
+    const parsedLimit = Number(query.limit ?? 10);
+    const page = Number.isFinite(parsedPage) ? Math.max(1, parsedPage) : 1;
+    const limit = Number.isFinite(parsedLimit)
+      ? Math.max(1, Math.min(50, parsedLimit))
+      : 10;
+
+    const [items, total] = await this.reviewRepo.findAndCount({
+      where: { chuyen_gia_dinh_duong_id: expert.id },
+      relations: ['tai_khoan', 'lich_hen', 'lich_hen.goi_tu_van'],
+      order: { tao_luc: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return {
+      success: true,
+      message: 'Lay danh sach danh gia thanh cong',
+      data: {
+        items: items.map((item) => ({
+          id: item.id,
+          booking_id: item.lich_hen_id,
+          booking_ma: item.lich_hen?.ma_lich_hen ?? null,
+          booking_ngay_hen: item.lich_hen?.ngay_hen ?? null,
+          goi_tu_van_ten: item.lich_hen?.goi_tu_van?.ten ?? null,
+          user_id: item.tai_khoan_id,
+          user_ho_ten: item.tai_khoan?.ho_ten ?? null,
+          diem: item.diem,
+          noi_dung: item.noi_dung,
+          tra_loi: item.tra_loi,
+          tra_loi_luc: item.tra_loi_luc,
+          tao_luc: item.tao_luc,
+          cap_nhat_luc: item.cap_nhat_luc,
+        })),
+        pagination: { page, limit, total },
+      },
+    };
   }
 
   private normalizeNullableText(value: string): string | null {

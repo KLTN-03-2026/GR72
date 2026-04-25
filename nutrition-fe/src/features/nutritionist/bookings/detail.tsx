@@ -14,6 +14,7 @@ import {
   UserRound,
   Video,
   XCircle,
+  CalendarClock,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ApiError } from '@/services/auth/api'
@@ -32,6 +33,7 @@ import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'

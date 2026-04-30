@@ -7,15 +7,18 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { compare, hash } from 'bcrypt';
 import { IsNull, Repository } from 'typeorm';
+import { EmailService } from '../../common/email/email.service';
 import {
   TaiKhoanEntity,
   type AccountRole,
 } from '../shared/entities/tai-khoan.entity';
 import { ChuyenGiaEntity } from '../shared/entities/chuyen-gia.entity';
+import { OtpEntity } from '../shared/entities/otp.entity';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto, type RegisterRole } from './dto/register.dto';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
 
 type SessionUser = {
   id: number;
@@ -23,6 +26,11 @@ type SessionUser = {
   ho_ten: string;
   vai_tro: AccountRole;
   trang_thai: TaiKhoanEntity['trang_thai'];
+};
+
+type AuthSession = {
+  accessToken: string;
+  user: SessionUser;
 };
 
 function normalizeRole(role: RegisterRole): AccountRole {
@@ -33,8 +41,8 @@ function normalizeRole(role: RegisterRole): AccountRole {
   return 'customer';
 }
 
-function generateResetCode() {
-  return Math.random().toString(36).slice(2, 10).toUpperCase();
+function generateOtp() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 @Injectable()
@@ -46,10 +54,13 @@ export class AuthService {
     private readonly accountRepository: Repository<TaiKhoanEntity>,
     @InjectRepository(ChuyenGiaEntity)
     private readonly expertRepository: Repository<ChuyenGiaEntity>,
+    @InjectRepository(OtpEntity)
+    private readonly otpRepository: Repository<OtpEntity>,
     private readonly jwtService: JwtService,
+    private readonly emailService: EmailService,
   ) {}
 
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDto): Promise<AuthSession> {
     const email = dto.email.trim().toLowerCase();
     const existing = await this.accountRepository.findOne({
       where: { email, xoa_luc: IsNull() },
@@ -57,6 +68,10 @@ export class AuthService {
 
     if (existing) {
       throw new BadRequestException('Email da duoc su dung');
+    }
+
+    if (dto.matKhau !== dto.xacNhanMatKhau) {
+      throw new BadRequestException('Xac nhan mat khau khong khop');
     }
 
     const now = new Date();
@@ -82,8 +97,8 @@ export class AuthService {
       await this.expertRepository.save(
         this.expertRepository.create({
           tai_khoan_id: account.id,
-          chuyen_mon: dto.chuyenMon ?? null,
-          mo_ta: dto.moTa ?? null,
+          chuyen_mon: dto.chuyenMon?.trim() || null,
+          mo_ta: dto.moTa?.trim() || null,
           kinh_nghiem: null,
           hoc_vi: null,
           chung_chi: null,
@@ -96,14 +111,10 @@ export class AuthService {
       );
     }
 
-    return {
-      success: true,
-      message: 'Dang ky tai khoan thanh cong',
-      data: this.toSessionUser(account),
-    };
+    return this.createAuthSession(account);
   }
 
-  async signIn(dto: LoginDto) {
+  async signIn(dto: LoginDto): Promise<AuthSession> {
     const email = dto.email.trim().toLowerCase();
     const account = await this.accountRepository.findOne({
       where: { email, xoa_luc: IsNull() },
@@ -126,20 +137,7 @@ export class AuthService {
     account.cap_nhat_luc = new Date();
     await this.accountRepository.save(account);
 
-    const user = this.toSessionUser(account);
-    const accessToken = await this.jwtService.signAsync(
-      {
-        sub: account.id,
-        email: account.email,
-        vai_tro: account.vai_tro,
-      },
-      {
-        secret: process.env.JWT_SECRET ?? 'nutrition-secret',
-        expiresIn: '7d',
-      },
-    );
-
-    return { accessToken, user };
+    return this.createAuthSession(account);
   }
 
   signOut() {
@@ -177,35 +175,110 @@ export class AuthService {
     });
 
     if (account) {
-      account.ma_dat_lai_mat_khau = generateResetCode();
-      account.het_han_ma_dat_lai = new Date(Date.now() + 15 * 60 * 1000);
-      account.cap_nhat_luc = new Date();
-      await this.accountRepository.save(account);
+      await this.otpRepository.update(
+        { email, loai: 'dat_lai_mat_khau', da_su_dung: false },
+        { da_su_dung: true },
+      );
+
+      const otp = generateOtp();
+      await this.otpRepository.save(
+        this.otpRepository.create({
+          email,
+          ma_otp: await hash(otp, this.saltRounds),
+          loai: 'dat_lai_mat_khau',
+          da_su_dung: false,
+          het_han_luc: new Date(Date.now() + 10 * 60 * 1000),
+          tao_luc: new Date(),
+        }),
+      );
+
+      await this.emailService.sendOtp(email, otp);
     }
 
     return {
       success: true,
-      message: 'Neu email ton tai, he thong da tao ma dat lai mat khau',
+      message: 'Neu email ton tai, he thong da gui ma OTP dat lai mat khau',
       data: null,
     };
   }
 
-  async resetPassword(dto: ResetPasswordDto) {
+  async verifyOtp(dto: VerifyOtpDto) {
+    const email = dto.email.trim().toLowerCase();
     const account = await this.accountRepository.findOne({
-      where: {
-        email: dto.email.trim().toLowerCase(),
-        xoa_luc: IsNull(),
-      },
+      where: { email, xoa_luc: IsNull() },
     });
 
+    if (!account) {
+      throw new BadRequestException('OTP khong hop le hoac da het han');
+    }
+
+    const otp = await this.otpRepository.findOne({
+      where: { email, loai: 'dat_lai_mat_khau', da_su_dung: false },
+      order: { tao_luc: 'DESC' },
+    });
+
+    if (!otp || otp.het_han_luc.getTime() < Date.now()) {
+      throw new BadRequestException('OTP khong hop le hoac da het han');
+    }
+
+    const matched = await compare(dto.otp.trim(), otp.ma_otp);
+    if (!matched) {
+      throw new BadRequestException('OTP khong hop le hoac da het han');
+    }
+
+    otp.da_su_dung = true;
+    await this.otpRepository.save(otp);
+
+    const resetToken = await this.jwtService.signAsync(
+      {
+        sub: account.id,
+        email: account.email,
+        purpose: 'password_reset',
+      },
+      {
+        secret: process.env.JWT_SECRET ?? 'nutrition-secret',
+        expiresIn: '10m',
+      },
+    );
+
+    return {
+      success: true,
+      message: 'Xac minh OTP thanh cong',
+      data: { resetToken },
+    };
+  }
+
+  async resetPassword(dto: ResetPasswordDto, resetToken?: string) {
+    if (dto.matKhauMoi !== dto.xacNhanMatKhau) {
+      throw new BadRequestException('Xac nhan mat khau khong khop');
+    }
+
+    if (!resetToken) {
+      throw new UnauthorizedException('Phien dat lai mat khau khong hop le');
+    }
+
+    let payload: { sub?: number; email?: string; purpose?: string };
+    try {
+      payload = await this.jwtService.verifyAsync(resetToken, {
+        secret: process.env.JWT_SECRET ?? 'nutrition-secret',
+      });
+    } catch {
+      throw new UnauthorizedException('Phien dat lai mat khau khong hop le');
+    }
+
     if (
-      !account ||
-      !account.ma_dat_lai_mat_khau ||
-      account.ma_dat_lai_mat_khau !== dto.maDatLai.trim().toUpperCase() ||
-      !account.het_han_ma_dat_lai ||
-      account.het_han_ma_dat_lai.getTime() < Date.now()
+      payload.purpose !== 'password_reset' ||
+      payload.email !== dto.email.trim().toLowerCase()
     ) {
-      throw new BadRequestException('Ma dat lai mat khau khong hop le');
+      throw new UnauthorizedException('Phien dat lai mat khau khong hop le');
+    }
+
+    const account = await this.accountRepository.findOne({
+      where: { id: Number(payload.sub), email: payload.email, xoa_luc: IsNull() },
+    });
+
+    if (!account) {
+      throw new UnauthorizedException('Phien dat lai mat khau khong hop le');
     }
 
     account.mat_khau_ma_hoa = await hash(
@@ -222,6 +295,23 @@ export class AuthService {
       message: 'Dat lai mat khau thanh cong',
       data: null,
     };
+  }
+
+  private async createAuthSession(account: TaiKhoanEntity): Promise<AuthSession> {
+    const user = this.toSessionUser(account);
+    const accessToken = await this.jwtService.signAsync(
+      {
+        sub: account.id,
+        email: account.email,
+        vai_tro: account.vai_tro,
+      },
+      {
+        secret: process.env.JWT_SECRET ?? 'nutrition-secret',
+        expiresIn: '7d',
+      },
+    );
+
+    return { accessToken, user };
   }
 
   private toSessionUser(account: TaiKhoanEntity): SessionUser {

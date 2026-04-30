@@ -11,17 +11,17 @@ export interface SendEmailOptions {
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
 
-  private transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST ?? 'smtp.gmail.com',
-    port: Number(process.env.EMAIL_PORT ?? 587),
-    secure: Number(process.env.EMAIL_PORT ?? 587) === 465,
-    auth: process.env.EMAIL_USER
-      ? {
+  private transporter = process.env.EMAIL_USER
+    ? nodemailer.createTransport({
+        host: process.env.EMAIL_HOST ?? 'smtp.gmail.com',
+        port: Number(process.env.EMAIL_PORT ?? 587),
+        secure: Number(process.env.EMAIL_PORT ?? 587) === 465,
+        auth: {
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASS,
-        }
-      : undefined,
-  });
+        },
+      })
+    : nodemailer.createTransport({ jsonTransport: true });
 
   async send(options: SendEmailOptions): Promise<void> {
     try {
@@ -32,7 +32,11 @@ export class EmailService {
         subject: options.subject,
         html: options.html,
       });
-      this.logger.log(`Email sent to ${options.to}: ${options.subject}`);
+      this.logger.log(
+        process.env.EMAIL_USER
+          ? `Email sent to ${options.to}: ${options.subject}`
+          : `Email captured by local JSON transport for ${options.to}: ${options.subject}`,
+      );
     } catch (error) {
       this.logger.error(`Failed to send email to ${options.to}`, error);
       throw error;
@@ -98,7 +102,7 @@ export class EmailService {
       <p>Mã xác thực OTP của bạn là:</p>
       <div class="otp-box">
         <div class="otp-code">${otp}</div>
-        <div class="otp-label">Mã OTP có hiệu lực trong 5 phút</div>
+        <div class="otp-label">Mã OTP có hiệu lực trong 10 phút</div>
       </div>
       <p class="warning">Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này.</p>
     </div>

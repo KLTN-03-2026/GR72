@@ -11,7 +11,7 @@ export class OtpEntity {
   @Column({ type: 'varchar', length: 191 })
   email!: string;
 
-  @Column({ name: 'ma_otp', type: 'varchar', length: 10 })
+  @Column({ name: 'ma_otp', type: 'varchar', length: 255 })
   ma_otp!: string;
 
   @Column({
@@ -30,4 +30,3 @@ export class OtpEntity {
   @Column({ name: 'tao_luc', type: 'datetime' })
   tao_luc!: Date;
 }
-

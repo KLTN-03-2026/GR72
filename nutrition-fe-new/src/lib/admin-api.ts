@@ -1,6 +1,6 @@
 'use client'
 
-import { apiRequest } from './auth'
+import { ApiError, apiRequest } from './auth'
 
 export type AdminPackage = {
   id: number
@@ -9,6 +9,8 @@ export type AdminPackage = {
   slug: string
   loai_goi: 'suc_khoe' | 'dinh_duong' | 'tap_luyen'
   mo_ta: string | null
+  thumbnail_url: string | null
+  banner_url: string | null
   quyen_loi: string[]
   gia: number
   gia_khuyen_mai: number | null
@@ -55,4 +57,29 @@ export async function adminPatch<T>(path: string, body?: unknown) {
 export async function adminDelete<T>(path: string) {
   const response = await apiRequest<T>(`/admin${path}`, { method: 'DELETE' })
   return response.data
+}
+
+export async function adminUploadPackageImage(kind: 'thumbnail' | 'banner', file: File) {
+  const form = new FormData()
+  form.set('kind', kind)
+  form.set('image', file)
+
+  const response = await fetch('/api/admin/service-packages/upload-image', {
+    method: 'POST',
+    body: form,
+    credentials: 'include',
+    cache: 'no-store',
+  })
+
+  const payload = await response
+    .json()
+    .catch(() => null) as { message?: string | string[]; data?: { kind: 'thumbnail' | 'banner'; file_url: string } } | null
+
+  if (!response.ok) {
+    const rawMessage = payload?.message
+    const message = Array.isArray(rawMessage) ? rawMessage.join(', ') : rawMessage || 'Upload anh that bai'
+    throw new ApiError(message, response.status)
+  }
+
+  return payload?.data
 }

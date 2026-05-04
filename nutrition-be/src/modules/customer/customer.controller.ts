@@ -1,11 +1,23 @@
-import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query, Req } from '@nestjs/common';
-import type { Request } from 'express';
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query, Req, Res } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CustomerService } from './customer.service';
 
 type AuthedRequest = Request & { user?: { sub?: number } };
 const toId = (value: string) => Number(value);
+
+function buildPaymentResultUrl(result: Record<string, unknown>, query: Record<string, string>) {
+  const frontendBase = (process.env.FRONTEND_URL ?? 'http://localhost:3001').replace(/\/$/, '');
+  const url = new URL('/payment/result', frontendBase);
+  const success = Boolean(result?.success);
+  url.searchParams.set('success', success ? '1' : '0');
+  url.searchParams.set('message', String(result?.message ?? 'unknown'));
+  if (query.vnp_TxnRef) url.searchParams.set('txnRef', query.vnp_TxnRef);
+  if (query.vnp_TransactionNo) url.searchParams.set('transactionNo', query.vnp_TransactionNo);
+  if (query.vnp_Amount) url.searchParams.set('amount', String(Number(query.vnp_Amount) / 100));
+  return url.toString();
+}
 
 @Controller('customer')
 @Roles('customer')
@@ -367,8 +379,9 @@ export class PaymentCallbackController {
 
   @Public()
   @Get('callback')
-  callback(@Query() query: Record<string, string>) {
-    return this.customerService.processPaymentWebhook('return', query);
+  async callback(@Query() query: Record<string, string>, @Res() res: Response) {
+    const result = await this.customerService.processPaymentWebhook('return', query);
+    return res.redirect(302, buildPaymentResultUrl(result as Record<string, unknown>, query));
   }
 
   @Public()
@@ -379,8 +392,71 @@ export class PaymentCallbackController {
 
   @Public()
   @Get('callback/package')
-  callbackPackage(@Query() query: Record<string, string>) {
-    return this.customerService.processPaymentWebhook('return', query);
+  async callbackPackage(@Query() query: Record<string, string>, @Res() res: Response) {
+    const result = await this.customerService.processPaymentWebhook('return', query);
+    return res.redirect(302, buildPaymentResultUrl(result as Record<string, unknown>, query));
+  }
+
+  @Public()
+  @Post('ipn/package')
+  ipnPackage(@Body() body: Record<string, string>) {
+    return this.customerService.processPaymentWebhook('ipn', body);
+  }
+}
+
+@Controller('vnpay')
+export class VnpayCallbackAliasController {
+  constructor(private readonly customerService: CustomerService) {}
+
+  @Public()
+  @Get('callback')
+  async callback(@Query() query: Record<string, string>, @Res() res: Response) {
+    const result = await this.customerService.processPaymentWebhook('return', query);
+    return res.redirect(302, buildPaymentResultUrl(result as Record<string, unknown>, query));
+  }
+
+  @Public()
+  @Post('ipn')
+  ipn(@Body() body: Record<string, string>) {
+    return this.customerService.processPaymentWebhook('ipn', body);
+  }
+
+  @Public()
+  @Get('callback/package')
+  async callbackPackage(@Query() query: Record<string, string>, @Res() res: Response) {
+    const result = await this.customerService.processPaymentWebhook('return', query);
+    return res.redirect(302, buildPaymentResultUrl(result as Record<string, unknown>, query));
+  }
+
+  @Public()
+  @Post('ipn/package')
+  ipnPackage(@Body() body: Record<string, string>) {
+    return this.customerService.processPaymentWebhook('ipn', body);
+  }
+}
+
+@Controller('api/vnpay')
+export class ApiVnpayCallbackAliasController {
+  constructor(private readonly customerService: CustomerService) {}
+
+  @Public()
+  @Get('callback')
+  async callback(@Query() query: Record<string, string>, @Res() res: Response) {
+    const result = await this.customerService.processPaymentWebhook('return', query);
+    return res.redirect(302, buildPaymentResultUrl(result as Record<string, unknown>, query));
+  }
+
+  @Public()
+  @Post('ipn')
+  ipn(@Body() body: Record<string, string>) {
+    return this.customerService.processPaymentWebhook('ipn', body);
+  }
+
+  @Public()
+  @Get('callback/package')
+  async callbackPackage(@Query() query: Record<string, string>, @Res() res: Response) {
+    const result = await this.customerService.processPaymentWebhook('return', query);
+    return res.redirect(302, buildPaymentResultUrl(result as Record<string, unknown>, query));
   }
 
   @Public()

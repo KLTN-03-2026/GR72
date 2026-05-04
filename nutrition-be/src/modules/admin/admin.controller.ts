@@ -1,5 +1,9 @@
-import { Body, Controller, Get, Param, Patch, Post, Delete, Query, Req } from '@nestjs/common';
+import { Body, BadRequestException, Controller, Get, Param, Patch, Post, Delete, Query, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
 import type { Request } from 'express';
+import { diskStorage } from 'multer';
+import { extname, join } from 'node:path';
+import { mkdirSync } from 'node:fs';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AdminService } from './admin.service';
 
@@ -97,6 +101,35 @@ export class AdminController {
   @Post('service-packages')
   createPackage(@Body() body: Record<string, unknown>, @Req() request: AuthedRequest) {
     return this.adminService.createPackage(body, request.user?.sub);
+  }
+
+  @Post('service-packages/upload-image')
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: diskStorage({
+        destination: (_req, _file, callback) => {
+          const uploadDir = join(process.cwd(), 'uploads', 'packages');
+          mkdirSync(uploadDir, { recursive: true });
+          callback(null, uploadDir);
+        },
+        filename: (_req, file, callback) => {
+          const safeExt = extname(file.originalname || '').toLowerCase() || '.jpg';
+          const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          callback(null, `package-${stamp}${safeExt}`);
+        },
+      }),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_req, file, callback) => {
+        const isImage = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.mimetype);
+        callback(isImage ? null : new BadRequestException('Chi ho tro file JPG, PNG, WEBP, GIF'), isImage);
+      },
+    }),
+  )
+  uploadPackageImage(@UploadedFile() file: Express.Multer.File, @Body() body: Record<string, string>) {
+    if (!file) throw new BadRequestException('Vui long chon file anh');
+    const kind = body.kind === 'banner' ? 'banner' : body.kind === 'thumbnail' ? 'thumbnail' : null;
+    if (!kind) throw new BadRequestException('Loai anh khong hop le');
+    return { kind, file_url: `/uploads/packages/${file.filename}` };
   }
 
   @Get('service-packages/:id')

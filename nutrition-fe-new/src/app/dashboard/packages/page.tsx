@@ -76,6 +76,7 @@ export default function CustomerPackagesPage() {
               <tr key={row.id} className='hover:bg-blue-50/40'>
                 <Td>
                   <p className='font-semibold text-slate-900'>{row.ten_goi}</p>
+                  {row.thumbnail_url ? <img src={row.thumbnail_url} alt={row.ten_goi} className='mt-2 h-14 w-24 rounded-lg border border-slate-200 object-cover' /> : null}
                   <p className='line-clamp-2 max-w-sm text-xs text-slate-500'>{row.mo_ta}</p>
                 </Td>
                 <Td>{row.loai_goi}</Td>
@@ -106,6 +107,11 @@ export default function CustomerPackagesPage() {
       >
         {detail ? (
           <div className='space-y-4'>
+            {detail.banner_url || detail.thumbnail_url ? (
+              <div className='overflow-hidden rounded-xl border border-slate-200'>
+                <img src={detail.banner_url ?? detail.thumbnail_url} alt={detail.ten_goi} className='h-44 w-full object-cover' />
+              </div>
+            ) : null}
             <div className='grid gap-3 md:grid-cols-3'>
               <StatCard label='Loại gói' value={detail.loai_goi} />
               <StatCard label='Giá hiện tại' value={money(detail.gia_khuyen_mai ?? detail.gia)} tone='green' />

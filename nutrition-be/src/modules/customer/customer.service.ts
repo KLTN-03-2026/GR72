@@ -48,6 +48,12 @@ function plusDays(date: Date, days: number) {
   return clone;
 }
 
+function plusHours(date: Date, hours: number) {
+  const clone = new Date(date);
+  clone.setHours(clone.getHours() + hours);
+  return clone;
+}
+
 function formatDateOnly(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -216,7 +222,7 @@ export class CustomerService {
         paymentUrl,
         txnRef,
         JSON.stringify({ orderInfo, amount, txnRef }),
-        plusDays(now, 1),
+        plusHours(now, 1),
         now,
         now,
       ],
@@ -286,7 +292,36 @@ export class CustomerService {
 
   async listMyPackages(accountId: number | undefined, query: Dict) {
     const userId = await this.assertAccount(accountId);
-    const where = ['gdm.tai_khoan_id = ?'];
+    await this.dataSource.transaction(async (manager) => {
+      const stale = await manager.query(
+        `SELECT tt.id AS payment_id, gdm.id AS purchase_id
+         FROM thanh_toan tt
+         JOIN goi_da_mua gdm ON gdm.id = tt.doi_tuong_id
+         WHERE tt.tai_khoan_id = ?
+           AND tt.loai_thanh_toan = 'mua_goi'
+           AND tt.trang_thai = 'cho_thanh_toan'
+           AND tt.het_han_luc IS NOT NULL
+           AND tt.het_han_luc < NOW()
+           AND gdm.trang_thai = 'cho_thanh_toan'`,
+        [userId],
+      );
+      for (const row of stale) {
+        await manager.query(
+          `UPDATE thanh_toan
+           SET trang_thai = 'that_bai', cap_nhat_luc = ?
+           WHERE id = ?`,
+          [new Date(), row.payment_id],
+        );
+        await manager.query(
+          `UPDATE goi_da_mua
+           SET trang_thai = 'het_han', cap_nhat_luc = ?
+           WHERE id = ? AND trang_thai = 'cho_thanh_toan'`,
+          [new Date(), row.purchase_id],
+        );
+      }
+    });
+
+    const where = ['gdm.tai_khoan_id = ?', "gdm.trang_thai <> 'cho_thanh_toan'"];
     const params: unknown[] = [userId];
 
     if (query.search) {
@@ -900,6 +935,16 @@ export class CustomerService {
              `Thanh toan ${label} that bai. Vui long thu lai hoac lien he ho tro.`,
              `/user/payments`, payment.id, new Date(), new Date()],
           );
+          if (payment.loai_thanh_toan === 'mua_goi') {
+            const [purchase] = await manager.query(
+              'SELECT * FROM goi_da_mua WHERE id = ? FOR UPDATE',
+              [payment.doi_tuong_id],
+            );
+            if (purchase && purchase.trang_thai === 'cho_thanh_toan') {
+              await manager.query('DELETE FROM goi_da_mua WHERE id = ?', [purchase.id]);
+              resultMessage = 'updated_failed_rolled_back';
+            }
+          }
         }
       }
 

@@ -60,6 +60,11 @@ export default function PackagesPage() {
         <div className='grid-cards'>
           {rows.map((row) => (
             <div key={row.id} className='package-card'>
+              {row.banner_url || row.thumbnail_url ? (
+                <div className='package-card__media'>
+                  <img src={row.banner_url ?? row.thumbnail_url} alt={row.ten_goi} className='package-card__media-image' />
+                </div>
+              ) : null}
               <div className='package-card__name'>{row.ten_goi}</div>
               <div className='package-card__desc'>{row.mo_ta}</div>
               <div className='package-card__meta'>

@@ -390,14 +390,16 @@ export class AdminService {
 
     const result = await this.dataSource.query(
       `INSERT INTO goi_dich_vu
-        (ma_goi, ten_goi, slug, loai_goi, mo_ta, quyen_loi, gia, gia_khuyen_mai, thoi_han_ngay, so_luot_tu_van, thoi_luong_tu_van_phut, trang_thai, goi_noi_bat, thu_tu_hien_thi, tao_luc, cap_nhat_luc, xoa_luc)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+        (ma_goi, ten_goi, slug, loai_goi, mo_ta, thumbnail_url, banner_url, quyen_loi, gia, gia_khuyen_mai, thoi_han_ngay, so_luot_tu_van, thoi_luong_tu_van_phut, trang_thai, goi_noi_bat, thu_tu_hien_thi, tao_luc, cap_nhat_luc, xoa_luc)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
       [
         code,
         body.ten_goi,
         slug,
         body.loai_goi,
         body.mo_ta ?? null,
+        body.thumbnail_url ?? null,
+        body.banner_url ?? null,
         JSON.stringify(body.quyen_loi ?? []),
         Number(body.gia),
         body.gia_khuyen_mai ? Number(body.gia_khuyen_mai) : null,
@@ -425,13 +427,15 @@ export class AdminService {
     if (duplicate.length) throw new BadRequestException('Ma goi hoac slug da ton tai');
 
     await this.dataSource.query(
-      `UPDATE goi_dich_vu SET ma_goi=?, ten_goi=?, slug=?, loai_goi=?, mo_ta=?, quyen_loi=?, gia=?, gia_khuyen_mai=?, thoi_han_ngay=?, so_luot_tu_van=?, thoi_luong_tu_van_phut=?, trang_thai=?, goi_noi_bat=?, thu_tu_hien_thi=?, cap_nhat_luc=? WHERE id=?`,
+      `UPDATE goi_dich_vu SET ma_goi=?, ten_goi=?, slug=?, loai_goi=?, mo_ta=?, thumbnail_url=?, banner_url=?, quyen_loi=?, gia=?, gia_khuyen_mai=?, thoi_han_ngay=?, so_luot_tu_van=?, thoi_luong_tu_van_phut=?, trang_thai=?, goi_noi_bat=?, thu_tu_hien_thi=?, cap_nhat_luc=? WHERE id=?`,
       [
         code,
         next.ten_goi,
         slug,
         next.loai_goi,
         next.mo_ta ?? null,
+        next.thumbnail_url ?? null,
+        next.banner_url ?? null,
         JSON.stringify(next.quyen_loi ?? []),
         Number(next.gia),
         next.gia_khuyen_mai ? Number(next.gia_khuyen_mai) : null,

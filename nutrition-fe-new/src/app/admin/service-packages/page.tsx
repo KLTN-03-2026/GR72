@@ -1,9 +1,9 @@
 'use client'
 
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { ActionButton, EmptyState, Field, Notice, PageHeader, Panel, StatCard, StatusPill, Toolbar, inputClass, money } from '@/components/admin/admin-ui'
 import { DataTable, Modal, Td, Th } from '@/components/admin/admin-table'
-import { adminDelete, adminGet, adminPatch, adminPost, AdminPackage, ExpertMapping } from '@/lib/admin-api'
+import { adminDelete, adminGet, adminPatch, adminPost, adminUploadPackageImage, AdminPackage, ExpertMapping } from '@/lib/admin-api'
 
 type ExpertData = { assigned: ExpertMapping[]; available: ExpertMapping[] }
 type ModalMode = 'form' | 'experts' | null
@@ -14,6 +14,8 @@ const blank = {
   slug: '',
   loai_goi: 'suc_khoe',
   mo_ta: '',
+  thumbnail_url: '',
+  banner_url: '',
   quyen_loi: '1 buổi tư vấn\nTheo dõi tiến trình\nGợi ý cá nhân hóa',
   gia: 300000,
   gia_khuyen_mai: '',
@@ -38,6 +40,8 @@ export default function ServicePackagesPage() {
   const [status, setStatusFilter] = useState('')
   const [type, setTypeFilter] = useState('')
   const [modal, setModal] = useState<ModalMode>(null)
+  const thumbnailInputRef = useRef<HTMLInputElement>(null)
+  const bannerInputRef = useRef<HTMLInputElement>(null)
 
   async function load() {
     setLoading(true)
@@ -87,6 +91,8 @@ export default function ServicePackagesPage() {
 
   const payload = useMemo(() => ({
     ...form,
+    thumbnail_url: String(form.thumbnail_url ?? '').trim() || null,
+    banner_url: String(form.banner_url ?? '').trim() || null,
     quyen_loi: String(form.quyen_loi).split('\n').map((item) => item.trim()).filter(Boolean),
     gia: Number(form.gia),
     gia_khuyen_mai: form.gia_khuyen_mai === '' ? null : Number(form.gia_khuyen_mai),
@@ -143,6 +149,22 @@ export default function ServicePackagesPage() {
     await loadExperts(selected.id)
   }
 
+  async function uploadImage(kind: 'thumbnail' | 'banner', file?: File) {
+    if (!file) return
+    try {
+      const uploaded = await adminUploadPackageImage(kind, file)
+      if (!uploaded?.file_url) return
+      if (kind === 'thumbnail') setForm((prev) => ({ ...prev, thumbnail_url: uploaded.file_url }))
+      if (kind === 'banner') setForm((prev) => ({ ...prev, banner_url: uploaded.file_url }))
+      setMessage(`Da upload anh ${kind === 'thumbnail' ? 'thumbnail' : 'banner'} thanh cong.`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Upload anh that bai')
+    } finally {
+      if (kind === 'thumbnail' && thumbnailInputRef.current) thumbnailInputRef.current.value = ''
+      if (kind === 'banner' && bannerInputRef.current) bannerInputRef.current.value = ''
+    }
+  }
+
   return (
     <>
       <PageHeader eyebrow='Service catalog' title='Quản lý gói dịch vụ' description='Danh sách dạng bảng để quản trị nhiều gói. Tạo, sửa, bật/ngừng bán hoặc gán chuyên gia qua modal để không vỡ bố cục khi dữ liệu lớn.' action={<ActionButton tone='accent' onClick={openCreate}>Tạo gói mới</ActionButton>} />
@@ -170,12 +192,19 @@ export default function ServicePackagesPage() {
           </select>
           <ActionButton tone='secondary' onClick={load}>Lọc</ActionButton>
         </Toolbar>
-        <DataTable minWidth='1040px'>
-          <thead><tr><Th>Gói dịch vụ</Th><Th>Loại</Th><Th>Giá</Th><Th>Thời hạn</Th><Th>Lượt</Th><Th>Trạng thái</Th><Th className='text-right'>Hành động</Th></tr></thead>
+        <DataTable minWidth='1160px'>
+          <thead><tr><Th>Gói dịch vụ</Th><Th>Ảnh</Th><Th>Loại</Th><Th>Giá</Th><Th>Thời hạn</Th><Th>Lượt</Th><Th>Trạng thái</Th><Th className='text-right'>Hành động</Th></tr></thead>
           <tbody>
             {packages.map((pkg) => (
               <tr key={pkg.id} className='transition-colors duration-200 hover:bg-blue-50/40'>
                 <Td><div><p className='font-semibold text-slate-950'>{pkg.ten_goi}</p><p className='font-mono text-xs text-slate-500'>{pkg.ma_goi} · {pkg.slug}</p></div></Td>
+                <Td>
+                  {pkg.thumbnail_url ? (
+                    <img src={pkg.thumbnail_url} alt={pkg.ten_goi} className='h-12 w-20 rounded-lg border border-slate-200 object-cover' />
+                  ) : (
+                    <span className='text-xs text-slate-400'>Chưa có</span>
+                  )}
+                </Td>
                 <Td>{pkg.loai_goi}</Td>
                 <Td><b>{money(pkg.gia)}</b>{pkg.gia_khuyen_mai ? <p className='text-xs text-[#F97316]'>KM {money(pkg.gia_khuyen_mai)}</p> : null}</Td>
                 <Td>{pkg.thoi_han_ngay} ngày</Td>
@@ -195,6 +224,22 @@ export default function ServicePackagesPage() {
           <div className='grid gap-4 md:grid-cols-2'><Field label='Mã gói' error={errors.ma_goi}><input className={inputClass} value={form.ma_goi} onChange={(e) => setForm({ ...form, ma_goi: e.target.value })} /></Field><Field label='Slug' error={errors.slug}><input className={inputClass} value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} /></Field></div>
           <Field label='Loại gói'><select className={inputClass} value={form.loai_goi} onChange={(e) => setForm({ ...form, loai_goi: e.target.value })}><option value='suc_khoe'>Tư vấn sức khỏe</option><option value='dinh_duong'>Tư vấn dinh dưỡng</option><option value='tap_luyen'>Tư vấn tập luyện</option></select></Field>
           <Field label='Mô tả' error={errors.mo_ta}><textarea className={inputClass} rows={3} value={form.mo_ta ?? ''} onChange={(e) => setForm({ ...form, mo_ta: e.target.value })} /></Field>
+          <div className='grid gap-4 md:grid-cols-2'>
+            <Field label='Thumbnail ảnh gói'>
+              <div className='space-y-2'>
+                {form.thumbnail_url ? <img src={form.thumbnail_url} alt='Thumbnail goi' className='h-24 w-full rounded-lg border border-slate-200 object-cover' /> : <div className='rounded-lg border border-dashed border-slate-300 px-3 py-6 text-center text-xs text-slate-400'>Chua co thumbnail</div>}
+                <input ref={thumbnailInputRef} type='file' accept='image/png,image/jpeg,image/webp,image/gif' className='hidden' onChange={(e) => uploadImage('thumbnail', e.target.files?.[0])} />
+                <ActionButton type='button' tone='secondary' onClick={() => thumbnailInputRef.current?.click()}>Upload thumbnail</ActionButton>
+              </div>
+            </Field>
+            <Field label='Banner ảnh gói'>
+              <div className='space-y-2'>
+                {form.banner_url ? <img src={form.banner_url} alt='Banner goi' className='h-24 w-full rounded-lg border border-slate-200 object-cover' /> : <div className='rounded-lg border border-dashed border-slate-300 px-3 py-6 text-center text-xs text-slate-400'>Chua co banner</div>}
+                <input ref={bannerInputRef} type='file' accept='image/png,image/jpeg,image/webp,image/gif' className='hidden' onChange={(e) => uploadImage('banner', e.target.files?.[0])} />
+                <ActionButton type='button' tone='secondary' onClick={() => bannerInputRef.current?.click()}>Upload banner</ActionButton>
+              </div>
+            </Field>
+          </div>
           <Field label='Quyền lợi, mỗi dòng một ý' error={errors.quyen_loi}><textarea className={inputClass} rows={4} value={form.quyen_loi} onChange={(e) => setForm({ ...form, quyen_loi: e.target.value })} /></Field>
           <div className='grid gap-4 md:grid-cols-3'><Field label='Giá' error={errors.gia}><input type='number' className={inputClass} value={form.gia} onChange={(e) => setForm({ ...form, gia: e.target.value })} /></Field><Field label='Giá khuyến mãi' error={errors.gia_khuyen_mai}><input type='number' className={inputClass} value={form.gia_khuyen_mai} onChange={(e) => setForm({ ...form, gia_khuyen_mai: e.target.value })} /></Field><Field label='Thời hạn ngày' error={errors.thoi_han_ngay}><input type='number' className={inputClass} value={form.thoi_han_ngay} onChange={(e) => setForm({ ...form, thoi_han_ngay: e.target.value })} /></Field></div>
           <div className='grid gap-4 md:grid-cols-3'><Field label='Số lượt tư vấn' error={errors.so_luot_tu_van}><input type='number' className={inputClass} value={form.so_luot_tu_van} onChange={(e) => setForm({ ...form, so_luot_tu_van: e.target.value })} /></Field><Field label='Thời lượng/phút' error={errors.thoi_luong_tu_van_phut}><input type='number' className={inputClass} value={form.thoi_luong_tu_van_phut} onChange={(e) => setForm({ ...form, thoi_luong_tu_van_phut: e.target.value })} /></Field><Field label='Thứ tự hiển thị'><input type='number' className={inputClass} value={form.thu_tu_hien_thi} onChange={(e) => setForm({ ...form, thu_tu_hien_thi: e.target.value })} /></Field></div>

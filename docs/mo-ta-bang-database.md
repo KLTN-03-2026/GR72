@@ -40,6 +40,7 @@ Tài liệu này mô tả ngắn gọn mục đích của từng bảng trong sc
 
 ### `goi_dich_vu`
 - Danh mục gói dịch vụ chuẩn (giá, thời hạn, số lượt, trạng thái kinh doanh).
+- Bao gồm media hiển thị cho UI: `thumbnail_url`, `banner_url`.
 
 ### `goi_dich_vu_chuyen_gia`
 - Bảng mapping gói ↔ chuyên gia.

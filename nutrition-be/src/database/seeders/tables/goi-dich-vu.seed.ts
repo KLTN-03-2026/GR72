@@ -10,6 +10,8 @@ const goi_dich_vuSeeder: TableSeeder = {
     slug: `goi-tu-van-${i}`,
     loai_goi: ['suc_khoe', 'dinh_duong', 'tap_luyen'][i % 3],
     mo_ta: `Goi dich vu mau ${i} cho luong khach hang mua goi roi book chuyen gia.`,
+    thumbnail_url: `https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=600&q=80&sig=${i}`,
+    banner_url: `https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=1600&q=80&sig=${i}`,
     quyen_loi: ['1 buoi tu van', 'Theo doi tien trinh', 'Goi y ca nhan hoa'],
     gia: 250000 + i * 50000,
     gia_khuyen_mai: i % 2 === 0 ? 220000 + i * 50000 : null,
@@ -26,4 +28,3 @@ const goi_dich_vuSeeder: TableSeeder = {
 };
 
 export default goi_dich_vuSeeder;
-

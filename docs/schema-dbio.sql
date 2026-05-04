@@ -139,6 +139,8 @@ CREATE TABLE goi_dich_vu (
   slug VARCHAR(180) NOT NULL,
   loai_goi ENUM('suc_khoe', 'dinh_duong', 'tap_luyen') NOT NULL,
   mo_ta TEXT NULL,
+  thumbnail_url VARCHAR(500) NULL,
+  banner_url VARCHAR(500) NULL,
   quyen_loi JSON NULL,
   gia DECIMAL(12,2) NOT NULL DEFAULT 0,
   gia_khuyen_mai DECIMAL(12,2) NULL,

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { CalendarClock, CheckCircle, Star, Wallet } from 'lucide-react'
 import { EmptyState, Notice, PageHeader, Panel, StatCard, StatusPill, money } from '@/components/admin/admin-ui'
 import { DataTable, Td, Th } from '@/components/admin/admin-table'
 import { expertGet } from '@/lib/expert-api'
@@ -28,10 +29,10 @@ export default function NutritionistDashboardPage() {
       {data ? (
         <div className='space-y-5'>
           <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>
-            <StatCard label='Booking đang xử lý' value={String(data.booking?.active ?? 0)} tone='orange' />
-            <StatCard label='Đã hoàn thành' value={String(data.booking?.completed ?? 0)} tone='green' />
-            <StatCard label='Rating trung bình' value={`${Number(data.review?.avgRating ?? 0).toFixed(1)}/5`} />
-            <StatCard label='Hoa hồng chờ chi' value={money(data.commission?.pending)} tone='orange' />
+            <StatCard label='Booking đang xử lý' value={String(data.booking?.active ?? 0)} tone='orange' icon={CalendarClock} />
+            <StatCard label='Đã hoàn thành' value={String(data.booking?.completed ?? 0)} tone='green' icon={CheckCircle} />
+            <StatCard label='Rating trung bình' value={`${Number(data.review?.avgRating ?? 0).toFixed(1)}/5`} icon={Star} />
+            <StatCard label='Hoa hồng chờ chi' value={money(data.commission?.pending)} tone='orange' icon={Wallet} />
           </div>
 
           <Panel title='Booking sắp xử lý' description='Các lịch đã xác nhận cần chuẩn bị trước buổi tư vấn.'>

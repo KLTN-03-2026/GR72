@@ -34,11 +34,13 @@ export function StatCard({
   value,
   tone = 'blue',
   caption,
+  icon: Icon,
 }: {
   label: string
   value: string
   tone?: 'blue' | 'orange' | 'green' | 'red' | 'slate'
   caption?: string
+  icon?: React.ComponentType<{ size?: number; className?: string }>
 }) {
   const tones = {
     blue: 'text-[#2563EB] bg-blue-50 border-blue-100 shadow-blue-50',
@@ -49,7 +51,10 @@ export function StatCard({
   }
   return (
     <div className={`rounded-2xl border p-4 shadow-sm transition-colors duration-200 hover:border-current ${tones[tone]}`}>
-      <p className='text-xs font-semibold uppercase tracking-wide opacity-80'>{label}</p>
+      <div className='flex items-center justify-between gap-2'>
+        <p className='text-xs font-semibold uppercase tracking-wide opacity-80'>{label}</p>
+        {Icon ? <Icon size={15} className='shrink-0 opacity-50' /> : null}
+      </div>
       <p className='mt-2 text-2xl font-semibold tracking-tight'>{value}</p>
       {caption ? <p className='mt-2 text-xs font-medium opacity-70'>{caption}</p> : null}
     </div>
@@ -120,9 +125,16 @@ export function StatusPill({ value }: { value: string }) {
     da_dong: 'Đã đóng',
     chua_doc: 'Chưa đọc',
     da_doc: 'Đã đọc',
+    dang_hieu_luc: 'Đang hiệu lực',
+    cho_thanh_toan: 'Chờ thanh toán',
+    het_luot: 'Hết lượt',
+    het_han: 'Hết hạn',
+    da_hoan_tien: 'Đã hoàn tiền',
+    khoi_tao: 'Khởi tạo',
+    that_bai: 'Thất bại',
   }
-  const positive = ['dang_ban', 'hoat_dong', 'thanh_cong', 'hien_thi', 'da_chi_tra', 'hoan_thanh', 'da_giai_quyet', 'customer', 'expert', 'admin', 'da_doc']
-  const danger = ['ngung_ban', 'hoan_tien', 'bi_an', 'bi_bao_cao', 'that_bai', 'da_xoa', 'bi_khoa', 'tu_choi']
+  const positive = ['dang_ban', 'hoat_dong', 'thanh_cong', 'hien_thi', 'da_chi_tra', 'hoan_thanh', 'da_giai_quyet', 'customer', 'expert', 'admin', 'da_doc', 'dang_hieu_luc']
+  const danger = ['ngung_ban', 'hoan_tien', 'bi_an', 'bi_bao_cao', 'that_bai', 'da_xoa', 'bi_khoa', 'tu_choi', 'het_luot', 'het_han', 'da_hoan_tien']
   const className = positive.includes(value)
     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
     : danger.includes(value)

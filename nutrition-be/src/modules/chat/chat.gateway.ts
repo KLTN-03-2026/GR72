@@ -45,6 +45,15 @@ function bookingRoom(bookingId: number) {
   return `booking:${bookingId}`;
 }
 
+const CHAT_ALLOWED_STATUSES = new Set([
+  'cho_xac_nhan',
+  'cho_thanh_toan',
+  'da_xac_nhan',
+  'da_checkin',
+  'dang_tu_van',
+  'hoan_thanh',
+]);
+
 @WebSocketGateway({
   cors: {
     origin: process.env.CORS_ORIGIN?.split(',') ?? true,
@@ -98,7 +107,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!user || !bookingId) return { ok: false, message: 'Không thể tham gia phòng chat.' };
 
     const canAccess = await this.canAccessBooking(user.sub, bookingId);
-    if (!canAccess) return { ok: false, message: 'Bạn không có quyền xem phòng chat này.' };
+    if (!canAccess.ok) return { ok: false, message: canAccess.message ?? 'Bạn không có quyền xem phòng chat này.' };
 
     const room = bookingRoom(bookingId);
     await client.join(room);
@@ -124,10 +133,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       bookingId,
       message,
     });
+    this.server?.to(bookingRoom(bookingId)).emit('chat:message_created', {
+      bookingId,
+      message,
+    });
   }
 
   emitChatRead(bookingId: number, readerId: number) {
     this.server?.to(bookingRoom(bookingId)).emit('chat:read', {
+      bookingId,
+      readerId,
+      readAt: new Date().toISOString(),
+    });
+    this.server?.to(bookingRoom(bookingId)).emit('chat:read_updated', {
       bookingId,
       readerId,
       readAt: new Date().toISOString(),
@@ -137,16 +155,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private async canAccessBooking(accountId: number, bookingId: number) {
     try {
       const [booking] = await this.dataSource.query(
-        `SELECT lh.id
+        `SELECT lh.id, lh.trang_thai
          FROM lich_hen lh
          LEFT JOIN chuyen_gia cg ON cg.id = lh.chuyen_gia_id
-         WHERE lh.id = ? AND (lh.tai_khoan_id = ? OR cg.tai_khoan_id = ?)`,
-        [bookingId, accountId, accountId],
+         JOIN tai_khoan tk ON tk.id = ?
+         WHERE lh.id = ? AND tk.trang_thai = 'hoat_dong' AND (lh.tai_khoan_id = ? OR cg.tai_khoan_id = ?)`,
+        [accountId, bookingId, accountId, accountId],
       );
-      return Boolean(booking);
+      if (!booking) return { ok: false, message: 'Bạn không có quyền xem phòng chat này.' };
+      if (!CHAT_ALLOWED_STATUSES.has(String(booking.trang_thai))) {
+        return { ok: false, message: 'Booking hiện không cho phép chat realtime.' };
+      }
+      return { ok: true };
     } catch (error) {
       this.logger.error(`Cannot authorize chat room ${bookingId}`, error as Error);
-      return false;
+      return { ok: false, message: 'Không thể xác thực phòng chat lúc này.' };
     }
   }
 }

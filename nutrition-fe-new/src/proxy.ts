@@ -31,6 +31,11 @@ function decodeJwtPayload(token: string) {
 
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl
+  if (pathname.startsWith('/dashboard')) {
+    const suffix = pathname.replace(/^\/dashboard/, '')
+    return NextResponse.redirect(new URL(`/user${suffix}${search}`, request.url))
+  }
+
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value
   const payload = token ? decodeJwtPayload(token) : null
   const role = payload?.vai_tro
@@ -44,6 +49,7 @@ export function proxy(request: NextRequest) {
   const protectedPath =
     pathname.startsWith('/admin') ||
     pathname.startsWith('/nutritionist') ||
+    pathname.startsWith('/user') ||
     pathname.startsWith('/dashboard')
 
   if (!protectedPath) {
@@ -71,6 +77,7 @@ export const config = {
     '/verify-otp',
     '/reset-password',
     '/dashboard/:path*',
+    '/user/:path*',
     '/admin/:path*',
     '/nutritionist/:path*',
   ],

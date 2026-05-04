@@ -114,6 +114,12 @@ export default function ExpertChatRoomPage() {
     }
   }
 
+  function openVideoCall() {
+    if (!bookingId) return
+    const url = `/call/nutrition/bookings/${bookingId}`
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
   return (
     <div className='space-y-5'>
       {notice ? <Notice tone='error'>{notice}</Notice> : null}
@@ -129,8 +135,8 @@ export default function ExpertChatRoomPage() {
               </div>
               <div className='flex flex-wrap items-center gap-2'>
                 {booking ? <StatusPill value={booking.trang_thai} /> : null}
-                <button type='button' disabled title='Sẽ tích hợp video call sau' className='inline-flex cursor-not-allowed items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-blue-700 opacity-75 shadow-sm'>
-                  <VideoIcon /> Video call
+                <button type='button' onClick={openVideoCall} title='Bắt đầu video call' aria-label='Bắt đầu video call' className='inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 shadow-sm transition hover:bg-blue-50'>
+                  <VideoIcon />
                 </button>
               </div>
             </div>

@@ -1,8 +1,20 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { AccessToken } from 'livekit-server-sdk';
 import { DataSource } from 'typeorm';
 import { ChatGateway } from '../chat/chat.gateway';
 
 type Dict = Record<string, any>;
+const CHAT_SEND_ALLOWED_STATUSES = new Set([
+  'cho_xac_nhan',
+  'cho_thanh_toan',
+  'da_xac_nhan',
+  'da_checkin',
+  'dang_tu_van',
+  'hoan_thanh',
+]);
+const CALL_JOIN_ALLOWED_STATUSES = new Set(['da_xac_nhan', 'da_checkin', 'dang_tu_van']);
+const CALL_OPEN_BEFORE_START_MINUTES = 15;
+const CALL_OPEN_AFTER_END_MINUTES = 30;
 
 type ExpertContext = { accountId: number; expertId: number };
 
@@ -13,6 +25,10 @@ function parseJson(value: unknown) {
 
 function dateOnly(value: Date) {
   return value.toISOString().slice(0, 10);
+}
+
+function asDate(value: unknown) {
+  return value ? new Date(value as string | number | Date) : null;
 }
 
 @Injectable()
@@ -41,6 +57,124 @@ export class ExpertService {
     );
     if (!booking) throw new NotFoundException('Khong tim thay booking cua chuyen gia');
     return { ctx, booking };
+  }
+
+  private evaluateCallJoin(booking: Dict) {
+    if (!CALL_JOIN_ALLOWED_STATUSES.has(String(booking.trang_thai))) {
+      return { canJoin: false, reason: 'Booking chua o trang thai cho phep vao phong goi.' };
+    }
+
+    const startAt = asDate(booking.bat_dau_luc);
+    const endAt = asDate(booking.ket_thuc_luc);
+    if (!startAt || !endAt) {
+      return { canJoin: false, reason: 'Booking chua co moc thoi gian call hop le.' };
+    }
+
+    const openFrom = new Date(startAt.getTime() - CALL_OPEN_BEFORE_START_MINUTES * 60 * 1000);
+    const openUntil = new Date(endAt.getTime() + CALL_OPEN_AFTER_END_MINUTES * 60 * 1000);
+    const now = new Date();
+
+    if (now < openFrom) {
+      return { canJoin: false, reason: 'Chua den khung gio cho phep vao phong goi.', openFrom, openUntil, now };
+    }
+    if (now > openUntil) {
+      return { canJoin: false, reason: 'Da qua khung gio cho phep vao phong goi.', openFrom, openUntil, now };
+    }
+    return { canJoin: true, reason: null, openFrom, openUntil, now };
+  }
+
+  private async ensureCallSession(bookingId: number) {
+    const [found] = await this.dataSource.query('SELECT * FROM cuoc_goi_tu_van WHERE lich_hen_id = ? LIMIT 1', [bookingId]);
+    if (found) return found;
+
+    const now = new Date();
+    const roomName = `booking-${bookingId}`;
+    await this.dataSource.query(
+      `INSERT INTO cuoc_goi_tu_van (lich_hen_id, provider, room_name, trang_thai, bat_dau_luc, ket_thuc_luc, thoi_luong_giay, tao_luc, cap_nhat_luc)
+       VALUES (?, 'livekit', ?, 'cho', NULL, NULL, NULL, ?, ?)`,
+      [bookingId, roomName, now, now],
+    );
+    const [created] = await this.dataSource.query('SELECT * FROM cuoc_goi_tu_van WHERE lich_hen_id = ? LIMIT 1', [bookingId]);
+    return created;
+  }
+
+  async getCallSession(accountId: number | undefined, bookingId: number) {
+    const { booking } = await this.assertBooking(accountId, bookingId);
+    const gate = this.evaluateCallJoin(booking);
+    const call = await this.ensureCallSession(bookingId);
+    return {
+      booking_id: bookingId,
+      room_name: call.room_name,
+      provider: call.provider,
+      call_status: call.trang_thai,
+      can_join: gate.canJoin,
+      reason: gate.reason,
+      open_from: gate.openFrom?.toISOString() ?? null,
+      open_until: gate.openUntil?.toISOString() ?? null,
+      now: gate.now?.toISOString() ?? new Date().toISOString(),
+    };
+  }
+
+  async createCallToken(accountId: number | undefined, bookingId: number) {
+    const { ctx, booking } = await this.assertBooking(accountId, bookingId);
+    const gate = this.evaluateCallJoin(booking);
+    if (!gate.canJoin) throw new BadRequestException(gate.reason ?? 'Booking hien khong cho phep vao phong goi');
+
+    const session = await this.ensureCallSession(bookingId);
+    const apiKey = process.env.LIVEKIT_API_KEY;
+    const apiSecret = process.env.LIVEKIT_API_SECRET;
+    const wsUrl = process.env.LIVEKIT_URL;
+    if (!apiKey || !apiSecret || !wsUrl) {
+      throw new BadRequestException('He thong chua cau hinh LIVEKIT_API_KEY, LIVEKIT_API_SECRET hoac LIVEKIT_URL');
+    }
+
+    const token = new AccessToken(apiKey, apiSecret, {
+      identity: `expert:${ctx.accountId}`,
+      name: `expert-${ctx.accountId}`,
+      ttl: '15m',
+    });
+    token.addGrant({
+      roomJoin: true,
+      room: String(session.room_name),
+      canPublish: true,
+      canSubscribe: true,
+      canPublishData: true,
+    });
+    const jwt = await token.toJwt();
+
+    const now = new Date();
+    await this.dataSource.query(
+      `UPDATE cuoc_goi_tu_van
+       SET trang_thai = CASE WHEN trang_thai = 'cho' THEN 'dang_dien_ra' ELSE trang_thai END,
+           bat_dau_luc = COALESCE(bat_dau_luc, ?),
+           cap_nhat_luc = ?
+       WHERE lich_hen_id = ?`,
+      [now, now, bookingId],
+    );
+    await this.dataSource.query(
+      `INSERT INTO booking_timeline (lich_hen_id, actor_id, su_kien, trang_thai_truoc, trang_thai_sau, ghi_chu, metadata, tao_luc)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        bookingId,
+        ctx.accountId,
+        'call_token_created',
+        booking.trang_thai ?? null,
+        booking.trang_thai ?? null,
+        'Expert tao token vao phong goi video',
+        JSON.stringify({ room_name: session.room_name, provider: session.provider }),
+        now,
+      ],
+    );
+
+    const meetBase = process.env.LIVEKIT_MEET_URL ?? 'https://meet.livekit.io';
+    return {
+      provider: session.provider,
+      room_name: session.room_name,
+      livekit_url: wsUrl,
+      token: jwt,
+      join_url: `${meetBase}/custom?liveKitUrl=${encodeURIComponent(wsUrl)}&token=${encodeURIComponent(jwt)}`,
+      expires_in_seconds: 15 * 60,
+    };
   }
 
   async getDashboard(accountId?: number) {
@@ -159,24 +293,53 @@ export class ExpertService {
 
   async updateBookingStatus(accountId: number | undefined, bookingId: number, status: string) {
     const { ctx, booking } = await this.assertBooking(accountId, bookingId);
-    await this.dataSource.query('UPDATE lich_hen SET trang_thai = ?, cap_nhat_luc = ? WHERE id = ?', [status, new Date(), bookingId]);
-    await this.dataSource.query('INSERT INTO booking_timeline (lich_hen_id, actor_id, su_kien, trang_thai_truoc, trang_thai_sau, ghi_chu, metadata, tao_luc) VALUES (?, ?, ?, ?, ?, NULL, NULL, ?)', [bookingId, ctx.accountId, status, booking.trang_thai, status, new Date()]);
+    const now = new Date();
+    await this.dataSource.query('UPDATE lich_hen SET trang_thai = ?, cap_nhat_luc = ? WHERE id = ?', [status, now, bookingId]);
+    await this.dataSource.query('INSERT INTO booking_timeline (lich_hen_id, actor_id, su_kien, trang_thai_truoc, trang_thai_sau, ghi_chu, metadata, tao_luc) VALUES (?, ?, ?, ?, ?, NULL, NULL, ?)', [bookingId, ctx.accountId, status, booking.trang_thai, status, now]);
+    // Thông báo customer khi expert xác nhận booking
+    if (status === 'da_xac_nhan') {
+      await this.dataSource.query(
+        `INSERT INTO thong_bao (tai_khoan_id,nguoi_gui_id,loai,tieu_de,noi_dung,trang_thai,duong_dan_hanh_dong,entity_type,entity_id,tao_luc,doc_luc,cap_nhat_luc)
+         VALUES (?,?,'booking','Booking da duoc xac nhan',?,'chua_doc',?,'lich_hen',?,?,NULL,?)`,
+        [booking.tai_khoan_id, ctx.accountId,
+         `Chuyen gia da xac nhan lich hen ${booking.ma_lich_hen}. Vui long check-in dung gio.`,
+         `/user/bookings/${bookingId}`, bookingId, now, now],
+      );
+    }
     return this.getBooking(accountId, bookingId);
   }
 
   async rejectBooking(accountId: number | undefined, bookingId: number, body: Dict) {
     if (!String(body.ly_do ?? '').trim()) throw new BadRequestException('Vui long nhap ly do tu choi');
     const { ctx, booking } = await this.assertBooking(accountId, bookingId);
-    await this.dataSource.query('UPDATE lich_hen SET trang_thai = ?, ly_do_huy = ?, huy_boi = ?, huy_luc = ?, cap_nhat_luc = ? WHERE id = ?', ['da_huy', body.ly_do, ctx.accountId, new Date(), new Date(), bookingId]);
-    await this.dataSource.query('INSERT INTO booking_timeline (lich_hen_id, actor_id, su_kien, trang_thai_truoc, trang_thai_sau, ghi_chu, metadata, tao_luc) VALUES (?, ?, ?, ?, ?, ?, NULL, ?)', [bookingId, ctx.accountId, 'reject', booking.trang_thai, 'da_huy', body.ly_do, new Date()]);
+    const now = new Date();
+    await this.dataSource.query('UPDATE lich_hen SET trang_thai = ?, ly_do_huy = ?, huy_boi = ?, huy_luc = ?, cap_nhat_luc = ? WHERE id = ?', ['da_huy', body.ly_do, ctx.accountId, now, now, bookingId]);
+    await this.dataSource.query('INSERT INTO booking_timeline (lich_hen_id, actor_id, su_kien, trang_thai_truoc, trang_thai_sau, ghi_chu, metadata, tao_luc) VALUES (?, ?, ?, ?, ?, ?, NULL, ?)', [bookingId, ctx.accountId, 'reject', booking.trang_thai, 'da_huy', body.ly_do, now]);
+    // Thông báo customer khi expert từ chối booking
+    await this.dataSource.query(
+      `INSERT INTO thong_bao (tai_khoan_id,nguoi_gui_id,loai,tieu_de,noi_dung,trang_thai,duong_dan_hanh_dong,entity_type,entity_id,tao_luc,doc_luc,cap_nhat_luc)
+       VALUES (?,?,'booking','Booking bi tu choi',?,'chua_doc',?,'lich_hen',?,?,NULL,?)`,
+      [booking.tai_khoan_id, ctx.accountId,
+       `Lich hen ${booking.ma_lich_hen} bi tu choi. Ly do: ${body.ly_do}. Luot cua ban se duoc hoan tra.`,
+       `/user/bookings/${bookingId}`, bookingId, now, now],
+    );
     return this.getBooking(accountId, bookingId);
   }
 
   async completeBooking(accountId: number | undefined, bookingId: number) {
     const { ctx, booking } = await this.assertBooking(accountId, bookingId);
-    await this.dataSource.query('UPDATE lich_hen SET trang_thai = ?, hoan_thanh_luc = ?, cap_nhat_luc = ? WHERE id = ?', ['hoan_thanh', new Date(), new Date(), bookingId]);
-    await this.dataSource.query('UPDATE chuyen_gia SET so_booking_hoan_thanh = so_booking_hoan_thanh + 1, cap_nhat_luc = ? WHERE id = ?', [new Date(), ctx.expertId]);
-    await this.dataSource.query('INSERT INTO booking_timeline (lich_hen_id, actor_id, su_kien, trang_thai_truoc, trang_thai_sau, ghi_chu, metadata, tao_luc) VALUES (?, ?, ?, ?, ?, NULL, NULL, ?)', [bookingId, ctx.accountId, 'complete', booking.trang_thai, 'hoan_thanh', new Date()]);
+    const now = new Date();
+    await this.dataSource.query('UPDATE lich_hen SET trang_thai = ?, hoan_thanh_luc = ?, cap_nhat_luc = ? WHERE id = ?', ['hoan_thanh', now, now, bookingId]);
+    await this.dataSource.query('UPDATE chuyen_gia SET so_booking_hoan_thanh = so_booking_hoan_thanh + 1, cap_nhat_luc = ? WHERE id = ?', [now, ctx.expertId]);
+    await this.dataSource.query('INSERT INTO booking_timeline (lich_hen_id, actor_id, su_kien, trang_thai_truoc, trang_thai_sau, ghi_chu, metadata, tao_luc) VALUES (?, ?, ?, ?, ?, NULL, NULL, ?)', [bookingId, ctx.accountId, 'complete', booking.trang_thai, 'hoan_thanh', now]);
+    // Thông báo customer: buổi tư vấn hoàn thành, mời đánh giá
+    await this.dataSource.query(
+      `INSERT INTO thong_bao (tai_khoan_id,nguoi_gui_id,loai,tieu_de,noi_dung,trang_thai,duong_dan_hanh_dong,entity_type,entity_id,tao_luc,doc_luc,cap_nhat_luc)
+       VALUES (?,?,'booking','Buoi tu van hoan thanh',?,'chua_doc',?,'lich_hen',?,?,NULL,?)`,
+      [booking.tai_khoan_id, ctx.accountId,
+       `Lich hen ${booking.ma_lich_hen} da hoan thanh. Hay danh gia buoi tu van de giup chuyen gia cai thien dich vu!`,
+       `/user/bookings/${bookingId}`, bookingId, now, now],
+    );
     return this.getBooking(accountId, bookingId);
   }
 
@@ -221,12 +384,24 @@ export class ExpertService {
     const ctx = await this.context(accountId);
     const content = String(body.noi_dung ?? body.content ?? '').trim();
     if (!content) throw new BadRequestException('Vui long nhap phan hoi');
-    const [review] = await this.dataSource.query('SELECT id FROM danh_gia WHERE id = ? AND chuyen_gia_id = ?', [reviewId, ctx.expertId]);
+    const [review] = await this.dataSource.query(
+      `SELECT dg.id, dg.tai_khoan_id, dg.lich_hen_id FROM danh_gia dg WHERE dg.id = ? AND dg.chuyen_gia_id = ?`,
+      [reviewId, ctx.expertId],
+    );
     if (!review) throw new NotFoundException('Khong tim thay danh gia cua chuyen gia');
+    const now = new Date();
     await this.dataSource.query(
       `INSERT INTO phan_hoi_danh_gia (danh_gia_id, chuyen_gia_id, noi_dung, tao_luc, cap_nhat_luc)
        VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE noi_dung=VALUES(noi_dung), cap_nhat_luc=VALUES(cap_nhat_luc)`,
-      [reviewId, ctx.expertId, content, new Date(), new Date()],
+      [reviewId, ctx.expertId, content, now, now],
+    );
+    // Thông báo customer: chuyên gia đã phản hồi đánh giá
+    await this.dataSource.query(
+      `INSERT INTO thong_bao (tai_khoan_id,nguoi_gui_id,loai,tieu_de,noi_dung,trang_thai,duong_dan_hanh_dong,entity_type,entity_id,tao_luc,doc_luc,cap_nhat_luc)
+       VALUES (?,?,'review','Chuyen gia da phan hoi danh gia',?,'chua_doc',?,'danh_gia',?,?,NULL,?)`,
+      [review.tai_khoan_id, ctx.accountId,
+       `Chuyen gia da phan hoi danh gia cua ban: "${content.slice(0, 100)}${content.length > 100 ? '...' : ''}"`,
+       `/user/bookings/${review.lich_hen_id}`, reviewId, now, now],
     );
     return { ok: true };
   }
@@ -314,6 +489,9 @@ export class ExpertService {
 
   async sendMessage(accountId: number | undefined, bookingId: number, body: Dict) {
     const { ctx, booking } = await this.assertBooking(accountId, bookingId);
+    if (!CHAT_SEND_ALLOWED_STATUSES.has(String(booking.trang_thai))) {
+      throw new BadRequestException('Booking hien khong cho phep gui tin nhan');
+    }
     const content = String(body.noi_dung ?? body.content ?? '').trim();
     if (!content) throw new BadRequestException('Vui long nhap tin nhan');
     const now = new Date();

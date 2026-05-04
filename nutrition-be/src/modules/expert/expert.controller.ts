@@ -100,4 +100,10 @@ export class ExpertController {
 
   @Patch('chats/:bookingId/read')
   readChat(@Req() request: AuthedRequest, @Param('bookingId') bookingId: string) { return this.expertService.markChatRead(request.user?.sub, id(bookingId)); }
+
+  @Get('bookings/:id/call-session')
+  callSession(@Req() request: AuthedRequest, @Param('id') bookingId: string) { return this.expertService.getCallSession(request.user?.sub, id(bookingId)); }
+
+  @Post('bookings/:id/call-token')
+  callToken(@Req() request: AuthedRequest, @Param('id') bookingId: string) { return this.expertService.createCallToken(request.user?.sub, id(bookingId)); }
 }

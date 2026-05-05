@@ -26,6 +26,7 @@ type SessionUser = {
   ho_ten: string;
   vai_tro: AccountRole;
   trang_thai: TaiKhoanEntity['trang_thai'];
+  anh_dai_dien_url?: string | null;
 };
 
 type AuthSession = {
@@ -153,9 +154,16 @@ export class AuthService {
       throw new UnauthorizedException('Ban chua dang nhap');
     }
 
-    const account = await this.accountRepository.findOne({
-      where: { id: userId, xoa_luc: IsNull() },
-    });
+    const [account] = await this.accountRepository.query(
+      `SELECT tk.id, tk.email, tk.ho_ten, tk.vai_tro, tk.trang_thai,
+              COALESCE(cg.anh_dai_dien_url, hsc.anh_dai_dien_url) AS anh_dai_dien_url
+       FROM tai_khoan tk
+       LEFT JOIN chuyen_gia cg ON cg.tai_khoan_id = tk.id
+       LEFT JOIN ho_so_customer hsc ON hsc.tai_khoan_id = tk.id
+       WHERE tk.id = ? AND tk.xoa_luc IS NULL
+       LIMIT 1`,
+      [userId],
+    );
 
     if (!account) {
       throw new UnauthorizedException('Phien dang nhap khong hop le');
@@ -164,7 +172,14 @@ export class AuthService {
     return {
       success: true,
       message: 'Lay thong tin dang nhap thanh cong',
-      data: this.toSessionUser(account),
+      data: {
+        id: Number(account.id),
+        email: account.email,
+        ho_ten: account.ho_ten,
+        vai_tro: account.vai_tro,
+        trang_thai: account.trang_thai,
+        anh_dai_dien_url: account.anh_dai_dien_url ?? null,
+      },
     };
   }
 
@@ -321,6 +336,7 @@ export class AuthService {
       ho_ten: account.ho_ten,
       vai_tro: account.vai_tro,
       trang_thai: account.trang_thai,
+      anh_dai_dien_url: null,
     };
   }
 }

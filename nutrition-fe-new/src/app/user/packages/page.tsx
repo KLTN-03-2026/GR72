@@ -34,6 +34,12 @@ export default function PackagesPage() {
     }
   }
 
+  function getBlockedReason(row: Row): string {
+    if (row.da_so_huu) return 'Bạn đã có gói này (đang hiệu lực hoặc đang chờ thanh toán).'
+    if (row.da_co_goi_cung_loai) return 'Bạn đang có gói cùng loại còn hiệu lực.'
+    return ''
+  }
+
   const stats = useMemo(() => ({
     total: rows.length,
     experts: rows.reduce((t, r) => t + Number(r.so_chuyen_gia ?? 0), 0),
@@ -60,6 +66,7 @@ export default function PackagesPage() {
         <div className='grid-cards'>
           {rows.map((row) => (
             <div key={row.id} className='package-card'>
+              {getBlockedReason(row) ? <UserNotice tone='warning'>{getBlockedReason(row)}</UserNotice> : null}
               {row.banner_url || row.thumbnail_url ? (
                 <div className='package-card__media'>
                   <img src={row.banner_url ?? row.thumbnail_url} alt={row.ten_goi} className='package-card__media-image' />
@@ -77,7 +84,9 @@ export default function PackagesPage() {
                   <span className='package-card__price'>{money(row.gia_khuyen_mai ?? row.gia)}</span>
                   {row.gia_khuyen_mai && <span className='package-card__price-old'>{money(row.gia)}</span>}
                 </div>
-                <UserButton onClick={() => buy(row.id)}>Mua ngay</UserButton>
+                <UserButton disabled={!!getBlockedReason(row)} onClick={() => buy(row.id)}>
+                  {getBlockedReason(row) ? 'Không thể mua' : 'Mua ngay'}
+                </UserButton>
               </div>
             </div>
           ))}

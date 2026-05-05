@@ -20,6 +20,7 @@ import {
   Activity,
   Sparkles,
   Utensils,
+  UserCircle2,
 } from 'lucide-react'
 import { LogoutButton } from '@/components/dashboard/logout-button'
 import { UserNotificationBell } from '@/components/user/user-notification-bell'
@@ -35,6 +36,7 @@ const navItems = [
   { label: 'Thanh toán', href: '/user/payments', icon: CreditCard, description: 'Lịch sử giao dịch' },
   { label: 'Đánh giá', href: '/user/reviews', icon: Star, description: 'Đánh giá chuyên gia' },
   { label: 'Khiếu nại', href: '/user/complaints', icon: AlertCircle, description: 'Hỗ trợ & khiếu nại' },
+  { label: 'Hồ sơ cá nhân', href: '/user/profile', icon: UserCircle2, description: 'Thông tin tài khoản & avatar' },
   { label: 'Hồ sơ sức khỏe', href: '/user/health-profile', icon: Heart, description: 'Thông tin sức khỏe' },
   { label: 'Chỉ số sức khỏe', href: '/user/health-metrics', icon: Activity, description: 'Theo dõi chỉ số' },
   { label: 'Gợi ý sức khỏe', href: '/user/health-recommendations', icon: Sparkles, description: 'Kế hoạch sức khỏe' },
@@ -48,6 +50,7 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
   const [allowed, setAllowed] = useState(false)
   const [user, setUser] = useState<AuthUser | null>(null)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState('')
 
   useEffect(() => {
     let active = true
@@ -61,6 +64,10 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
         }
         setUser(response.data)
         setAllowed(true)
+        fetch('/api/customer/profile', { credentials: 'include', cache: 'no-store' })
+          .then((r) => r.json())
+          .then((payload) => setAvatarUrl(String(payload?.data?.anh_dai_dien_url ?? '')))
+          .catch(() => setAvatarUrl(String(response.data.anh_dai_dien_url ?? '')))
       })
       .catch(() => {
         router.replace(`/login?redirect=${encodeURIComponent(pathname)}`)
@@ -126,7 +133,15 @@ export function UserLayout({ children }: { children: React.ReactNode }) {
           <div className='user-sidebar__footer'>
             <div className='user-sidebar__profile'>
               <div className='user-sidebar__avatar'>
-                {user.ho_ten?.charAt(0).toUpperCase() ?? 'U'}
+                {(avatarUrl || user.anh_dai_dien_url) ? (
+                  <img
+                    src={String(avatarUrl || user.anh_dai_dien_url)}
+                    alt='avatar'
+                    style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  user.ho_ten?.charAt(0).toUpperCase() ?? 'U'
+                )}
               </div>
               <div className='user-sidebar__user-info'>
                 <p className='user-sidebar__user-name'>{user.ho_ten}</p>

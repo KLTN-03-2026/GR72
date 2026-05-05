@@ -1,16 +1,16 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Send, User, Shield } from 'lucide-react'
+import { ArrowLeft, Send, User, Shield, MessageSquare } from 'lucide-react'
 import { Card, UserButton, UserNotice, StatusBadge } from '@/components/user/user-ui'
 import { customerGet, customerPost } from '@/lib/customer-api'
 
 type Row = Record<string, any>
 
 const TYPE_LABELS: Record<string, string> = {
-  booking: '📅 Lịch hẹn', thanh_toan: '💳 Thanh toán', danh_gia: '⭐ Đánh giá', khac: '🔖 Khác',
+  booking: 'Lịch hẹn', thanh_toan: 'Thanh toán', danh_gia: 'Đánh giá', khac: 'Khác',
 }
 
 export default function ComplaintDetailPage() {
@@ -25,12 +25,12 @@ export default function ComplaintDetailPage() {
 
   function load() {
     customerGet<Row>(`/complaints/${id}`)
-      .then(d => { setData(d); setLoading(false) })
-      .catch(e => { setError(e.message ?? 'Lỗi'); setLoading(false) })
+      .then((d) => { setData(d); setLoading(false) })
+      .catch((e) => { setError(e.message ?? 'Lỗi'); setLoading(false) })
   }
 
   useEffect(() => { load() }, [id])
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [data?.messages])
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [data?.messages?.length])
 
   async function sendMessage() {
     if (!content.trim()) return
@@ -42,102 +42,107 @@ export default function ComplaintDetailPage() {
       load()
     } catch (e: any) {
       setSendMsg(e.message ?? 'Gửi thất bại')
-    } finally { setSending(false) }
+    } finally {
+      setSending(false)
+    }
   }
+
+  const messages = useMemo(() => data?.messages ?? [], [data?.messages])
+  const isClosed = ['da_dong', 'da_huy', 'da_giai_quyet'].includes(String(data?.trang_thai ?? ''))
 
   if (loading) return <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>Đang tải...</div>
   if (error) return <UserNotice tone='error'>{error}</UserNotice>
   if (!data) return null
 
-  const isClosed = ['da_dong', 'da_huy'].includes(data.trang_thai)
-
   return (
-    <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+    <div style={{ display: 'grid', gap: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
         <Link href='/user/complaints'>
           <UserButton variant='ghost' size='sm'><ArrowLeft size={14} /> Quay lại</UserButton>
         </Link>
         <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'monospace' }}>{data.ma_ticket}</span>
-            <span style={{ fontSize: 12, padding: '2px 10px', borderRadius: 20, background: '#f1f5f9', color: '#64748b', fontWeight: 600 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, color: '#64748b', fontFamily: 'monospace' }}>{data.ma_ticket}</span>
+            <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20, background: '#eef2ff', color: '#4f46e5', fontWeight: 700 }}>
               {TYPE_LABELS[data.loai] ?? data.loai}
             </span>
           </div>
-          <p style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', marginTop: 2 }}>{data.tieu_de}</p>
+          <h1 style={{ margin: '6px 0 0', fontSize: 28, lineHeight: 1.2, fontWeight: 900, color: '#0f172a' }}>{data.tieu_de}</h1>
         </div>
         <StatusBadge value={data.trang_thai} />
       </div>
 
-      {/* Nội dung khiếu nại */}
       <Card>
-        <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>Nội dung khiếu nại gốc</p>
-        <p style={{ fontSize: 14, color: '#334155', lineHeight: 1.7 }}>{data.noi_dung}</p>
-        <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 12 }}>Gửi lúc {new Date(data.tao_luc).toLocaleString('vi-VN')}</p>
+        <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.06em' }}>Nội dung khiếu nại</p>
+        <p style={{ margin: '8px 0 0', fontSize: 15, color: '#334155', lineHeight: 1.8 }}>{data.noi_dung}</p>
+        <p style={{ margin: '10px 0 0', fontSize: 12, color: '#94a3b8' }}>Gửi lúc {new Date(data.tao_luc).toLocaleString('vi-VN')}</p>
       </Card>
 
-      {/* Hội thoại */}
-      {data.messages?.length > 0 && (
-        <Card>
-          <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', marginBottom: 16 }}>Hội thoại hỗ trợ</p>
-          <div style={{ display: 'grid', gap: 12 }}>
-            {data.messages.map((m: Row) => {
+      <Card>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#0f172a' }}>Trao đổi hỗ trợ</p>
+          <span style={{ fontSize: 12, color: '#64748b' }}>{messages.length} phản hồi</span>
+        </div>
+
+        {messages.length === 0 ? (
+          <div style={{ border: '1px dashed #dbeafe', borderRadius: 12, background: '#f8fbff', padding: 24, textAlign: 'center', color: '#64748b' }}>
+            <MessageSquare size={22} style={{ margin: '0 auto 8px', color: '#93c5fd' }} />
+            Chưa có phản hồi nào.
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: 10, maxHeight: 380, overflow: 'auto', paddingRight: 2 }}>
+            {messages.map((m: Row) => {
               const isAdmin = m.sender_role === 'admin'
               return (
-                <div key={m.id} style={{ display: 'flex', gap: 10, justifyContent: isAdmin ? 'flex-start' : 'flex-end' }}>
-                  {isAdmin && (
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#fee2e2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Shield size={14} />
+                <div key={m.id} style={{ display: 'flex', justifyContent: isAdmin ? 'flex-start' : 'flex-end' }}>
+                  <div style={{ maxWidth: '80%', display: 'grid', gap: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: isAdmin ? 'flex-start' : 'flex-end' }}>
+                      {isAdmin ? <Shield size={12} color='#dc2626' /> : <User size={12} color='#6366f1' />}
+                      <span style={{ fontSize: 11, color: '#94a3b8' }}>
+                        {isAdmin ? 'Admin hỗ trợ' : 'Bạn'} · {new Date(m.tao_luc).toLocaleString('vi-VN')}
+                      </span>
                     </div>
-                  )}
-                  <div style={{ maxWidth: '75%' }}>
-                    <p style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4, textAlign: isAdmin ? 'left' : 'right' }}>
-                      {isAdmin ? '🛡️ Admin' : '👤 Bạn'} · {new Date(m.tao_luc).toLocaleString('vi-VN')}
-                    </p>
                     <div style={{
-                      padding: '10px 14px', borderRadius: 12, fontSize: 13, lineHeight: 1.6,
-                      background: isAdmin ? '#fef9c3' : '#eef2ff',
+                      padding: '10px 12px',
+                      borderRadius: 12,
+                      border: `1px solid ${isAdmin ? '#fde68a' : '#c7d2fe'}`,
+                      background: isAdmin ? '#fffbeb' : '#eef2ff',
                       color: '#334155',
-                      borderBottomLeftRadius: isAdmin ? 4 : 12,
-                      borderBottomRightRadius: isAdmin ? 12 : 4,
+                      fontSize: 13,
+                      lineHeight: 1.6,
                     }}>
                       {m.noi_dung}
                     </div>
                   </div>
-                  {!isAdmin && (
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#eef2ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <User size={14} />
-                    </div>
-                  )}
                 </div>
               )
             })}
             <div ref={bottomRef} />
           </div>
-        </Card>
-      )}
+        )}
+      </Card>
 
-      {/* Gửi tin nhắn */}
       {!isClosed ? (
         <Card>
-          <p style={{ fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 12 }}>Phản hồi thêm</p>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+          <p style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700, color: '#334155' }}>Phản hồi thêm</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'end' }}>
             <textarea
-              style={{ flex: 1, padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 13, resize: 'vertical', minHeight: 72, outline: 'none' }}
-              placeholder="Nhập thêm thông tin hoặc câu hỏi..."
-              value={content} onChange={e => setContent(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendMessage() }}
+              style={{ width: '100%', padding: '12px 14px', borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 14, resize: 'vertical', minHeight: 92, outline: 'none' }}
+              placeholder='Nhập thêm thông tin hoặc câu hỏi...'
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendMessage() }}
             />
             <UserButton onClick={sendMessage} disabled={sending || !content.trim()}>
-              <Send size={14} /> {sending ? '...' : 'Gửi'}
+              <Send size={14} /> {sending ? 'Đang gửi...' : 'Gửi'}
             </UserButton>
           </div>
-          {sendMsg && <p style={{ fontSize: 12, color: '#dc2626', marginTop: 8 }}>{sendMsg}</p>}
-          <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 8 }}>Ctrl+Enter để gửi nhanh</p>
+          {sendMsg ? <p style={{ margin: '8px 0 0', fontSize: 12, color: '#dc2626' }}>{sendMsg}</p> : null}
+          <p style={{ margin: '8px 0 0', fontSize: 11, color: '#94a3b8' }}>Ctrl+Enter để gửi nhanh</p>
         </Card>
       ) : (
-        <UserNotice tone='info'>Khiếu nại này đã được đóng. Nếu cần hỗ trợ thêm, vui lòng tạo khiếu nại mới.</UserNotice>
+        <UserNotice tone='info'>Khiếu nại này đã đóng. Bạn có thể tạo khiếu nại mới nếu cần hỗ trợ tiếp.</UserNotice>
       )}
-    </>
+    </div>
   )
 }

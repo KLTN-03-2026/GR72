@@ -121,7 +121,8 @@ export class CustomerService {
     return purchase;
   }
 
-  async listServicePackages(query: Dict) {
+  async listServicePackages(accountId: number | undefined, query: Dict) {
+    const userId = accountId ? await this.assertAccount(accountId) : null;
     const where = ["gdv.trang_thai = 'dang_ban'", 'gdv.xoa_luc IS NULL'];
     const params: unknown[] = [];
 
@@ -134,8 +135,35 @@ export class CustomerService {
       params.push(query.type);
     }
 
+    const ownershipColumns = userId
+      ? `,
+              EXISTS(
+                SELECT 1
+                FROM goi_da_mua gdm
+                WHERE gdm.tai_khoan_id = ?
+                  AND gdm.goi_dich_vu_id = gdv.id
+                  AND gdm.trang_thai IN ('dang_hieu_luc', 'het_luot', 'cho_thanh_toan')
+                  AND (
+                    gdm.trang_thai = 'cho_thanh_toan'
+                    OR gdm.het_han_luc IS NULL
+                    OR gdm.het_han_luc >= NOW()
+                  )
+              ) AS da_so_huu,
+              EXISTS(
+                SELECT 1
+                FROM goi_da_mua gdm2
+                JOIN goi_dich_vu gdv2 ON gdv2.id = gdm2.goi_dich_vu_id
+                WHERE gdm2.tai_khoan_id = ?
+                  AND gdv2.loai_goi = gdv.loai_goi
+                  AND gdm2.trang_thai IN ('dang_hieu_luc', 'het_luot')
+                  AND (gdm2.het_han_luc IS NULL OR gdm2.het_han_luc >= NOW())
+              ) AS da_co_goi_cung_loai`
+      : `,
+              0 AS da_so_huu,
+              0 AS da_co_goi_cung_loai`;
+
     const rows = await this.dataSource.query(
-      `SELECT gdv.*,
+      `SELECT gdv.*${ownershipColumns},
               COUNT(DISTINCT gdcg.chuyen_gia_id) AS so_chuyen_gia,
               COALESCE(AVG(cg.diem_danh_gia_trung_binh), 0) AS rating_trung_binh
        FROM goi_dich_vu gdv
@@ -144,13 +172,15 @@ export class CustomerService {
        WHERE ${where.join(' AND ')}
        GROUP BY gdv.id
        ORDER BY gdv.thu_tu_hien_thi ASC, gdv.id DESC`,
-      params,
+      userId ? [userId, userId, ...params] : params,
     );
     return rows.map((row: Dict) => ({
       ...row,
       quyen_loi: parseJson(row.quyen_loi) ?? [],
       so_chuyen_gia: toNumber(row.so_chuyen_gia),
       rating_trung_binh: Number(row.rating_trung_binh ?? 0),
+      da_so_huu: !!toNumber(row.da_so_huu),
+      da_co_goi_cung_loai: !!toNumber(row.da_co_goi_cung_loai),
     }));
   }
 
@@ -241,6 +271,61 @@ export class CustomerService {
       const [pkg] = await manager.query('SELECT * FROM goi_dich_vu WHERE id = ? AND xoa_luc IS NULL FOR UPDATE', [packageId]);
       if (!pkg) throw new NotFoundException('Khong tim thay goi dich vu');
       if (pkg.trang_thai !== 'dang_ban') throw new BadRequestException('Goi khong trong trang thai dang ban');
+
+      const pending = await manager.query(
+        `SELECT gdm.id AS purchase_id, tt.id AS payment_id, tt.payment_url, tt.txn_ref, tt.so_tien, tt.trang_thai
+         FROM goi_da_mua gdm
+         JOIN thanh_toan tt ON tt.loai_thanh_toan = 'mua_goi' AND tt.doi_tuong_id = gdm.id
+         WHERE gdm.tai_khoan_id = ?
+           AND gdm.goi_dich_vu_id = ?
+           AND gdm.trang_thai = 'cho_thanh_toan'
+           AND tt.trang_thai = 'cho_thanh_toan'
+           AND (tt.het_han_luc IS NULL OR tt.het_han_luc >= NOW())
+         ORDER BY tt.tao_luc DESC
+         LIMIT 1`,
+        [userId, packageId],
+      );
+      if (pending.length) {
+        const row = pending[0];
+        return {
+          package_purchase_id: row.purchase_id,
+          payment_id: row.payment_id,
+          payment_url: row.payment_url,
+          txn_ref: row.txn_ref,
+          amount: Number(row.so_tien),
+          status: row.trang_thai,
+          message: 'Ban dang co don mua goi nay cho thanh toan. Vui long hoan tat truoc khi tao don moi.',
+        };
+      }
+
+      const activeSamePackage = await manager.query(
+        `SELECT id
+         FROM goi_da_mua
+         WHERE tai_khoan_id = ?
+           AND goi_dich_vu_id = ?
+           AND trang_thai IN ('dang_hieu_luc', 'het_luot')
+           AND (het_han_luc IS NULL OR het_han_luc >= NOW())
+         LIMIT 1`,
+        [userId, packageId],
+      );
+      if (activeSamePackage.length) {
+        throw new BadRequestException('Ban da so huu goi nay va van con hieu luc');
+      }
+
+      const activeSameType = await manager.query(
+        `SELECT gdm.id
+         FROM goi_da_mua gdm
+         JOIN goi_dich_vu gdv ON gdv.id = gdm.goi_dich_vu_id
+         WHERE gdm.tai_khoan_id = ?
+           AND gdv.loai_goi = ?
+           AND gdm.trang_thai IN ('dang_hieu_luc', 'het_luot')
+           AND (gdm.het_han_luc IS NULL OR gdm.het_han_luc >= NOW())
+         LIMIT 1`,
+        [userId, pkg.loai_goi],
+      );
+      if (activeSameType.length) {
+        throw new BadRequestException('Ban dang co goi cung loai con hieu luc. Vui long su dung het hoac doi den khi het han.');
+      }
 
       const price = Number(pkg.gia_khuyen_mai ?? pkg.gia ?? 0);
       if (price <= 0) throw new BadRequestException('Gia goi dich vu khong hop le');
@@ -670,7 +755,27 @@ export class CustomerService {
         [expert.tai_khoan_id, userId, `Khach hang vua dat lich ${bookingCode}`, `/nutritionist/bookings`, result.insertId, now, now],
       );
 
-      return this.getBookingDetail(userId, result.insertId);
+      const [booking] = await manager.query(
+        `SELECT lh.*, gdv.ten_goi, tk.ho_ten AS expert_name, tk.email AS expert_email
+         FROM lich_hen lh
+         JOIN goi_dich_vu gdv ON gdv.id = lh.goi_dich_vu_id
+         JOIN chuyen_gia cg ON cg.id = lh.chuyen_gia_id
+         JOIN tai_khoan tk ON tk.id = cg.tai_khoan_id
+         WHERE lh.id = ? AND lh.tai_khoan_id = ?`,
+        [result.insertId, userId],
+      );
+      if (!booking) throw new NotFoundException('Khong tim thay booking cua khach hang');
+
+      const timeline = await manager.query(
+        'SELECT * FROM booking_timeline WHERE lich_hen_id = ? ORDER BY tao_luc ASC',
+        [result.insertId],
+      );
+      const payment = await manager.query(
+        `SELECT * FROM thanh_toan WHERE loai_thanh_toan = 'booking' AND doi_tuong_id = ? ORDER BY tao_luc DESC LIMIT 1`,
+        [result.insertId],
+      );
+
+      return { booking, timeline, payment: payment[0] ?? null };
     });
   }
 
@@ -1335,6 +1440,7 @@ export class CustomerService {
   }
 
   async cancelBooking(accountId: number | undefined, bookingId: number, body: Dict) {
+    const userId = await this.assertAccount(accountId);
     const booking = await this.assertBooking(accountId, bookingId);
     const cancellable = ['cho_xac_nhan', 'cho_thanh_toan', 'da_xac_nhan'];
     if (!cancellable.includes(booking.trang_thai)) {
@@ -1344,8 +1450,8 @@ export class CustomerService {
     return this.dataSource.transaction(async (manager) => {
       const now = new Date();
       await manager.query(
-        `UPDATE lich_hen SET trang_thai='da_huy', ly_do_huy=?, huy_boi='customer', huy_luc=?, cap_nhat_luc=? WHERE id=?`,
-        [body.ly_do ?? null, now, now, bookingId],
+        `UPDATE lich_hen SET trang_thai='da_huy', ly_do_huy=?, huy_boi=?, huy_luc=?, cap_nhat_luc=? WHERE id=?`,
+        [body.ly_do ?? null, userId, now, now, bookingId],
       );
       await manager.query(
         `INSERT INTO booking_timeline (lich_hen_id,actor_id,su_kien,trang_thai_truoc,trang_thai_sau,ghi_chu,metadata,tao_luc)
@@ -1573,14 +1679,17 @@ export class CustomerService {
     if (!noiDung) throw new BadRequestException('Vui long nhap noi dung khieu nai');
 
     const now = new Date();
-    const maTicket = makeCode('KN').slice(0, 50);
+    const maTicket = makeCode('KN').slice(0, 80);
+    const mucUuTien = ['thap', 'trung_binh', 'cao'].includes(String(body.muc_uu_tien ?? ''))
+      ? String(body.muc_uu_tien)
+      : 'trung_binh';
 
     const result = await this.dataSource.query(
-      `INSERT INTO khieu_nai (tai_khoan_id,loai,doi_tuong_id,ma_ticket,tieu_de,noi_dung,bang_chung_url,trang_thai,tao_luc,cap_nhat_luc)
+      `INSERT INTO khieu_nai (nguoi_gui_id,loai_khieu_nai,doi_tuong_id,ma_khieu_nai,tieu_de,noi_dung,muc_uu_tien,trang_thai,tao_luc,cap_nhat_luc)
        VALUES (?,?,?,?,?,?,?,?,?,?)`,
       [userId, loai, toNumber(body.doi_tuong_id) || null, maTicket,
-       String(body.tieu_de ?? noiDung).slice(0, 255), noiDung,
-       JSON.stringify(body.bang_chung_url ?? []), 'moi', now, now],
+       String(body.tieu_de ?? noiDung).slice(0, 191), noiDung,
+       mucUuTien, 'moi', now, now],
     );
 
     // Thông báo admin
@@ -1596,18 +1705,29 @@ export class CustomerService {
       );
     }
 
-    const [ticket] = await this.dataSource.query('SELECT * FROM khieu_nai WHERE id = ?', [result.insertId]);
-    return ticket;
+    const [ticket] = await this.dataSource.query(
+      `SELECT kn.*,
+              kn.loai_khieu_nai AS loai,
+              kn.ma_khieu_nai AS ma_ticket,
+              '[]' AS bang_chung_url
+       FROM khieu_nai kn
+       WHERE kn.id = ?`,
+      [result.insertId],
+    );
+    return ticket ?? null;
   }
 
   async listComplaints(accountId: number | undefined, query: Dict) {
     const userId = await this.assertAccount(accountId);
-    const where = ['kn.tai_khoan_id = ?'];
+    const where = ['kn.nguoi_gui_id = ?'];
     const params: unknown[] = [userId];
     if (query.status) { where.push('kn.trang_thai = ?'); params.push(query.status); }
 
     return this.dataSource.query(
       `SELECT kn.*,
+              kn.loai_khieu_nai AS loai,
+              kn.ma_khieu_nai AS ma_ticket,
+              '[]' AS bang_chung_url,
               (SELECT COUNT(*) FROM khieu_nai_tin_nhan knm WHERE knm.khieu_nai_id = kn.id) AS so_tin_nhan
        FROM khieu_nai kn
        WHERE ${where.join(' AND ')}
@@ -1619,7 +1739,13 @@ export class CustomerService {
   async getComplaint(accountId: number | undefined, complaintId: number) {
     const userId = await this.assertAccount(accountId);
     const [complaint] = await this.dataSource.query(
-      'SELECT * FROM khieu_nai WHERE id = ? AND tai_khoan_id = ?', [complaintId, userId],
+      `SELECT kn.*,
+              kn.loai_khieu_nai AS loai,
+              kn.ma_khieu_nai AS ma_ticket,
+              '[]' AS bang_chung_url
+       FROM khieu_nai kn
+       WHERE kn.id = ? AND kn.nguoi_gui_id = ?`,
+      [complaintId, userId],
     );
     if (!complaint) throw new NotFoundException('Khong tim thay khieu nai');
 
@@ -1631,16 +1757,16 @@ export class CustomerService {
        ORDER BY knm.tao_luc ASC`,
       [complaintId],
     );
-    return { ...complaint, bang_chung_url: parseJson(complaint.bang_chung_url) ?? [], messages };
+    return { ...complaint, bang_chung_url: [], messages };
   }
 
   async addComplaintMessage(accountId: number | undefined, complaintId: number, body: Dict) {
     const userId = await this.assertAccount(accountId);
     const [complaint] = await this.dataSource.query(
-      'SELECT * FROM khieu_nai WHERE id = ? AND tai_khoan_id = ?', [complaintId, userId],
+      'SELECT * FROM khieu_nai WHERE id = ? AND nguoi_gui_id = ?', [complaintId, userId],
     );
     if (!complaint) throw new NotFoundException('Khong tim thay khieu nai');
-    if (['da_dong', 'da_huy'].includes(complaint.trang_thai)) {
+    if (['da_dong', 'da_giai_quyet'].includes(String(complaint.trang_thai))) {
       throw new BadRequestException('Khieu nai da dong, khong the gui them tin nhan');
     }
 
@@ -1649,9 +1775,9 @@ export class CustomerService {
 
     const now = new Date();
     await this.dataSource.query(
-      `INSERT INTO khieu_nai_tin_nhan (khieu_nai_id,nguoi_gui_id,noi_dung,tep_dinh_kem,tao_luc,cap_nhat_luc)
-       VALUES (?,?,?,?,?,?)`,
-      [complaintId, userId, content, JSON.stringify(body.tep_dinh_kem ?? []), now, now],
+      `INSERT INTO khieu_nai_tin_nhan (khieu_nai_id,nguoi_gui_id,noi_dung,tep_dinh_kem,tao_luc)
+       VALUES (?,?,?,?,?)`,
+      [complaintId, userId, content, JSON.stringify(body.tep_dinh_kem ?? []), now],
     );
 
     // Cập nhật khiếu nại: nếu đang 'dang_xu_ly' thì giữ, nếu 'moi' thì giữ
@@ -1776,6 +1902,87 @@ export class CustomerService {
       [new Date(), sessionId],
     );
     return { ok: true };
+  }
+
+  async getProfile(accountId: number | undefined) {
+    const userId = await this.assertAccount(accountId);
+    const [row] = await this.dataSource.query(
+      `SELECT tk.id, tk.email, tk.ho_ten, tk.so_dien_thoai, tk.vai_tro, tk.trang_thai,
+              hsc.gioi_tinh, hsc.ngay_sinh, hsc.anh_dai_dien_url, hsc.ghi_chu_suc_khoe
+       FROM tai_khoan tk
+       LEFT JOIN ho_so_customer hsc ON hsc.tai_khoan_id = tk.id
+       WHERE tk.id = ?`,
+      [userId],
+    );
+    if (!row) throw new NotFoundException('Khong tim thay tai khoan');
+    return row;
+  }
+
+  async updateProfile(accountId: number | undefined, body: Dict) {
+    const userId = await this.assertAccount(accountId);
+    const hoTen = typeof body.ho_ten === 'string' ? body.ho_ten.trim() : '';
+    const soDienThoai = typeof body.so_dien_thoai === 'string' ? body.so_dien_thoai.trim() : '';
+    const gioiTinh = typeof body.gioi_tinh === 'string' ? body.gioi_tinh.trim() : '';
+    const ngaySinh = typeof body.ngay_sinh === 'string' ? body.ngay_sinh.trim() : '';
+    const ghiChu = typeof body.ghi_chu_suc_khoe === 'string' ? body.ghi_chu_suc_khoe.trim() : '';
+
+    if (!hoTen) throw new BadRequestException('Ho ten khong duoc de trong');
+    if (hoTen.length > 150) throw new BadRequestException('Ho ten qua dai');
+    if (soDienThoai && soDienThoai.length > 30) throw new BadRequestException('So dien thoai khong hop le');
+    if (gioiTinh && !['nam', 'nu', 'khac'].includes(gioiTinh)) throw new BadRequestException('Gioi tinh khong hop le');
+    if (ngaySinh && Number.isNaN(new Date(ngaySinh).getTime())) throw new BadRequestException('Ngay sinh khong hop le');
+
+    const now = new Date();
+    await this.dataSource.transaction(async (manager) => {
+      await manager.query('UPDATE tai_khoan SET ho_ten = ?, so_dien_thoai = ?, cap_nhat_luc = ? WHERE id = ?', [
+        hoTen,
+        soDienThoai || null,
+        now,
+        userId,
+      ]);
+
+      const [existing] = await manager.query('SELECT id FROM ho_so_customer WHERE tai_khoan_id = ? LIMIT 1', [userId]);
+      if (!existing) {
+        await manager.query(
+          `INSERT INTO ho_so_customer (tai_khoan_id, gioi_tinh, ngay_sinh, anh_dai_dien_url, ghi_chu_suc_khoe, tao_luc, cap_nhat_luc)
+           VALUES (?, ?, ?, NULL, ?, ?, ?)`,
+          [userId, gioiTinh || null, ngaySinh || null, ghiChu || null, now, now],
+        );
+      } else {
+        await manager.query(
+          `UPDATE ho_so_customer
+           SET gioi_tinh = ?, ngay_sinh = ?, ghi_chu_suc_khoe = ?, cap_nhat_luc = ?
+           WHERE tai_khoan_id = ?`,
+          [gioiTinh || null, ngaySinh || null, ghiChu || null, now, userId],
+        );
+      }
+    });
+
+    return this.getProfile(userId);
+  }
+
+  async updateAvatar(accountId: number | undefined, avatarUrl: string) {
+    const userId = await this.assertAccount(accountId);
+    if (!avatarUrl) throw new BadRequestException('Anh dai dien khong hop le');
+    const now = new Date();
+
+    await this.dataSource.transaction(async (manager) => {
+      const [existing] = await manager.query('SELECT id FROM ho_so_customer WHERE tai_khoan_id = ? LIMIT 1', [userId]);
+      if (!existing) {
+        await manager.query(
+          `INSERT INTO ho_so_customer (tai_khoan_id, gioi_tinh, ngay_sinh, anh_dai_dien_url, ghi_chu_suc_khoe, tao_luc, cap_nhat_luc)
+           VALUES (?, NULL, NULL, ?, NULL, ?, ?)`,
+          [userId, avatarUrl, now, now],
+        );
+      } else {
+        await manager.query(
+          `UPDATE ho_so_customer SET anh_dai_dien_url = ?, cap_nhat_luc = ? WHERE tai_khoan_id = ?`,
+          [avatarUrl, now, userId],
+        );
+      }
+    });
+
+    return this.getProfile(userId);
   }
 
   // ─── 10: Quản lý hồ sơ sức khỏe ───

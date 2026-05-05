@@ -6,6 +6,7 @@ export type AuthUser = {
   ho_ten: string
   vai_tro: UserRole
   trang_thai: string
+  anh_dai_dien_url?: string | null
 }
 
 export type ApiResponse<T> = {
@@ -79,4 +80,3 @@ export function canAccessPath(role: UserRole, pathname: string) {
   if (pathname.startsWith('/user')) return role === 'customer'
   return true
 }
-

@@ -36,6 +36,7 @@ export function ExpertLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [allowed, setAllowed] = useState(false)
   const [user, setUser] = useState<AuthUser | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState('')
 
   useEffect(() => {
     let active = true
@@ -49,6 +50,10 @@ export function ExpertLayout({ children }: { children: React.ReactNode }) {
         }
         setUser(response.data)
         setAllowed(true)
+        fetch('/api/expert/profile', { credentials: 'include', cache: 'no-store' })
+          .then((r) => r.json())
+          .then((payload) => setAvatarUrl(String(payload?.data?.anh_dai_dien_url ?? '')))
+          .catch(() => setAvatarUrl(String(response.data.anh_dai_dien_url ?? '')))
       })
       .catch(() => {
         router.replace(`/login?redirect=${encodeURIComponent(pathname)}`)
@@ -110,8 +115,12 @@ export function ExpertLayout({ children }: { children: React.ReactNode }) {
         {user && (
           <div className='border-t border-slate-100 px-3 py-3'>
             <div className='flex items-center gap-3 rounded-xl px-2 py-2'>
-              <div className='flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white'>
-                {user.ho_ten?.charAt(0).toUpperCase() ?? 'E'}
+              <div className='flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-emerald-600 text-xs font-bold text-white'>
+                {(avatarUrl || user.anh_dai_dien_url) ? (
+                  <img src={String(avatarUrl || user.anh_dai_dien_url)} alt='avatar' className='h-full w-full object-cover' />
+                ) : (
+                  user.ho_ten?.charAt(0).toUpperCase() ?? 'E'
+                )}
               </div>
               <div className='min-w-0 flex-1'>
                 <p className='truncate text-sm font-semibold text-slate-900'>{user.ho_ten}</p>

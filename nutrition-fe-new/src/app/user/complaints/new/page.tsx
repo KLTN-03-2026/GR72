@@ -25,27 +25,47 @@ function NewComplaintContent() {
   const [tieu_de, setTieuDe] = useState('')
   const [noi_dung, setNoiDung] = useState('')
   const [booking, setBooking] = useState<Row | null>(null)
+  const [bookings, setBookings] = useState<Row[]>([])
+  const [selectedBookingId, setSelectedBookingId] = useState('')
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const [msgTone, setMsgTone] = useState<'success' | 'error'>('error')
 
   useEffect(() => {
+    customerGet<Row[]>('/bookings')
+      .then((rows) => setBookings(rows))
+      .catch(() => setBookings([]))
+  }, [])
+
+  useEffect(() => {
     if (!bookingId) return
     customerGet<{ booking: Row }>(`/bookings/${bookingId}`)
-      .then(d => setBooking(d.booking))
+      .then(d => {
+        setBooking(d.booking)
+        setSelectedBookingId(String(d.booking?.id ?? bookingId))
+      })
       .catch(() => {})
   }, [bookingId])
 
   async function submit() {
     if (!loai) { setMsg('Vui lòng chọn loại khiếu nại'); setMsgTone('error'); return }
     if (!noi_dung.trim()) { setMsg('Vui lòng nhập nội dung khiếu nại'); setMsgTone('error'); return }
+    if (loai === 'booking' && !selectedBookingId) {
+      setMsg('Vui lòng chọn booking cần khiếu nại')
+      setMsgTone('error')
+      return
+    }
     setLoading(true)
     try {
       const result = await customerPost<Row>('/complaints', {
         loai,
         tieu_de: tieu_de.trim() || noi_dung.trim().slice(0, 80),
         noi_dung: noi_dung.trim(),
-        doi_tuong_id: bookingId ? Number(bookingId) : undefined,
+        doi_tuong_id: loai === 'booking'
+          ? Number(selectedBookingId)
+          : bookingId
+            ? Number(bookingId)
+            : undefined,
       })
       setMsg(`✅ Khiếu nại đã được gửi! Mã ticket: ${result.ma_ticket}`)
       setMsgTone('success')
@@ -88,6 +108,24 @@ function NewComplaintContent() {
               ))}
             </div>
           </div>
+
+          {loai === 'booking' && (
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 8 }}>Booking cần khiếu nại *</p>
+              <select
+                style={{ width: '100%', padding: '10px 14px', borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: 'white' }}
+                value={selectedBookingId}
+                onChange={(e) => setSelectedBookingId(e.target.value)}
+              >
+                <option value=''>Chọn booking</option>
+                {bookings.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.ma_lich_hen} · {b.ten_goi} · {b.expert_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <p style={{ fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 8 }}>Tiêu đề (tuỳ chọn)</p>

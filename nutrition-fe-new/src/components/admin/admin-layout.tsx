@@ -113,8 +113,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         {user && (
           <div className='border-t border-slate-100 px-3 py-3'>
             <div className='flex items-center gap-3 rounded-xl px-2 py-2'>
-              <div className='flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2563EB] text-xs font-bold text-white'>
-                {user.ho_ten?.charAt(0).toUpperCase() ?? 'A'}
+              <div className='flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#2563EB] text-xs font-bold text-white'>
+                {user.anh_dai_dien_url ? (
+                  <img src={String(user.anh_dai_dien_url)} alt='avatar' className='h-full w-full object-cover' />
+                ) : (
+                  user.ho_ten?.charAt(0).toUpperCase() ?? 'A'
+                )}
               </div>
               <div className='min-w-0 flex-1'>
                 <p className='truncate text-sm font-semibold text-slate-900'>{user.ho_ten}</p>

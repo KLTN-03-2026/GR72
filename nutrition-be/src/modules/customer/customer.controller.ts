@@ -1,5 +1,9 @@
-import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query, Req, Res } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query, Req, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { diskStorage } from 'multer';
+import { extname, join } from 'node:path';
+import { mkdirSync } from 'node:fs';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CustomerService } from './customer.service';
@@ -26,8 +30,8 @@ export class CustomerController {
 
   // ── Service Packages ──
   @Get('service-packages')
-  servicePackages(@Query() query: Record<string, string>) {
-    return this.customerService.listServicePackages(query);
+  servicePackages(@Req() req: AuthedRequest, @Query() query: Record<string, string>) {
+    return this.customerService.listServicePackages(req.user?.sub, query);
   }
 
   @Get('service-packages/:id')
@@ -287,6 +291,44 @@ export class CustomerController {
   @Post('health-profile')
   upsertHealthProfile(@Req() req: AuthedRequest, @Body() body: Record<string, unknown>) {
     return this.customerService.upsertHealthProfile(req.user?.sub, body);
+  }
+
+  // ── User Profile ──
+  @Get('profile')
+  getProfile(@Req() req: AuthedRequest) {
+    return this.customerService.getProfile(req.user?.sub);
+  }
+
+  @Patch('profile')
+  updateProfile(@Req() req: AuthedRequest, @Body() body: Record<string, unknown>) {
+    return this.customerService.updateProfile(req.user?.sub, body);
+  }
+
+  @Post('profile/avatar')
+  @UseInterceptors(
+    FileInterceptor('avatar', {
+      storage: diskStorage({
+        destination: (_req, _file, callback) => {
+          const uploadDir = join(process.cwd(), 'uploads', 'avatars');
+          mkdirSync(uploadDir, { recursive: true });
+          callback(null, uploadDir);
+        },
+        filename: (_req, file, callback) => {
+          const safeExt = extname(file.originalname || '').toLowerCase() || '.jpg';
+          const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          callback(null, `customer-${stamp}${safeExt}`);
+        },
+      }),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_req, file, callback) => {
+        const isImage = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.mimetype);
+        callback(isImage ? null : new BadRequestException('Chi ho tro file JPG, PNG, WEBP, GIF'), isImage);
+      },
+    }),
+  )
+  uploadAvatar(@Req() req: AuthedRequest, @UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('Vui long chon file anh');
+    return this.customerService.updateAvatar(req.user?.sub, `/uploads/avatars/${file.filename}`);
   }
 
   // ── 11: Health Metrics ──

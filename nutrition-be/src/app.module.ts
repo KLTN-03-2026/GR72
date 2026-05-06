@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { JwtConfigModule } from './common/config/jwt-config.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { OpenAiModule } from './common/openai/openai.module';
 import { getTypeOrmConfig } from './database/typeorm.config';
 import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -15,6 +16,7 @@ import { ExpertModule } from './modules/expert/expert.module';
 @Module({
   imports: [
     JwtConfigModule,
+    OpenAiModule,
     TypeOrmModule.forRoot(getTypeOrmConfig()),
     AuthModule,
     AdminModule,

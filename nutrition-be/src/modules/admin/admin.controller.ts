@@ -291,4 +291,34 @@ export class AdminController {
   resolveComplaint(@Param('id') complaintId: string, @Body() body: Record<string, unknown>, @Req() request: AuthedRequest) {
     return this.adminService.resolveComplaint(id(complaintId), body, request.user?.sub);
   }
+
+  @Get('bookings/stats')
+  getBookingStats() {
+    return this.adminService.getBookingStats();
+  }
+
+  @Get('bookings')
+  listBookings(@Query() query: Record<string, string>) {
+    return this.adminService.listBookings(query);
+  }
+
+  @Get('bookings/:id')
+  getBooking(@Param('id') bookingId: string) {
+    return this.adminService.getBooking(id(bookingId));
+  }
+
+  @Patch('bookings/:id/cancel')
+  cancelBooking(@Param('id') bookingId: string, @Body() body: Record<string, unknown>, @Req() request: AuthedRequest) {
+    return this.adminService.cancelBookingByAdmin(id(bookingId), body, request.user?.sub);
+  }
+
+  @Get('audit-logs/facets')
+  getAuditLogFacets() {
+    return this.adminService.getAuditLogFacets();
+  }
+
+  @Get('audit-logs')
+  listAuditLogs(@Query() query: Record<string, string>) {
+    return this.adminService.listAuditLogs(query);
+  }
 }

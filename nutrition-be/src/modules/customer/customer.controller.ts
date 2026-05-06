@@ -247,6 +247,14 @@ export class CustomerController {
     return this.customerService.archiveAiChatSession(req.user?.sub, toId(sid));
   }
 
+  @Get('ai-chat/suggested-questions')
+  suggestedQuestions(@Req() req: AuthedRequest, @Query('sessionId') sessionId?: string) {
+    return this.customerService.getAiSuggestedQuestions(
+      req.user?.sub,
+      sessionId ? toId(sessionId) : null,
+    );
+  }
+
   // ── Chats ──
   @Get('chats')
   chats(@Req() req: AuthedRequest, @Query() query: Record<string, string>) {

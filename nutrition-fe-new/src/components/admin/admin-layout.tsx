@@ -8,12 +8,14 @@ import {
   Users,
   UserCheck,
   Package,
+  CalendarCheck,
   CreditCard,
   Star,
   BarChart2,
   Wallet,
   MessageSquareWarning,
   Bell,
+  ScrollText,
   LogOut,
   ChevronRight,
 } from 'lucide-react'
@@ -26,12 +28,14 @@ const navItems = [
   { label: 'Người dùng', href: '/admin/users', icon: Users },
   { label: 'Chuyên gia', href: '/admin/experts', icon: UserCheck },
   { label: 'Gói dịch vụ', href: '/admin/service-packages', icon: Package },
+  { label: 'Lịch hẹn', href: '/admin/bookings', icon: CalendarCheck },
   { label: 'Thanh toán', href: '/admin/payments', icon: CreditCard },
   { label: 'Đánh giá', href: '/admin/reviews', icon: Star },
   { label: 'Doanh thu', href: '/admin/revenue', icon: BarChart2 },
   { label: 'Hoa hồng', href: '/admin/commissions', icon: Wallet },
   { label: 'Khiếu nại', href: '/admin/complaints', icon: MessageSquareWarning },
   { label: 'Thông báo', href: '/admin/notifications', icon: Bell },
+  { label: 'Nhật ký hệ thống', href: '/admin/audit-logs', icon: ScrollText },
 ]
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {

@@ -896,6 +896,195 @@ export class AdminService {
     return this.getComplaint(id);
   }
 
+  async listBookings(query: PaginationQuery & { expertId?: string; customerId?: string }) {
+    const where = ['1=1'];
+    const params: unknown[] = [];
+    if (query.status) { where.push('lh.trang_thai = ?'); params.push(query.status); }
+    if (query.expertId) { where.push('lh.chuyen_gia_id = ?'); params.push(Number(query.expertId)); }
+    if (query.customerId) { where.push('lh.tai_khoan_id = ?'); params.push(Number(query.customerId)); }
+    if (query.from) { where.push('lh.ngay_hen >= ?'); params.push(query.from); }
+    if (query.to) { where.push('lh.ngay_hen <= ?'); params.push(query.to); }
+    if (query.search) {
+      where.push('(lh.ma_lich_hen LIKE ? OR customer.ho_ten LIKE ? OR customer.email LIKE ? OR expert_acc.ho_ten LIKE ? OR gdv.ten_goi LIKE ?)');
+      const term = `%${query.search}%`;
+      params.push(term, term, term, term, term);
+    }
+    return this.dataSource.query(
+      `SELECT lh.id, lh.ma_lich_hen, lh.trang_thai, lh.ngay_hen, lh.gio_bat_dau, lh.gio_ket_thuc,
+              lh.bat_dau_luc, lh.ket_thuc_luc, lh.muc_dich, lh.ly_do_huy, lh.tao_luc, lh.cap_nhat_luc,
+              customer.id AS customer_id, customer.ho_ten AS customer_name, customer.email AS customer_email,
+              cg.id AS expert_id, expert_acc.ho_ten AS expert_name, cg.chuyen_mon,
+              gdv.id AS package_id, gdv.ten_goi, gdv.loai_goi
+       FROM lich_hen lh
+       JOIN tai_khoan customer ON customer.id = lh.tai_khoan_id
+       JOIN chuyen_gia cg ON cg.id = lh.chuyen_gia_id
+       JOIN tai_khoan expert_acc ON expert_acc.id = cg.tai_khoan_id
+       JOIN goi_dich_vu gdv ON gdv.id = lh.goi_dich_vu_id
+       WHERE ${where.join(' AND ')}
+       ORDER BY lh.ngay_hen DESC, lh.gio_bat_dau DESC
+       LIMIT 200`,
+      params,
+    );
+  }
+
+  async getBooking(id: number) {
+    const [booking] = await this.dataSource.query(
+      `SELECT lh.*,
+              customer.ho_ten AS customer_name, customer.email AS customer_email, customer.so_dien_thoai AS customer_phone,
+              cg.id AS expert_id, expert_acc.ho_ten AS expert_name, expert_acc.email AS expert_email, cg.chuyen_mon,
+              gdv.ten_goi, gdv.loai_goi, gdv.gia, gdv.so_luot_tu_van,
+              gdm.ma_goi_da_mua, gdm.so_luot_con_lai, gdm.so_luot_tong, gdm.bat_dau_luc AS package_start, gdm.het_han_luc AS package_expiry,
+              tt.id AS payment_id, tt.ma_giao_dich, tt.so_tien AS payment_amount, tt.trang_thai AS payment_status
+       FROM lich_hen lh
+       JOIN tai_khoan customer ON customer.id = lh.tai_khoan_id
+       JOIN chuyen_gia cg ON cg.id = lh.chuyen_gia_id
+       JOIN tai_khoan expert_acc ON expert_acc.id = cg.tai_khoan_id
+       JOIN goi_dich_vu gdv ON gdv.id = lh.goi_dich_vu_id
+       LEFT JOIN goi_da_mua gdm ON gdm.id = lh.goi_da_mua_id
+       LEFT JOIN thanh_toan tt ON tt.id = lh.thanh_toan_id
+       WHERE lh.id = ?`,
+      [id],
+    );
+    if (!booking) throw new NotFoundException('Khong tim thay lich hen');
+    const timeline = await this.dataSource.query(
+      `SELECT bt.*, tk.ho_ten AS actor_name, tk.vai_tro AS actor_role
+       FROM booking_timeline bt LEFT JOIN tai_khoan tk ON tk.id = bt.actor_id
+       WHERE bt.lich_hen_id = ? ORDER BY bt.tao_luc ASC`,
+      [id],
+    );
+    return { booking, timeline };
+  }
+
+  async cancelBookingByAdmin(id: number, body: Dict, actorId?: number) {
+    if (!String(body.ly_do ?? '').trim()) throw new BadRequestException('Vui long nhap ly do huy');
+    return this.dataSource.transaction(async (manager) => {
+      const [booking] = await manager.query('SELECT * FROM lich_hen WHERE id = ? FOR UPDATE', [id]);
+      if (!booking) throw new NotFoundException('Khong tim thay lich hen');
+      if (['hoan_thanh', 'da_huy', 'vo_hieu_hoa'].includes(booking.trang_thai)) {
+        throw new BadRequestException('Khong the huy lich da hoan thanh hoac da huy');
+      }
+      const now = new Date();
+      await manager.query(
+        'UPDATE lich_hen SET trang_thai = ?, ly_do_huy = ?, huy_boi = ?, huy_luc = ?, cap_nhat_luc = ? WHERE id = ?',
+        ['da_huy', body.ly_do, actorId ?? null, now, now, id],
+      );
+      await manager.query(
+        `INSERT INTO booking_timeline (lich_hen_id, actor_id, su_kien, trang_thai_truoc, trang_thai_sau, ghi_chu, metadata, tao_luc)
+         VALUES (?, ?, 'cancel_by_admin', ?, 'da_huy', ?, ?, ?)`,
+        [id, actorId ?? null, booking.trang_thai, body.ly_do, JSON.stringify({ source: 'admin' }), now],
+      );
+      // Hoàn lượt nếu booking đã trừ lượt
+      if (booking.goi_da_mua_id && ['cho_xac_nhan', 'da_xac_nhan', 'da_checkin'].includes(booking.trang_thai)) {
+        await manager.query(
+          'UPDATE goi_da_mua SET so_luot_da_dung = GREATEST(0, so_luot_da_dung - 1), so_luot_con_lai = so_luot_con_lai + 1, cap_nhat_luc = ? WHERE id = ?',
+          [now, booking.goi_da_mua_id],
+        );
+        const [pkg] = await manager.query('SELECT so_luot_con_lai FROM goi_da_mua WHERE id = ?', [booking.goi_da_mua_id]);
+        await manager.query(
+          `INSERT INTO lich_su_su_dung_goi (goi_da_mua_id, lich_hen_id, loai_su_kien, so_luot_thay_doi, so_luot_con_lai_sau, ghi_chu, tao_luc)
+           VALUES (?, ?, 'hoan_luot', 1, ?, ?, ?)`,
+          [booking.goi_da_mua_id, id, pkg?.so_luot_con_lai ?? 0, `Admin huy: ${body.ly_do}`, now],
+        );
+      }
+      // Notification cho cả customer và expert
+      const [expert] = await manager.query('SELECT tai_khoan_id FROM chuyen_gia WHERE id = ?', [booking.chuyen_gia_id]);
+      const notifyValues = [
+        [booking.tai_khoan_id, actorId ?? null, 'booking', 'Booking bi huy boi quan tri vien',
+          `Lich hen ${booking.ma_lich_hen} bi huy. Ly do: ${body.ly_do}. Luot da duoc hoan tra.`,
+          'chua_doc', `/user/bookings/${id}`, 'lich_hen', id, now, null, now],
+        [expert?.tai_khoan_id, actorId ?? null, 'booking', 'Booking bi huy boi quan tri vien',
+          `Lich hen ${booking.ma_lich_hen} bi huy boi admin. Ly do: ${body.ly_do}.`,
+          'chua_doc', `/nutritionist/bookings`, 'lich_hen', id, now, null, now],
+      ];
+      for (const v of notifyValues) {
+        if (!v[0]) continue;
+        await manager.query(
+          `INSERT INTO thong_bao (tai_khoan_id, nguoi_gui_id, loai, tieu_de, noi_dung, trang_thai, duong_dan_hanh_dong, entity_type, entity_id, tao_luc, doc_luc, cap_nhat_luc)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          v,
+        );
+      }
+      await this.audit(actorId, 'cancel_booking', 'lich_hen', id, booking, { ly_do: body.ly_do }, manager);
+      return manager.query('SELECT 1');
+    }).then(() => this.getBooking(id));
+  }
+
+  async listAuditLogs(query: PaginationQuery & { action?: string; resourceType?: string; actorId?: string }) {
+    const where = ['1=1'];
+    const params: unknown[] = [];
+    if (query.action) { where.push('al.action = ?'); params.push(query.action); }
+    if (query.resourceType) { where.push('al.resource_type = ?'); params.push(query.resourceType); }
+    if (query.actorId) { where.push('al.actor_id = ?'); params.push(Number(query.actorId)); }
+    if (query.from) { where.push('DATE(al.tao_luc) >= ?'); params.push(query.from); }
+    if (query.to) { where.push('DATE(al.tao_luc) <= ?'); params.push(query.to); }
+    if (query.search) {
+      where.push('(al.action LIKE ? OR al.resource_type LIKE ? OR tk.ho_ten LIKE ? OR tk.email LIKE ?)');
+      const term = `%${query.search}%`;
+      params.push(term, term, term, term);
+    }
+    const limit = asInt(query.limit, 100);
+    const page = asInt(query.page, 1);
+    const offset = (page - 1) * limit;
+
+    const rows = await this.dataSource.query(
+      `SELECT al.id, al.action, al.resource_type, al.resource_id, al.actor_role,
+              al.old_value, al.new_value, al.ip_address, al.user_agent, al.request_id, al.tao_luc,
+              al.actor_id, tk.ho_ten AS actor_name, tk.email AS actor_email
+       FROM audit_log al
+       LEFT JOIN tai_khoan tk ON tk.id = al.actor_id
+       WHERE ${where.join(' AND ')}
+       ORDER BY al.tao_luc DESC
+       LIMIT ? OFFSET ?`,
+      [...params, limit, offset],
+    );
+    const [count] = await this.dataSource.query(
+      `SELECT COUNT(*) AS total FROM audit_log al
+       LEFT JOIN tai_khoan tk ON tk.id = al.actor_id
+       WHERE ${where.join(' AND ')}`,
+      params,
+    );
+    return {
+      rows: rows.map((row: Dict) => ({
+        ...row,
+        old_value: parseJson(row.old_value),
+        new_value: parseJson(row.new_value),
+      })),
+      total: Number(count?.total ?? 0),
+      page,
+      limit,
+    };
+  }
+
+  async getAuditLogFacets() {
+    const [actions, resourceTypes] = await Promise.all([
+      this.dataSource.query('SELECT DISTINCT action FROM audit_log ORDER BY action ASC LIMIT 200'),
+      this.dataSource.query('SELECT DISTINCT resource_type FROM audit_log ORDER BY resource_type ASC LIMIT 100'),
+    ]);
+    return {
+      actions: actions.map((row: Dict) => row.action).filter(Boolean),
+      resource_types: resourceTypes.map((row: Dict) => row.resource_type).filter(Boolean),
+    };
+  }
+
+  async getBookingStats() {
+    const [stats] = await this.dataSource.query(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(CASE WHEN trang_thai = 'cho_xac_nhan' THEN 1 ELSE 0 END) AS pending,
+         SUM(CASE WHEN trang_thai IN ('da_xac_nhan','da_checkin','dang_tu_van') THEN 1 ELSE 0 END) AS active,
+         SUM(CASE WHEN trang_thai = 'hoan_thanh' THEN 1 ELSE 0 END) AS completed,
+         SUM(CASE WHEN trang_thai = 'da_huy' THEN 1 ELSE 0 END) AS cancelled
+       FROM lich_hen`,
+    );
+    return {
+      total: Number(stats?.total ?? 0),
+      pending: Number(stats?.pending ?? 0),
+      active: Number(stats?.active ?? 0),
+      completed: Number(stats?.completed ?? 0),
+      cancelled: Number(stats?.cancelled ?? 0),
+    };
+  }
+
   private validatePackage(body: Dict) {
     if (!body.ten_goi || String(body.ten_goi).trim().length < 3) throw new BadRequestException('Ten goi phai co it nhat 3 ky tu');
     if (!PACKAGE_TYPES.includes(body.loai_goi)) throw new BadRequestException('Loai goi khong hop le');

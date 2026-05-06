@@ -14,6 +14,7 @@ import {
   verifyReturnSignature,
 } from '../../common/vnpay/vnpay.util';
 import { ChatGateway } from '../chat/chat.gateway';
+import { OpenAiService } from '../../common/openai/openai.service';
 
 type Dict = Record<string, any>;
 const CHAT_SEND_ALLOWED_STATUSES = new Set([
@@ -79,6 +80,7 @@ export class CustomerService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly chatGateway: ChatGateway,
+    private readonly openAi: OpenAiService,
   ) {}
 
   private async assertAccount(accountId: number | undefined) {
@@ -1853,18 +1855,22 @@ export class CustomerService {
     );
   }
 
-  private buildAiReply(question: string, contextType: string) {
-    const disclaimer =
-      'Luu y: Noi dung chi mang tinh tham khao, khong thay the chan doan y khoa. Neu co dau hieu bat thuong, hay lien he bac si.';
-    const base =
-      contextType === 'dinh_duong'
-        ? 'Goi y nhanh: uu tien dam-protein nac, rau xanh, han che duong tinh luyen, theo doi calo hang ngay.'
-        : contextType === 'tap_luyen'
-          ? 'Goi y nhanh: ket hop cardio + suc manh 3-5 buoi/tuan, khoi dong ky, tang tai tu tu.'
-          : contextType === 'suc_khoe'
-            ? 'Goi y nhanh: ngu 7-8 tieng, theo doi can nang/huyet ap dinh ky, duy tri van dong deu dan.'
-            : 'Goi y nhanh: toi uu che do an, tap luyen va theo doi chi so suc khoe de dat muc tieu ben vung.';
-    return `${base} Cau hoi cua ban: "${question.slice(0, 180)}". ${disclaimer}`;
+  private async loadAiContext(userId: number, contextType: string) {
+    const [profile] = await this.dataSource.query(
+      `SELECT gioi_tinh, ngay_sinh, chieu_cao_cm, can_nang_hien_tai_kg, muc_do_van_dong, muc_tieu_suc_khoe
+       FROM ho_so_suc_khoe WHERE tai_khoan_id = ?`,
+      [userId],
+    );
+    const [latestMetric] = await this.dataSource.query(
+      `SELECT can_nang_kg, bmi, huyet_ap_tam_thu, huyet_ap_tam_truong
+       FROM chi_so_suc_khoe WHERE tai_khoan_id = ? ORDER BY do_luc DESC LIMIT 1`,
+      [userId],
+    );
+    return {
+      loaiContext: contextType,
+      profile: profile ?? null,
+      latestMetric: latestMetric ?? null,
+    };
   }
 
   async sendAiChatMessage(accountId: number | undefined, sessionId: number, body: Dict) {
@@ -1875,8 +1881,24 @@ export class CustomerService {
     const content = String(body.noi_dung ?? '').trim();
     if (!content) throw new BadRequestException('Noi dung cau hoi khong duoc trong');
 
+    const contextType = String(session.loai_context ?? 'tu_van_chung');
+    const aiContext = await this.loadAiContext(userId, contextType);
+
+    // Lấy lịch sử 10 message gần nhất để giữ ngữ cảnh hội thoại
+    const historyRows: Dict[] = await this.dataSource.query(
+      `SELECT vai_tro, noi_dung FROM tin_nhan_chat_ai
+       WHERE phien_chat_ai_id = ? ORDER BY tao_luc DESC LIMIT 10`,
+      [sessionId],
+    );
+    const history = historyRows
+      .reverse()
+      .map((row) => ({
+        role: row.vai_tro === 'assistant' ? ('assistant' as const) : ('user' as const),
+        content: String(row.noi_dung ?? ''),
+      }));
+
+    const reply = await this.openAi.generateReply(content, history, aiContext);
     const now = new Date();
-    const aiReply = this.buildAiReply(content, String(session.loai_context ?? 'tu_van_chung'));
 
     await this.dataSource.transaction(async (manager) => {
       await manager.query(
@@ -1886,13 +1908,36 @@ export class CustomerService {
       );
       await manager.query(
         `INSERT INTO tin_nhan_chat_ai (phien_chat_ai_id, vai_tro, noi_dung, model, token_input, token_output, trang_thai, loi, metadata, tao_luc)
-         VALUES (?, 'assistant', ?, ?, NULL, NULL, 'thanh_cong', NULL, ?, ?)`,
-        [sessionId, aiReply, 'rule-based-assistant', JSON.stringify({ disclaimer: true }), new Date()],
+         VALUES (?, 'assistant', ?, ?, ?, ?, 'thanh_cong', NULL, ?, ?)`,
+        [
+          sessionId,
+          reply.content,
+          reply.model,
+          reply.tokenInput ?? null,
+          reply.tokenOutput ?? null,
+          JSON.stringify({ fallback: reply.fallback, disclaimer: true }),
+          new Date(),
+        ],
       );
       await manager.query('UPDATE phien_chat_ai SET cap_nhat_luc = ? WHERE id = ?', [new Date(), sessionId]);
     });
 
     return this.getAiChatMessages(userId, sessionId);
+  }
+
+  async getAiSuggestedQuestions(accountId: number | undefined, sessionId: number | null) {
+    const userId = await this.assertAccount(accountId);
+    let contextType = 'tu_van_chung';
+    if (sessionId) {
+      const [session] = await this.dataSource.query(
+        'SELECT loai_context FROM phien_chat_ai WHERE id = ? AND tai_khoan_id = ?',
+        [sessionId, userId],
+      );
+      if (session?.loai_context) contextType = String(session.loai_context);
+    }
+    const aiContext = await this.loadAiContext(userId, contextType);
+    const questions = await this.openAi.generateSuggestedQuestions(aiContext);
+    return { context_type: contextType, questions };
   }
 
   async archiveAiChatSession(accountId: number | undefined, sessionId: number) {

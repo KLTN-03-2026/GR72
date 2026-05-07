@@ -777,10 +777,13 @@ export class AdminService {
       await manager.query('DELETE FROM chi_tra_hoa_hong WHERE ky_hoa_hong_id = ?', [id]);
       await manager.query('DELETE FROM chi_tiet_hoa_hong WHERE ky_hoa_hong_id = ?', [id]);
       const bookings = await manager.query(
-        `SELECT lh.id AS lich_hen_id, lh.chuyen_gia_id, lh.goi_dich_vu_id, lh.thanh_toan_id, tt.so_tien,
+        `SELECT lh.id AS lich_hen_id, lh.chuyen_gia_id, lh.goi_dich_vu_id,
+                tt.id AS thanh_toan_id,
+                CASE WHEN gdm.so_luot_tong > 0 THEN tt.so_tien / gdm.so_luot_tong ELSE tt.so_tien END AS so_tien,
                 COALESCE(gdcg.ty_le_hoa_hong_override, cfg_pkg.ty_le_hoa_hong, cfg_expert.ty_le_hoa_hong, cfg_default.ty_le_hoa_hong, 30) AS rate
          FROM lich_hen lh
-         JOIN thanh_toan tt ON tt.id = lh.thanh_toan_id AND tt.trang_thai = 'thanh_cong'
+         JOIN goi_da_mua gdm ON gdm.id = lh.goi_da_mua_id
+         JOIN thanh_toan tt ON tt.loai_thanh_toan = 'mua_goi' AND tt.doi_tuong_id = gdm.id AND tt.trang_thai = 'thanh_cong'
          LEFT JOIN refund rf ON rf.thanh_toan_id = tt.id AND rf.trang_thai IN ('yeu_cau','dang_xu_ly','thanh_cong')
          LEFT JOIN goi_dich_vu_chuyen_gia gdcg ON gdcg.goi_dich_vu_id = lh.goi_dich_vu_id AND gdcg.chuyen_gia_id = lh.chuyen_gia_id
          LEFT JOIN cau_hinh_hoa_hong cfg_pkg ON cfg_pkg.pham_vi = 'goi_dich_vu' AND cfg_pkg.goi_dich_vu_id = lh.goi_dich_vu_id AND cfg_pkg.trang_thai = 'hoat_dong'

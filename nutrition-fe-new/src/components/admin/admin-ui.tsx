@@ -139,7 +139,7 @@ export function ActionButton({ children, onClick, disabled, tone = 'primary', ty
     danger: 'bg-red-600 text-white hover:bg-red-700 shadow-red-100',
   }
   return (
-    <button type={type} onClick={onClick} disabled={disabled} className={`cursor-pointer whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB] disabled:cursor-not-allowed disabled:opacity-60 ${tones[tone]}`}>
+    <button type={type} onClick={onClick} disabled={disabled} className={`inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB] disabled:cursor-not-allowed disabled:opacity-60 ${tones[tone]}`}>
       {children}
     </button>
   )

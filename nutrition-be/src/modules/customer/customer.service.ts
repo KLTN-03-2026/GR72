@@ -2436,106 +2436,247 @@ export class CustomerService {
   async generateHealthRecommendation(accountId: number | undefined) {
     const userId = await this.assertAccount(accountId);
 
-    // Lấy hồ sơ
     const [profile] = await this.dataSource.query(
       'SELECT * FROM ho_so_suc_khoe WHERE tai_khoan_id = ?', [userId],
     );
-    if (!profile || !profile.da_hoan_thanh) {
+
+    // Chỉ yêu cầu 4 trường cốt lõi, không block toàn bộ khi thiếu trường phụ
+    const coreFields = ['gioi_tinh', 'ngay_sinh', 'chieu_cao_cm', 'muc_tieu_suc_khoe'];
+    const missingCore = coreFields.filter((f) => !profile?.[f]);
+    if (!profile || missingCore.length > 0) {
       const completion = this.calcProfileCompletion(profile);
-      throw new BadRequestException(`Vui long bo sung ho so suc khoe truoc khi tao goi y. Thieu: ${completion.missing.join(', ')}`);
+      throw new BadRequestException(`Vui long bo sung ho so suc khoe. Thieu: ${(missingCore.length ? missingCore : completion.missing).join(', ')}`);
     }
 
-    // Lấy chỉ số mới nhất
     const latest = await this.getLatestMetric(accountId);
     const summary = await this.getHealthSummary(accountId);
 
-    // Snapshot input
-    const inputSnapshot = {
-      profile: {
-        gioi_tinh: profile.gioi_tinh,
-        ngay_sinh: profile.ngay_sinh,
-        chieu_cao_cm: profile.chieu_cao_cm,
-        can_nang_hien_tai_kg: profile.can_nang_hien_tai_kg,
-        muc_do_van_dong: profile.muc_do_van_dong,
-        muc_tieu_suc_khoe: profile.muc_tieu_suc_khoe,
-        tinh_trang_suc_khoe: parseJson(profile.tinh_trang_suc_khoe) ?? [],
-      },
-      latest_metric: latest,
-      bmi: summary.bmi,
-      bmi_category: summary.bmiCategory,
-      weight_trend: summary.weightTrend,
-      input_signature: this.healthRecommendationSignature(profile, latest, summary),
-      generated_at: new Date().toISOString(),
-    };
+    const mucTieu  = profile.muc_tieu_suc_khoe as string;
+    const vanDong  = profile.muc_do_van_dong as string;
+    const gioi     = profile.gioi_tinh as string;
+    const bmi      = summary.bmi as number | null;
+    const bmiCat   = summary.bmiCategory as string;
+    const trend    = summary.weightTrend as string;
+    const age      = profile.ngay_sinh
+      ? Math.floor((Date.now() - new Date(profile.ngay_sinh).getTime()) / (365.25 * 24 * 3600 * 1000))
+      : 30;
 
-    // Rule-based recommendation
-    const actions: Array<Record<string, unknown>> = [];
-    const warnings: string[] = [];
-    const mucTieu = profile.muc_tieu_suc_khoe;
-    const bmi = summary.bmi;
-    const sleepScore = toNumber(latest?.chat_luong_giac_ngu);
+    const tinhTrang: string[] = this.normalizeStringList(profile.tinh_trang_suc_khoe);
+    const diUng: string[]     = this.normalizeStringList(profile.di_ung);
+    const ghi_chu: string     = profile.ghi_chu_cho_chuyen_gia ?? '';
+
+    const sleepScore  = toNumber(latest?.chat_luong_giac_ngu);
     const stressScore = toNumber(latest?.muc_do_cang_thang);
+    const energyScore = toNumber(latest?.muc_nang_luong);
+    const waistCm     = toNumber(latest?.vong_eo_cm);
+    const bloodSugar  = toNumber(latest?.duong_huyet);
+    const systolic    = toNumber(latest?.huyet_ap_tam_thu);
+    const heartRate   = toNumber(latest?.nhip_tim);
+    const currentWeight = toNumber(latest?.can_nang_kg ?? profile.can_nang_hien_tai_kg);
 
-    actions.push({
-      nhom: 'tong_quan',
-      hanh_dong: 'Theo dõi cân nặng và vòng eo cố định 2 lần/tuần',
-      muc_do: 'trung_binh',
-      ly_do: 'Duy trì dữ liệu liên tục giúp recommendation bám sát thực tế',
-      tan_suat: '2 lan/tuần',
-      thoi_diem_goi_y: 'Buổi sáng sau khi ngủ dậy',
-      chi_so_theo_doi: ['can_nang_kg', 'vong_eo_cm'],
-    });
+    const actions: Array<Record<string, unknown>> = [];
+    const warnings: string[] = [...(summary.warnings ?? [])];
+
+    // ── 1. Mục tiêu cân nặng (tuỳ goal + BMI + trend) ──────────────────────
+    if (mucTieu === 'giam_can') {
+      const deficit = bmi && bmi > 35 ? '500-600' : '300-500';
+      actions.push({ nhom: 'muc_tieu', hanh_dong: `Giảm ${deficit} kcal/ngày so với TDEE`, muc_do: 'cao',
+        ly_do: `BMI ${bmi ?? '?'} (${bmiCat}) — cần giảm từ từ để bảo toàn cơ`, tan_suat: 'Hàng ngày', ket_qua_ky_vong: 'Giảm 0.5–1 kg/tuần' });
+      if (trend === 'tang') {
+        actions.push({ nhom: 'muc_tieu', hanh_dong: 'Cân nặng đang tăng — ưu tiên cắt tinh bột tinh chế trước', muc_do: 'cao',
+          ly_do: 'Xu hướng tăng cân cần can thiệp ngay để đảo chiều', tan_suat: 'Hàng ngày' });
+      }
+      if (trend === 'giam') {
+        actions.push({ nhom: 'muc_tieu', hanh_dong: 'Đang giảm cân tốt — duy trì thâm hụt calo ổn định', muc_do: 'trung_binh',
+          ly_do: 'Xu hướng giảm cân đúng hướng, không cần thay đổi lớn', tan_suat: 'Hàng ngày' });
+      }
+    } else if (mucTieu === 'tang_can') {
+      actions.push({ nhom: 'muc_tieu', hanh_dong: 'Tăng 300–400 kcal/ngày bằng thực phẩm giàu dinh dưỡng', muc_do: 'cao',
+        ly_do: `BMI ${bmi ?? '?'} (${bmiCat}) — tăng cân lành mạnh thiên về cơ`, tan_suat: 'Hàng ngày', ket_qua_ky_vong: 'Tăng 0.3–0.5 kg/tuần' });
+      if (trend === 'giam') {
+        actions.push({ nhom: 'muc_tieu', hanh_dong: 'Cân nặng đang giảm — kiểm tra lại khẩu phần ăn ngay', muc_do: 'cao',
+          ly_do: 'Ngược chiều mục tiêu, cần tăng ngay lượng calo nạp vào', tan_suat: 'Hàng ngày' });
+      }
+    } else if (mucTieu === 'giu_can') {
+      actions.push({ nhom: 'muc_tieu', hanh_dong: 'Ăn đúng với TDEE, theo dõi cân nặng mỗi tuần', muc_do: 'trung_binh',
+        ly_do: `Giữ BMI ổn định ở mức ${bmiCat}`, tan_suat: 'Hàng ngày' });
+    } else {
+      actions.push({ nhom: 'muc_tieu', hanh_dong: 'Xây dựng thói quen ăn uống cân bằng 4 nhóm chất', muc_do: 'cao',
+        ly_do: 'Nền tảng cho sức khoẻ toàn diện', tan_suat: 'Hàng ngày' });
+    }
+
+    // ── 2. Vận động (tuỳ activity level + goal + BMI) ───────────────────────
+    if (vanDong === 'it_van_dong') {
+      actions.push({ nhom: 'van_dong', hanh_dong: 'Bắt đầu bằng đi bộ 20–30 phút/ngày', muc_do: 'cao',
+        ly_do: 'Ít vận động là yếu tố nguy cơ hàng đầu, cần tạo thói quen nền', tan_suat: '5–6 ngày/tuần', thoi_luong: '20–30 phút' });
+      actions.push({ nhom: 'van_dong', hanh_dong: 'Thêm stretching hoặc yoga nhẹ buổi tối', muc_do: 'trung_binh',
+        ly_do: 'Cải thiện linh hoạt và giảm đau nhức do ngồi nhiều', tan_suat: 'Hàng ngày', thoi_luong: '10–15 phút' });
+    } else if (vanDong === 'van_dong_nhe') {
+      actions.push({ nhom: 'van_dong', hanh_dong: mucTieu === 'giam_can'
+        ? 'Tăng lên cardio 40 phút, 5 ngày/tuần' : 'Cardio nhẹ 30 phút, 4 ngày/tuần', muc_do: 'cao',
+        ly_do: 'Nâng dần cường độ để khai thác tiềm năng sức khoẻ tim mạch', tan_suat: '4–5 ngày/tuần', thoi_luong: '30–40 phút' });
+      actions.push({ nhom: 'van_dong', hanh_dong: 'Thêm 2 buổi tập sức mạnh/tuần (squat, push-up, plank)', muc_do: 'trung_binh',
+        ly_do: 'Cơ bắp giúp tăng trao đổi chất cơ bản', tan_suat: '2 ngày/tuần', thoi_luong: '30 phút' });
+    } else if (vanDong === 'van_dong_vua') {
+      if (mucTieu === 'giam_can') {
+        actions.push({ nhom: 'van_dong', hanh_dong: 'Kết hợp HIIT 2 buổi + cardio bền 3 buổi/tuần', muc_do: 'cao',
+          ly_do: 'HIIT đốt calo cao sau tập, cardio bền duy trì nền trao đổi chất', tan_suat: '5 ngày/tuần', thoi_luong: '35–45 phút' });
+      } else {
+        actions.push({ nhom: 'van_dong', hanh_dong: 'Duy trì 4–5 buổi/tuần, xen kẽ cardio và tạ', muc_do: 'trung_binh',
+          ly_do: 'Mức vận động hiện tại phù hợp, chỉ cần duy trì đều đặn', tan_suat: '4–5 ngày/tuần' });
+      }
+    } else {
+      actions.push({ nhom: 'van_dong', hanh_dong: 'Đảm bảo 1–2 ngày nghỉ tích cực/tuần (yoga, đi bộ nhẹ)', muc_do: 'cao',
+        ly_do: 'Người tập nặng thường bỏ qua hồi phục — đây là lỗi phổ biến nhất', tan_suat: '1–2 ngày/tuần' });
+      actions.push({ nhom: 'van_dong', hanh_dong: 'Theo dõi nhịp tim khi tập để tối ưu vùng đốt mỡ', muc_do: 'trung_binh',
+        ly_do: 'Nhịp tim mục tiêu: 65–85% nhịp tim tối đa', tan_suat: 'Mỗi buổi tập' });
+    }
+
+    // ── 3. Dinh dưỡng (tuỳ goal + điều kiện + di ứng) ──────────────────────
+    actions.push({ nhom: 'dinh_duong', hanh_dong: 'Uống đủ 35–40 ml nước/kg cân nặng/ngày', muc_do: 'trung_binh',
+      ly_do: `Với ${currentWeight > 0 ? currentWeight : '?'}kg bạn cần ~${currentWeight > 0 ? Math.round(currentWeight * 37) : '?'}ml/ngày`, tan_suat: 'Hàng ngày',
+      ket_qua_ky_vong: 'Cải thiện trao đổi chất và kiểm soát cơn đói' });
 
     if (mucTieu === 'giam_can') {
-      actions.push({ nhom: 'muc_tieu', hanh_dong: 'Giảm 300-500 kcal/ngày so với TDEE', muc_do: 'cao', ly_do: 'Mục tiêu giảm cân an toàn 0.3-0.7kg/tuần', tan_suat: 'Hang ngay', ket_qua_ky_vong: 'Giảm 1-2kg/tháng' });
-      actions.push({ nhom: 'van_dong', hanh_dong: 'Tập cardio 30-45 phút, 5 ngày/tuần', muc_do: 'cao', ly_do: 'Tăng tiêu hao năng lượng và cải thiện tim mạch', tan_suat: '5 buoi/tuần' });
-      actions.push({ nhom: 'thoi_quen', hanh_dong: 'Uống đủ 30-35ml nước/kg/ngày', muc_do: 'trung_binh', ly_do: 'Hỗ trợ kiểm soát cơn đói và trao đổi chất', tan_suat: 'Hang ngay' });
+      actions.push({ nhom: 'dinh_duong', hanh_dong: 'Áp dụng đĩa ăn: 1/2 rau — 1/4 đạm — 1/4 tinh bột', muc_do: 'cao',
+        ly_do: 'Phương pháp trực quan, dễ thực hiện mà không cần đếm calo', tan_suat: 'Mỗi bữa chính' });
+      actions.push({ nhom: 'dinh_duong', hanh_dong: 'Ăn chậm và nhai kỹ — đặt đũa xuống giữa các miếng', muc_do: 'trung_binh',
+        ly_do: 'Não cần 20 phút để nhận tín hiệu no, ăn chậm giúp giảm lượng ăn 10–20%', tan_suat: 'Mỗi bữa' });
     } else if (mucTieu === 'tang_can') {
-      actions.push({ nhom: 'muc_tieu', hanh_dong: 'Tăng 300-500 kcal/ngày so với TDEE', muc_do: 'cao', ly_do: 'Tăng cân thiên về cơ, hạn chế mỡ', tan_suat: 'Hang ngay', ket_qua_ky_vong: 'Tăng 1-2kg/tháng' });
-      actions.push({ nhom: 'van_dong', hanh_dong: 'Tập resistance training 4 buổi/tuần', muc_do: 'cao', ly_do: 'Tăng cơ bắp thay vì tăng mỡ', tan_suat: '4 buoi/tuần' });
-      actions.push({ nhom: 'dinh_duong', hanh_dong: 'Ưu tiên bữa phụ giàu protein giữa 2 bữa chính', muc_do: 'trung_binh', ly_do: 'Giúp đạt tổng kcal và protein mục tiêu', tan_suat: '1-2 bua phu/ngay' });
-    } else if (mucTieu === 'giu_can') {
-      actions.push({ nhom: 'muc_tieu', hanh_dong: 'Duy trì calories quanh mức TDEE', muc_do: 'trung_binh', ly_do: 'Giữ cân nặng ổn định và bền vững', tan_suat: 'Hang ngay' });
-      actions.push({ nhom: 'van_dong', hanh_dong: 'Tập luyện đều 3-4 ngày/tuần', muc_do: 'trung_binh', ly_do: 'Duy trì chuyển hóa và sức khỏe tổng thể', tan_suat: '3-4 buoi/tuần' });
-      actions.push({ nhom: 'thoi_quen', hanh_dong: 'Đặt giờ ngủ cố định, lệch không quá 1 giờ', muc_do: 'trung_binh', ly_do: 'Ổn định hormone ảnh hưởng cân nặng', tan_suat: 'Hang ngay' });
-    } else {
-      actions.push({ nhom: 'muc_tieu', hanh_dong: 'Xây dựng chế độ ăn cân bằng 4 nhóm chất', muc_do: 'cao', ly_do: 'Cải thiện sức khỏe toàn diện', tan_suat: 'Hang ngay' });
-      actions.push({ nhom: 'thoi_quen', hanh_dong: 'Ngủ đủ 7-8 tiếng/đêm', muc_do: 'cao', ly_do: 'Giấc ngủ ảnh hưởng trực tiếp miễn dịch và phục hồi', tan_suat: 'Hang ngay' });
-      actions.push({ nhom: 'van_dong', hanh_dong: 'Vận động tối thiểu 150 phút/tuần', muc_do: 'trung_binh', ly_do: 'Khuyến nghị nền tảng để bảo vệ tim mạch', tan_suat: 'Hang tuan' });
+      actions.push({ nhom: 'dinh_duong', hanh_dong: 'Thêm 1–2 bữa phụ: chuối + bơ đậu phộng + sữa tươi', muc_do: 'cao',
+        ly_do: 'Tăng năng lượng nạp vào từ thực phẩm nguyên chất, không từ junk food', tan_suat: 'Giữa buổi sáng và sau tập' });
     }
 
+    if (diUng.length > 0) {
+      actions.push({ nhom: 'dinh_duong', hanh_dong: `Tuyệt đối tránh: ${diUng.join(', ')}`, muc_do: 'cao',
+        ly_do: 'Dị ứng đã khai báo — có thể gây phản ứng nghiêm trọng', tan_suat: 'Luôn luôn' });
+    }
+
+    // ── 4. Giấc ngủ ──────────────────────────────────────────────────────────
+    if (sleepScore > 0 && sleepScore <= 3) {
+      warnings.push(`Chất lượng giấc ngủ thấp (${sleepScore}/10) ảnh hưởng trực tiếp đến hormone đói/no và phục hồi cơ`);
+      actions.push({ nhom: 'giac_ngu', hanh_dong: 'Đặt giờ ngủ cố định, không dùng màn hình 1 giờ trước ngủ', muc_do: 'cao',
+        ly_do: `Điểm giấc ngủ ${sleepScore}/10 — cải thiện giấc ngủ là ưu tiên cao nhất lúc này`, tan_suat: 'Hàng đêm', ket_qua_ky_vong: 'Cải thiện phục hồi và kiểm soát cân nặng' });
+      actions.push({ nhom: 'giac_ngu', hanh_dong: 'Không uống caffeine sau 14:00, tránh alcohol trước ngủ', muc_do: 'trung_binh',
+        ly_do: 'Caffeine tồn tại 6–8 giờ trong cơ thể, alcohol làm giảm chất lượng REM', tan_suat: 'Hàng ngày' });
+    } else if (sleepScore >= 4 && sleepScore <= 6) {
+      actions.push({ nhom: 'giac_ngu', hanh_dong: 'Cải thiện môi trường ngủ: tối, mát, yên tĩnh', muc_do: 'trung_binh',
+        ly_do: `Điểm giấc ngủ ${sleepScore}/10 — còn dư địa cải thiện đáng kể`, tan_suat: 'Hàng đêm' });
+    }
+
+    // ── 5. Căng thẳng & năng lượng ───────────────────────────────────────────
+    if (stressScore >= 7) {
+      warnings.push(`Mức căng thẳng cao (${stressScore}/10) — cortisol cao gây tích mỡ bụng và giảm hiệu quả tập luyện`);
+      actions.push({ nhom: 'cang_thang', hanh_dong: 'Thực hành thở 4-7-8 hoặc thiền 10 phút/ngày', muc_do: 'cao',
+        ly_do: `Stress ${stressScore}/10 gây cortisol cao — trực tiếp cản trở mục tiêu ${mucTieu}`, tan_suat: 'Sáng hoặc tối' });
+      actions.push({ nhom: 'cang_thang', hanh_dong: 'Đi bộ nhẹ 15–20 phút sau bữa tối thay vì ngồi xem điện thoại', muc_do: 'trung_binh',
+        ly_do: 'Giảm cortisol tự nhiên và hỗ trợ tiêu hóa', tan_suat: 'Hàng tối' });
+    } else if (stressScore >= 4) {
+      actions.push({ nhom: 'cang_thang', hanh_dong: 'Dành 15 phút mỗi ngày cho hoạt động thư giãn (đọc sách, nghe nhạc)', muc_do: 'trung_binh',
+        ly_do: `Stress ${stressScore}/10 — phòng ngừa tăng trước khi ảnh hưởng đến sức khoẻ`, tan_suat: 'Hàng ngày' });
+    }
+
+    if (energyScore > 0 && energyScore <= 4) {
+      actions.push({ nhom: 'cang_thang', hanh_dong: 'Kiểm tra lại bữa sáng — ưu tiên protein + tinh bột phức hợp', muc_do: 'trung_binh',
+        ly_do: `Năng lượng thấp (${energyScore}/10) thường do bỏ bữa sáng hoặc ăn tinh bột đơn`, tan_suat: 'Mỗi sáng' });
+    }
+
+    // ── 6. Cảnh báo từ chỉ số đo lường ─────────────────────────────────────
+    if (systolic > 130 && systolic <= 140) {
+      actions.push({ nhom: 'can_thiep', hanh_dong: 'Giảm muối xuống dưới 5g/ngày và tăng kali từ rau củ', muc_do: 'cao',
+        ly_do: `Huyết áp ${systolic} mmHg — biên giới cao, cần điều chỉnh ngay qua ăn uống`, tan_suat: 'Hàng ngày' });
+    }
+    if (systolic > 140) {
+      warnings.push(`Huyết áp tâm thu ${systolic} mmHg — cần theo dõi y tế`);
+      actions.push({ nhom: 'can_thiep', hanh_dong: 'Tham khảo bác sĩ về huyết áp cao trước khi tập cường độ cao', muc_do: 'cao',
+        ly_do: `Huyết áp ${systolic} mmHg cần được kiểm soát y tế song song với lối sống`, tan_suat: 'Ngay khi có thể' });
+    }
+
+    if (bloodSugar > 5.6 && bloodSugar <= 7) {
+      actions.push({ nhom: 'dinh_duong', hanh_dong: 'Giảm tinh bột trắng, ưu tiên ngũ cốc nguyên hạt và rau xanh', muc_do: 'cao',
+        ly_do: `Đường huyết ${bloodSugar} mmol/L — vùng tiền tiểu đường, kiểm soát được qua ăn uống`, tan_suat: 'Hàng ngày' });
+    }
+    if (bloodSugar > 7) {
+      warnings.push(`Đường huyết ${bloodSugar} mmol/L — cao, nên khám bác sĩ`);
+    }
+
+    if (waistCm > 0) {
+      const riskWaist = gioi === 'nu' ? 88 : 102;
+      if (waistCm > riskWaist) {
+        warnings.push(`Vòng eo ${waistCm} cm — nguy cơ mỡ nội tạng cao`);
+        actions.push({ nhom: 'can_thiep', hanh_dong: 'Ưu tiên bài tập HIIT và giảm tinh bột để giảm mỡ bụng', muc_do: 'cao',
+          ly_do: `Vòng eo ${waistCm}cm > ngưỡng an toàn ${riskWaist}cm — mỡ nội tạng làm tăng nguy cơ tim mạch`, tan_suat: '5 ngày/tuần' });
+      }
+    }
+
+    // ── 7. BMI cực đoan ───────────────────────────────────────────────────────
     if (bmi && bmi > 30) {
-      warnings.push('BMI cao - nên tham khảo ý kiến chuyên gia dinh dưỡng');
-      actions.push({ nhom: 'can_thiep', hanh_dong: 'Đặt lịch tư vấn chuyên gia dinh dưỡng', muc_do: 'cao', ly_do: 'BMI > 30 cần được hỗ trợ chuyên môn', tan_suat: 'Som nhat co the' });
+      actions.push({ nhom: 'can_thiep', hanh_dong: 'Đặt lịch tư vấn chuyên gia dinh dưỡng để có kế hoạch sát hơn', muc_do: 'cao',
+        ly_do: `BMI ${bmi} — béo phì cần hỗ trợ chuyên môn để giảm cân an toàn và bền vững`, tan_suat: 'Càng sớm càng tốt' });
     }
     if (bmi && bmi < 16) {
-      warnings.push('BMI rất thấp - cần khám bác sĩ ngay');
-      actions.push({ nhom: 'can_thiep', hanh_dong: 'Khám bác sĩ để sàng lọc nguyên nhân thiếu cân', muc_do: 'cao', ly_do: 'BMI < 16 có thể liên quan nguy cơ sức khỏe', tan_suat: 'Som nhat co the' });
+      warnings.push('BMI rất thấp — thiếu cân nghiêm trọng, cần khám bác sĩ ngay');
+      actions.push({ nhom: 'can_thiep', hanh_dong: 'Khám bác sĩ để loại trừ nguyên nhân thiếu cân bệnh lý', muc_do: 'cao',
+        ly_do: `BMI ${bmi} < 16 có thể liên quan đến rối loạn ăn uống hoặc bệnh lý nền`, tan_suat: 'Ngay lập tức' });
     }
 
-    if (sleepScore > 0 && sleepScore <= 2) {
-      warnings.push('Chất lượng giấc ngủ thấp, nên ưu tiên cải thiện giấc ngủ');
-      actions.push({ nhom: 'giac_ngu', hanh_dong: 'Giảm caffeine sau 14:00 và tắt màn hình trước ngủ 60 phút', muc_do: 'trung_binh', ly_do: 'Cải thiện chất lượng giấc ngủ', tan_suat: 'Hang ngay' });
+    // ── 8. Tuổi & giới tính ──────────────────────────────────────────────────
+    if (age >= 50) {
+      actions.push({ nhom: 'van_dong', hanh_dong: 'Ưu tiên bài tập tăng cường xương khớp: bơi lội, đạp xe, tạ nhẹ', muc_do: 'trung_binh',
+        ly_do: 'Sau 50 tuổi mật độ xương giảm nhanh, cần kích thích xương bằng vận động chịu lực', tan_suat: '3–4 ngày/tuần' });
     }
-    if (stressScore >= 4) {
-      warnings.push('Mức độ căng thẳng cao, nên kết hợp thư giãn và vận động nhẹ');
-      actions.push({ nhom: 'cang_thang', hanh_dong: 'Thực hành thở sâu 10 phút/ngày hoặc đi bộ nhẹ sau bữa tối', muc_do: 'trung_binh', ly_do: 'Giảm stress giúp ổn định hành vi ăn uống', tan_suat: 'Hang ngay' });
+    if (gioi === 'nu' && age >= 40) {
+      actions.push({ nhom: 'dinh_duong', hanh_dong: 'Bổ sung canxi từ sữa, cải bó xôi, đậu phụ — 1000–1200mg/ngày', muc_do: 'trung_binh',
+        ly_do: 'Phụ nữ sau 40 tuổi nguy cơ loãng xương tăng cao', tan_suat: 'Hàng ngày' });
     }
 
-    // Cảnh báo từ chỉ số
-    warnings.push(...(summary.warnings || []));
+    // ── 9. Tình trạng sức khoẻ đặc biệt ─────────────────────────────────────
+    if (tinhTrang.length > 0) {
+      warnings.push(`Lưu ý tình trạng sức khoẻ: ${tinhTrang.join(', ')} — tham khảo chuyên gia trước khi thay đổi chế độ lớn`);
+      actions.push({ nhom: 'can_thiep', hanh_dong: 'Chia sẻ kế hoạch này với bác sĩ hoặc chuyên gia dinh dưỡng', muc_do: 'cao',
+        ly_do: `Có tình trạng: ${tinhTrang.join(', ')} — cần điều chỉnh kế hoạch cho phù hợp`, tan_suat: 'Trước khi bắt đầu' });
+    }
 
-    const priority = warnings.length > 0 ? 'cao' : 'trung_binh';
+    if (ghi_chu) {
+      actions.push({ nhom: 'can_thiep', hanh_dong: `Lưu ý thêm: ${ghi_chu}`, muc_do: 'trung_binh',
+        ly_do: 'Thông tin bổ sung từ hồ sơ cá nhân', tan_suat: 'Theo tình huống' });
+    }
+
+    // ── 10. Theo dõi tiến độ ─────────────────────────────────────────────────
+    actions.push({ nhom: 'tong_quan', hanh_dong: 'Cập nhật cân nặng và vòng eo mỗi tuần vào buổi sáng', muc_do: 'trung_binh',
+      ly_do: 'Dữ liệu liên tục giúp phát hiện sớm xu hướng và điều chỉnh kịp thời', tan_suat: '1–2 lần/tuần', thoi_diem_goi_y: 'Sáng sau ngủ dậy, trước ăn sáng',
+      chi_so_theo_doi: ['can_nang_kg', 'vong_eo_cm'] });
+
+    if (heartRate > 0 && heartRate < 60) {
+      actions.push({ nhom: 'tong_quan', hanh_dong: 'Theo dõi nhịp tim nghỉ ngơi hàng tuần', muc_do: 'trung_binh',
+        ly_do: `Nhịp tim ${heartRate} bpm — có thể phản ánh sức khoẻ tim mạch tốt hoặc cần theo dõi thêm`, tan_suat: 'Hàng tuần' });
+    }
+
+    const ly_do_gen = [
+      `Mục tiêu: ${mucTieu}`,
+      bmi ? `BMI ${bmi} (${bmiCat})` : null,
+      trend !== 'khong_du_du_lieu' ? `Xu hướng cân: ${trend}` : null,
+      latest ? `Dữ liệu đo ngày ${String(latest.do_luc).slice(0, 10)}` : 'Chưa có chỉ số đo',
+    ].filter(Boolean).join(' · ');
+
+    const priority = warnings.length >= 3 ? 'cao' : warnings.length >= 1 ? 'trung_binh' : 'thap';
     const now = new Date();
+
+    const inputSnapshot = {
+      profile: { gioi_tinh: gioi, ngay_sinh: profile.ngay_sinh, chieu_cao_cm: profile.chieu_cao_cm, can_nang_hien_tai_kg: profile.can_nang_hien_tai_kg, muc_do_van_dong: vanDong, muc_tieu_suc_khoe: mucTieu, tinh_trang_suc_khoe: tinhTrang, di_ung: diUng },
+      latest_metric: latest ? { can_nang_kg: latest.can_nang_kg, vong_eo_cm: latest.vong_eo_cm, chat_luong_giac_ngu: latest.chat_luong_giac_ngu, muc_do_cang_thang: latest.muc_do_cang_thang, muc_nang_luong: latest.muc_nang_luong, huyet_ap_tam_thu: latest.huyet_ap_tam_thu, nhip_tim: latest.nhip_tim, duong_huyet: latest.duong_huyet, do_luc: latest.do_luc } : null,
+      bmi, bmi_category: bmiCat, weight_trend: trend, age,
+      input_signature: this.healthRecommendationSignature(profile, latest, summary),
+      generated_at: now.toISOString(),
+    };
 
     const result = await this.dataSource.query(
       `INSERT INTO goi_y_suc_khoe (tai_khoan_id,phien_chat_ai_id,loai_goi_y,input_snapshot,
        noi_dung_goi_y,muc_do_uu_tien,canh_bao,ly_do,trang_thai,tao_luc,cap_nhat_luc)
        VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
       [userId, null, 'ke_hoach_suc_khoe', JSON.stringify(inputSnapshot),
-       JSON.stringify(actions), priority, JSON.stringify(warnings),
-       `Goi y dua tren ho so va chi so moi nhat - BMI: ${bmi ?? 'chua co'}`,
-       'moi_tao', now, now],
+       JSON.stringify(actions), priority, JSON.stringify([...new Set(warnings)]),
+       ly_do_gen, 'moi_tao', now, now],
     );
 
     const [created] = await this.dataSource.query('SELECT * FROM goi_y_suc_khoe WHERE id = ?', [result.insertId]);
@@ -2649,26 +2790,31 @@ export class CustomerService {
     const [profile] = await this.dataSource.query(
       'SELECT * FROM ho_so_suc_khoe WHERE tai_khoan_id = ?', [userId],
     );
-    if (!profile || !profile.chieu_cao_cm || !profile.can_nang_hien_tai_kg) {
-      throw new BadRequestException('Can bo sung chieu cao va can nang trong ho so suc khoe truoc');
+    if (!profile || !profile.chieu_cao_cm) {
+      throw new BadRequestException('Can bo sung chieu cao trong ho so suc khoe truoc');
     }
 
-    const summary = await this.getHealthSummary(accountId);
-    const diUng: string[] = this.normalizeStringList(profile.di_ung);
+    const summary  = await this.getHealthSummary(accountId);
+    const latest   = await this.getLatestMetric(accountId);
+
+    const diUng: string[]     = this.normalizeStringList(profile.di_ung);
     const khongDung: string[] = this.normalizeStringList(profile.thuc_pham_khong_dung);
-    const cheDoAn: string[] = this.normalizeStringList(profile.che_do_an_uu_tien);
+    const cheDoAn: string[]   = this.normalizeStringList(profile.che_do_an_uu_tien);
     const tinhTrang: string[] = this.normalizeStringList(profile.tinh_trang_suc_khoe);
 
-    // Tính TDEE (Mifflin-St Jeor)
-    const weightKg = toNumber(profile.can_nang_hien_tai_kg);
-    const heightCm = toNumber(profile.chieu_cao_cm);
-    const age = profile.ngay_sinh ? Math.floor((Date.now() - new Date(profile.ngay_sinh).getTime()) / (365.25 * 24 * 3600 * 1000)) : 30;
-    let bmr: number;
-    if (profile.gioi_tinh === 'nu') {
-      bmr = 10 * weightKg + 6.25 * heightCm - 5 * age - 161;
-    } else {
-      bmr = 10 * weightKg + 6.25 * heightCm - 5 * age + 5;
-    }
+    // Dùng cân nặng mới nhất từ chỉ số đo, fallback về hồ sơ
+    const heightCm  = toNumber(profile.chieu_cao_cm);
+    const weightKg  = toNumber(latest?.can_nang_kg ?? profile.can_nang_hien_tai_kg);
+    if (!weightKg) throw new BadRequestException('Can bo sung can nang trong ho so hoac do chi so suc khoe');
+
+    const age = profile.ngay_sinh
+      ? Math.floor((Date.now() - new Date(profile.ngay_sinh).getTime()) / (365.25 * 24 * 3600 * 1000))
+      : 30;
+
+    // Mifflin-St Jeor
+    const bmr = profile.gioi_tinh === 'nu'
+      ? 10 * weightKg + 6.25 * heightCm - 5 * age - 161
+      : 10 * weightKg + 6.25 * heightCm - 5 * age + 5;
 
     const activityMultiplier: Record<string, number> = {
       it_van_dong: 1.2, van_dong_nhe: 1.375, van_dong_vua: 1.55,
@@ -2676,70 +2822,172 @@ export class CustomerService {
     };
     const tdee = Math.round(bmr * (activityMultiplier[profile.muc_do_van_dong] ?? 1.375));
 
+    const mucTieu = profile.muc_tieu_suc_khoe as string;
+    const vanDong = profile.muc_do_van_dong as string;
+    const bmi     = summary.bmi as number | null;
+    const trend   = summary.weightTrend as string;
+
+    // Deficit/surplus tuỳ BMI
     let targetCalories = tdee;
-    const mucTieu = profile.muc_tieu_suc_khoe;
-    if (mucTieu === 'giam_can') targetCalories = tdee - 400;
-    else if (mucTieu === 'tang_can') targetCalories = tdee + 400;
-
-    // Macros (tỷ lệ chuẩn)
-    const proteinG = Math.round((targetCalories * 0.3) / 4);
-    const carbG = Math.round((targetCalories * 0.4) / 4);
-    const fatG = Math.round((targetCalories * 0.3) / 9);
-
-    // Gợi ý dinh dưỡng
-    const nutritionItems: Array<Record<string, unknown>> = [];
-    nutritionItems.push({ goi_y: 'Ăn đủ rau xanh và trái cây (5 phần/ngày)', loai: 'uu_tien', ly_do: 'Cung cấp vitamin, khoáng chất và chất xơ', tan_suat: 'Hang ngay', bua_goi_y: 'Trưa/Tối' });
-    nutritionItems.push({ goi_y: 'Protein nạc: ức gà, cá, đậu, trứng', loai: 'uu_tien', ly_do: `Đạt mục tiêu ${proteinG}g protein/ngày`, tan_suat: '2-3 bua/ngay' });
-    nutritionItems.push({ goi_y: 'Hạn chế đường tinh luyện và thức ăn chế biến sẵn', loai: 'han_che', ly_do: 'Giảm lượng calo rỗng', tan_suat: 'Lien tuc' });
-
-    if (diUng.length > 0) {
-      nutritionItems.push({ goi_y: `Tránh tuyệt đối: ${diUng.join(', ')}`, loai: 'tranh', ly_do: 'Dị ứng đã khai báo', do_uu_tien: 'bat_buoc' });
-    }
-    if (khongDung.length > 0) {
-      nutritionItems.push({ goi_y: `Hạn chế: ${khongDung.join(', ')}`, loai: 'han_che', ly_do: 'Thực phẩm không dùng theo sở thích', thay_the_goi_y: 'Ưu tiên nguồn đạm nạc hoặc thực phẩm tương đương' });
-    }
-    if (cheDoAn.length > 0) {
-      nutritionItems.push({ goi_y: `Ưu tiên theo chế độ ăn: ${cheDoAn.join(', ')}`, loai: 'uu_tien', ly_do: 'Tôn trọng chế độ ăn đã khai báo' });
-    }
     if (mucTieu === 'giam_can') {
-      nutritionItems.push({ goi_y: 'Áp dụng nguyên tắc đĩa ăn 1/2 rau - 1/4 đạm - 1/4 tinh bột', loai: 'uu_tien', ly_do: 'Dễ duy trì thâm hụt kcal mà vẫn no', bua_goi_y: 'Trưa/Tối' });
+      const deficit = bmi && bmi > 35 ? 500 : bmi && bmi > 30 ? 450 : 350;
+      targetCalories = tdee - deficit;
+    } else if (mucTieu === 'tang_can') {
+      const surplus = bmi && bmi < 16 ? 500 : 350;
+      targetCalories = tdee + surplus;
     }
-    if (mucTieu === 'tang_can') {
-      nutritionItems.push({ goi_y: 'Thêm 1 bữa phụ sau tập với sữa chua Hy Lạp + chuối + hạt', loai: 'uu_tien', ly_do: 'Tăng năng lượng và phục hồi cơ', bua_goi_y: 'Sau tập' });
+    targetCalories = Math.max(targetCalories, 1200); // không xuống dưới 1200
+
+    // Macro tỷ lệ tuỳ mục tiêu
+    let proteinRatio = 0.30, carbRatio = 0.40, fatRatio = 0.30;
+    if (mucTieu === 'tang_can') { proteinRatio = 0.30; carbRatio = 0.45; fatRatio = 0.25; }
+    if (mucTieu === 'giam_can') { proteinRatio = 0.35; carbRatio = 0.35; fatRatio = 0.30; }
+    if (tinhTrang.some((t) => t.toLowerCase().includes('tieu duong') || t.toLowerCase().includes('đái tháo đường'))) {
+      carbRatio = 0.30; proteinRatio = 0.35; fatRatio = 0.35;
     }
 
-    // Gợi ý tập luyện
-    const exerciseItems: Array<Record<string, unknown>> = [];
-    const vanDong = profile.muc_do_van_dong;
+    const proteinG = Math.round((targetCalories * proteinRatio) / 4);
+    const carbG    = Math.round((targetCalories * carbRatio) / 4);
+    const fatG     = Math.round((targetCalories * fatRatio) / 9);
+
+    const warnings: string[] = [...(summary.warnings ?? [])];
+    const nutritionItems: Array<Record<string, unknown>> = [];
+    const exerciseItems: Array<Record<string, unknown>>  = [];
+
+    // ── DINH DƯỠNG ──────────────────────────────────────────────────────────
+
+    // 1. Dị ứng — ưu tiên hàng đầu
+    if (diUng.length > 0) {
+      nutritionItems.push({ goi_y: `Tuyệt đối tránh: ${diUng.join(', ')}`, loai: 'tranh',
+        ly_do: 'Dị ứng đã khai báo — có thể gây phản ứng nguy hiểm', tan_suat: 'Luôn luôn' });
+    }
+
+    // 2. Thực phẩm không dùng
+    if (khongDung.length > 0) {
+      nutritionItems.push({ goi_y: `Hạn chế: ${khongDung.join(', ')}`, loai: 'han_che',
+        ly_do: 'Theo sở thích đã khai báo', thay_the_goi_y: 'Chọn thực phẩm tương đương về dinh dưỡng' });
+    }
+
+    // 3. Chế độ ăn ưu tiên
+    if (cheDoAn.length > 0) {
+      nutritionItems.push({ goi_y: `Tuân theo chế độ: ${cheDoAn.join(', ')}`, loai: 'uu_tien',
+        ly_do: 'Phù hợp với chế độ ăn đã đăng ký của bạn', tan_suat: 'Hàng ngày' });
+    }
+
+    // 4. Protein — tuỳ mục tiêu
+    const proteinFoods = tinhTrang.some((t) => t.includes('than') || t.includes('thận'))
+      ? 'cá hồi, trứng, đậu hũ (hạn chế thịt đỏ)'
+      : 'ức gà, cá, trứng, đậu phụ, tôm';
+    nutritionItems.push({ goi_y: `Protein nạc: ${proteinFoods}`, loai: 'uu_tien',
+      ly_do: `Mục tiêu ${proteinG}g protein/ngày — ${mucTieu === 'tang_can' ? 'tăng cơ' : mucTieu === 'giam_can' ? 'giữ cơ khi giảm cân' : 'duy trì sức khoẻ'}`,
+      tan_suat: '2–3 bữa/ngày', bua_goi_y: 'Trưa và tối' });
+
+    // 5. Rau củ — luôn ưu tiên
+    nutritionItems.push({ goi_y: 'Rau xanh và trái cây đa màu sắc — ít nhất 400g/ngày', loai: 'uu_tien',
+      ly_do: 'Cung cấp vitamin, khoáng chất, chất xơ và chất chống oxy hoá', tan_suat: 'Hàng ngày', bua_goi_y: 'Trưa/Tối' });
+
+    // 6. Tinh bột — tuỳ mục tiêu và tình trạng đường huyết
+    const bloodSugar = toNumber(latest?.duong_huyet);
+    if (bloodSugar > 5.6 || tinhTrang.some((t) => t.includes('duong') || t.includes('đường'))) {
+      nutritionItems.push({ goi_y: 'Thay cơm trắng bằng gạo lứt, khoai lang, yến mạch', loai: 'uu_tien',
+        ly_do: 'Tinh bột phức hợp giúp kiểm soát đường huyết ổn định sau bữa ăn', tan_suat: 'Mỗi bữa', bua_goi_y: 'Trưa/Tối' });
+      nutritionItems.push({ goi_y: 'Tránh nước ngọt, bánh kẹo, đồ ăn ngọt', loai: 'tranh',
+        ly_do: `Đường huyết ${bloodSugar > 5.6 ? bloodSugar + ' mmol/L' : 'cần kiểm soát'} — đường đơn gây tăng đột biến nguy hiểm`, tan_suat: 'Luôn luôn' });
+    } else if (mucTieu === 'giam_can') {
+      nutritionItems.push({ goi_y: 'Ưu tiên tinh bột phức: gạo lứt, khoai, yến mạch thay cơm trắng', loai: 'uu_tien',
+        ly_do: 'No lâu hơn, hỗ trợ duy trì thâm hụt calo bền vững', tan_suat: 'Mỗi bữa chính', bua_goi_y: 'Trưa' });
+      nutritionItems.push({ goi_y: 'Hạn chế cơm trắng, bánh mì trắng, bún, phở nhiều tinh bột', loai: 'han_che',
+        ly_do: 'Tinh bột tinh chế đẩy insulin cao, cản trở đốt mỡ', tan_suat: 'Hàng ngày' });
+    } else if (mucTieu === 'tang_can') {
+      nutritionItems.push({ goi_y: 'Thêm 1–2 bữa phụ: chuối + bơ đậu phộng + sữa tươi hoặc bơ + bánh mì nguyên cám', loai: 'uu_tien',
+        ly_do: `Cần thêm ~${targetCalories - tdee + 400} kcal/ngày — bữa phụ giàu dinh dưỡng là cách dễ nhất`, tan_suat: '1–2 bữa phụ/ngày', bua_goi_y: 'Giữa sáng và sau tập' });
+    }
+
+    // 7. Chất béo lành mạnh
+    nutritionItems.push({ goi_y: 'Chất béo lành mạnh: dầu ô liu, bơ, hạt óc chó, cá hồi', loai: 'uu_tien',
+      ly_do: 'Omega-3 và chất béo không bão hoà hỗ trợ tim mạch và hấp thu vitamin', tan_suat: 'Hàng ngày' });
+    nutritionItems.push({ goi_y: 'Hạn chế đồ chiên, thức ăn nhanh, dầu tái chế nhiều lần', loai: 'han_che',
+      ly_do: 'Chất béo trans và bão hoà làm tăng nguy cơ tim mạch', tan_suat: 'Hàng ngày' });
+
+    // 8. Nước
+    const waterMl = Math.round(weightKg * 35);
+    nutritionItems.push({ goi_y: `Uống đủ nước — khoảng ${waterMl}ml/ngày (${Math.round(waterMl / 250)} ly 250ml)`, loai: 'uu_tien',
+      ly_do: 'Cơ thể mất nước 1% đã giảm hiệu suất vận động 10%', tan_suat: 'Rải đều cả ngày', bua_goi_y: 'Uống 1 ly ngay khi thức dậy' });
+
+    // ── TẬP LUYỆN ───────────────────────────────────────────────────────────
 
     if (vanDong === 'it_van_dong') {
-      exerciseItems.push({ goi_y: 'Đi bộ 30 phút/ngày', muc_do: 'nhe', ly_do: 'Bắt đầu nhẹ nhàng để tạo thói quen', tan_suat: '5-6 ngay/tuần', thoi_luong: '30 phut' });
-      exerciseItems.push({ goi_y: 'Yoga hoặc stretching 15 phút/ngày', muc_do: 'nhe', ly_do: 'Cải thiện linh hoạt cơ thể', tan_suat: 'Hang ngay', thoi_luong: '15 phut' });
-    } else if (vanDong === 'van_dong_nhe' || vanDong === 'van_dong_vua') {
-      exerciseItems.push({ goi_y: 'Cardio 30-45 phút', muc_do: 'vua', ly_do: 'Duy trì sức khỏe tim mạch', tan_suat: '4-5 ngay/tuần', thoi_luong: '30-45 phut' });
-      exerciseItems.push({ goi_y: 'Tập tạ/bodyweight', muc_do: 'vua', ly_do: 'Tăng cường cơ bắp', tan_suat: '3 ngay/tuần', thoi_luong: '40 phut' });
-    } else {
-      exerciseItems.push({ goi_y: 'HIIT 3 ngày + Strength 3 ngày/tuần', muc_do: 'nang', ly_do: 'Tối ưu hiệu suất tập luyện', tan_suat: '6 ngay/tuần', thoi_luong: '45-60 phut' });
-      exerciseItems.push({ goi_y: 'Nghỉ ngơi chủ động ít nhất 1 ngày/tuần', muc_do: 'quan_trong', ly_do: 'Phục hồi cơ bắp và giảm chấn thương', tan_suat: '1 ngay/tuần' });
+      exerciseItems.push({ goi_y: 'Đi bộ 20–30 phút/ngày (bất kỳ thời điểm nào)', muc_do: 'thap',
+        ly_do: 'Bước đầu tạo thói quen vận động — không cần đến phòng gym', tan_suat: '5–7 ngày/tuần', thoi_luong: '20–30 phút' });
+      exerciseItems.push({ goi_y: 'Stretching toàn thân 10 phút buổi sáng', muc_do: 'thap',
+        ly_do: 'Giảm cứng cơ, cải thiện tư thế và tuần hoàn máu', tan_suat: 'Hàng ngày', thoi_luong: '10 phút' });
+      if (mucTieu === 'giam_can') {
+        exerciseItems.push({ goi_y: 'Tăng dần lên 45 phút đi bộ nhanh sau 2 tuần', muc_do: 'trung_binh',
+          ly_do: 'Tăng tiêu hao calo dần dần, tránh chấn thương do tập quá sức', tan_suat: '4–5 ngày/tuần', thoi_luong: '45 phút' });
+      }
+    } else if (vanDong === 'van_dong_nhe') {
+      exerciseItems.push({ goi_y: 'Cardio vừa phải: đạp xe, bơi lội, hoặc chạy bộ nhẹ', muc_do: 'trung_binh',
+        ly_do: 'Cải thiện sức bền tim phổi và đốt calo hiệu quả', tan_suat: '4 ngày/tuần', thoi_luong: '30–40 phút' });
+      exerciseItems.push({ goi_y: 'Tập sức mạnh bodyweight: squat, push-up, plank, lunge', muc_do: 'trung_binh',
+        ly_do: 'Tăng cơ bắp giúp trao đổi chất cơ bản tăng 5–10%', tan_suat: '2–3 ngày/tuần', thoi_luong: '25–30 phút' });
+    } else if (vanDong === 'van_dong_vua') {
+      if (mucTieu === 'giam_can') {
+        exerciseItems.push({ goi_y: 'HIIT 20–25 phút (30 giây bứt tốc — 90 giây nghỉ × 8–10 vòng)', muc_do: 'cao',
+          ly_do: 'HIIT đốt 25–30% calo nhiều hơn cardio thông thường và tạo hiệu ứng đốt mỡ hậu tập', tan_suat: '2–3 ngày/tuần', thoi_luong: '20–25 phút' });
+        exerciseItems.push({ goi_y: 'Cardio bền vừa 40 phút', muc_do: 'trung_binh',
+          ly_do: 'Bổ sung cardio bền để đốt mỡ ở vùng đốt béo tối ưu (65–70% nhịp tim tối đa)', tan_suat: '2 ngày/tuần', thoi_luong: '40 phút' });
+      } else if (mucTieu === 'tang_can') {
+        exerciseItems.push({ goi_y: 'Progressive overload: tăng tạ 2.5–5% mỗi 1–2 tuần', muc_do: 'cao',
+          ly_do: 'Kích thích cơ bắp phát triển liên tục — nguyên tắc quan trọng nhất khi tăng cơ', tan_suat: '4 ngày/tuần', thoi_luong: '45–50 phút' });
+        exerciseItems.push({ goi_y: 'Tập chia nhóm cơ: Ngực-Vai-Tay-Lưng-Chân theo tuần', muc_do: 'trung_binh',
+          ly_do: 'Cho mỗi nhóm cơ 48–72 giờ phục hồi trước khi tập lại', tan_suat: '4 ngày/tuần' });
+      } else {
+        exerciseItems.push({ goi_y: 'Duy trì 4–5 buổi/tuần, xen kẽ cardio và tập tạ', muc_do: 'trung_binh',
+          ly_do: 'Cân bằng giữa sức bền và sức mạnh để duy trì sức khoẻ toàn diện', tan_suat: '4–5 ngày/tuần' });
+      }
+    } else { // nang_dong, rat_nang_dong
+      exerciseItems.push({ goi_y: 'Bắt buộc có 1–2 ngày nghỉ tích cực/tuần (yoga, bơi nhẹ)', muc_do: 'cao',
+        ly_do: 'Overtraining làm giảm hiệu suất, tăng nguy cơ chấn thương và mất cơ', tan_suat: '1–2 ngày/tuần' });
+      exerciseItems.push({ goi_y: 'Theo dõi HRV (Heart Rate Variability) để tối ưu lịch tập', muc_do: 'trung_binh',
+        ly_do: 'HRV thấp là tín hiệu cơ thể chưa phục hồi, nên giảm cường độ hôm đó', tan_suat: 'Mỗi sáng' });
+      if (mucTieu === 'giam_can') {
+        exerciseItems.push({ goi_y: 'Thêm cardio fasted 20–30 phút vào sáng sớm (trước ăn)', muc_do: 'trung_binh',
+          ly_do: 'Cardio lúc đói giúp đốt mỡ hiệu quả hơn cho người tập nặng', tan_suat: '3–4 sáng/tuần', thoi_luong: '20–30 phút' });
+      }
     }
 
-    // Cảnh báo
-    const warnings: string[] = [];
+    // Tình trạng sức khỏe — điều chỉnh tập luyện
     if (tinhTrang.length > 0) {
-      warnings.push(`Lưu ý tình trạng sức khỏe: ${tinhTrang.join(', ')} - nên tham khảo chuyên gia trước khi áp dụng`);
-      exerciseItems.push({ goi_y: 'Giữ cường độ tập ở mức nhẹ-vừa, theo dõi phản ứng cơ thể', muc_do: 'quan_trong', ly_do: 'Có tình trạng sức khỏe cần lưu ý' });
+      warnings.push(`Lưu ý tình trạng: ${tinhTrang.join(', ')} — tham khảo bác sĩ trước khi thực hiện`);
+      exerciseItems.push({ goi_y: 'Giữ cường độ tập ở mức nhẹ-vừa, dừng ngay nếu thấy đau/chóng mặt', muc_do: 'cao',
+        ly_do: `Có tình trạng sức khoẻ: ${tinhTrang.join(', ')}`, tan_suat: 'Mỗi buổi tập' });
     }
-    if (summary.bmi && summary.bmi > 35) {
-      warnings.push('BMI rất cao - nên tư vấn bác sĩ trước khi tập luyện cường độ cao');
+
+    // Huyết áp cao — điều chỉnh tập
+    const systolic = toNumber(latest?.huyet_ap_tam_thu);
+    if (systolic > 140) {
+      warnings.push(`Huyết áp ${systolic} mmHg — tránh tập cường độ cao, ưu tiên cardio nhẹ`);
+      exerciseItems.push({ goi_y: 'Tránh tập nín thở (Valsalva) và động tác gắng sức đột ngột', muc_do: 'cao',
+        ly_do: 'Huyết áp cao có thể tăng vọt khi gắng sức, nguy hiểm cho mạch máu não', tan_suat: 'Mỗi buổi tập' });
     }
-    warnings.push(...(summary.warnings || []));
+
+    // BMI rất cao — điều chỉnh bài tập
+    if (bmi && bmi > 35) {
+      warnings.push('BMI > 35 — ưu tiên bài tập không chịu lực để bảo vệ khớp gối');
+      exerciseItems.push({ goi_y: 'Ưu tiên bơi lội, đạp xe đạp, đi bộ dưới nước thay vì chạy bộ', muc_do: 'cao',
+        ly_do: `BMI ${bmi} — cân nặng cao tạo áp lực lớn lên khớp gối khi chạy bộ`, tan_suat: '4–5 ngày/tuần', thoi_luong: '30–45 phút' });
+    }
 
     const inputSnapshot = {
-      profile: { gioi_tinh: profile.gioi_tinh, chieu_cao_cm: heightCm, can_nang_kg: weightKg, muc_do_van_dong: vanDong, muc_tieu: mucTieu, di_ung: diUng, khong_dung: khongDung, che_do_an: cheDoAn, tinh_trang: tinhTrang },
-      calculated: { bmr: Math.round(bmr), tdee, target_calories: targetCalories, bmi: summary.bmi },
+      profile: { gioi_tinh: profile.gioi_tinh, chieu_cao_cm: heightCm, can_nang_kg: weightKg, muc_do_van_dong: vanDong, muc_tieu: mucTieu, di_ung: diUng, khong_dung: khongDung, che_do_an: cheDoAn, tinh_trang: tinhTrang, age },
+      calculated: { bmr: Math.round(bmr), tdee, target_calories: targetCalories, bmi, protein_ratio: proteinRatio, carb_ratio: carbRatio, fat_ratio: fatRatio },
+      metric_used: latest ? { can_nang_kg: latest.can_nang_kg, do_luc: latest.do_luc, duong_huyet: latest.duong_huyet, huyet_ap_tam_thu: latest.huyet_ap_tam_thu } : null,
+      weight_trend: trend,
       input_signature: this.wellnessRecommendationSignature(profile, summary),
       generated_at: new Date().toISOString(),
     };
+
+    const ly_do_gen = `TDEE ${tdee} kcal → mục tiêu ${targetCalories} kcal/ngày · ${mucTieu} · BMI ${bmi ?? '?'} · cân ${weightKg}kg (${latest?.can_nang_kg ? 'từ chỉ số đo' : 'từ hồ sơ'})`;
 
     const now = new Date();
     const result = await this.dataSource.query(
@@ -2748,8 +2996,8 @@ export class CustomerService {
        goi_y_dinh_duong,goi_y_tap_luyen,canh_bao,ly_do,trang_thai,tao_luc,cap_nhat_luc)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [userId, null, JSON.stringify(inputSnapshot), targetCalories, proteinG, carbG, fatG,
-       JSON.stringify(nutritionItems), JSON.stringify(exerciseItems), JSON.stringify(warnings),
-       `Goi y theo TDEE ${tdee} kcal, muc tieu: ${mucTieu}`, 'moi_tao', now, now],
+       JSON.stringify(nutritionItems), JSON.stringify(exerciseItems),
+       JSON.stringify([...new Set(warnings)]), ly_do_gen, 'moi_tao', now, now],
     );
 
     const [created] = await this.dataSource.query('SELECT * FROM goi_y_dinh_duong_tap_luyen WHERE id = ?', [result.insertId]);

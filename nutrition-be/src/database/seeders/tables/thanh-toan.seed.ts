@@ -1,46 +1,43 @@
-import { createRows } from '../helpers';
 import type { TableSeeder } from '../types';
 
-const paymentDates = [
-  '2026-04-27',
-  '2026-04-26',
-  '2026-04-25',
-  '2026-04-23',
-  '2026-04-21',
-  '2026-04-17',
-  '2026-04-09',
-  '2026-03-29',
-  '2026-02-11',
-  '2025-10-29',
-];
-
+// Payments correspond to purchased packages (goi_da_mua ids 1-15)
+// Each customer buys 1 package; some buy 2
 const thanh_toanSeeder: TableSeeder = {
   table: 'thanh_toan',
-  rows: createRows(10, (i) => {
-    const date = paymentDates[i - 1];
-    const amount = 250000 + i * 50000;
-
-    return {
-      id: i,
-      tai_khoan_id: i + 12,
-      loai_thanh_toan: 'mua_goi',
-      doi_tuong_id: i,
-      ma_giao_dich: `PAY_${String(i).padStart(4, '0')}`,
-      cong_thanh_toan: i % 2 === 0 ? 'vnpay' : 'chuyen_khoan',
-      so_tien: amount,
-      tien_te: 'VND',
-      trang_thai: 'thanh_cong',
-      payment_url: `https://payment.local/pay/${i}`,
-      txn_ref: `TXN_${String(i).padStart(4, '0')}`,
-      gateway_transaction_no: `GATEWAY_${String(i).padStart(4, '0')}`,
-      raw_request: { amount },
-      raw_response: { code: '00', message: 'success' },
-      thanh_toan_luc: `${date} 08:10:00`,
-      het_han_luc: `${date} 08:30:00`,
-      tao_luc: `${date} 08:00:00`,
-      cap_nhat_luc: `${date} 08:10:00`,
-    };
-  }),
+  rows: [
+    // Customer 1 (tai_khoan_id 11) - mua gói 1 (Tư vấn Dinh dưỡng Cơ bản 3 buổi - 499k)
+    { id: 1,  tai_khoan_id: 11, loai_thanh_toan: 'mua_goi', doi_tuong_id: 1,  ma_giao_dich: 'PAY_0001', cong_thanh_toan: 'vnpay',        so_tien: 499000,  tien_te: 'VND', trang_thai: 'thanh_cong', payment_url: null, txn_ref: 'TXN_0001', gateway_transaction_no: 'GW_0001', raw_request: { amount: 499000 },  raw_response: { code: '00', message: 'success' }, thanh_toan_luc: '2026-01-16 10:05:00', het_han_luc: null, tao_luc: '2026-01-16 10:00:00', cap_nhat_luc: '2026-01-16 10:05:00' },
+    // Customer 2 (tai_khoan_id 12) - mua gói 6 (Kiểm soát Đường huyết & Tim mạch 6 buổi - 1.49M)
+    { id: 2,  tai_khoan_id: 12, loai_thanh_toan: 'mua_goi', doi_tuong_id: 2,  ma_giao_dich: 'PAY_0002', cong_thanh_toan: 'vnpay',        so_tien: 1490000, tien_te: 'VND', trang_thai: 'thanh_cong', payment_url: null, txn_ref: 'TXN_0002', gateway_transaction_no: 'GW_0002', raw_request: { amount: 1490000 }, raw_response: { code: '00', message: 'success' }, thanh_toan_luc: '2026-01-21 09:15:00', het_han_luc: null, tao_luc: '2026-01-21 09:10:00', cap_nhat_luc: '2026-01-21 09:15:00' },
+    // Customer 3 (tai_khoan_id 13) - mua gói 7 (Dinh dưỡng Mẹ & Bé 3 buổi - 599k)
+    { id: 3,  tai_khoan_id: 13, loai_thanh_toan: 'mua_goi', doi_tuong_id: 3,  ma_giao_dich: 'PAY_0003', cong_thanh_toan: 'chuyen_khoan', so_tien: 599000,  tien_te: 'VND', trang_thai: 'thanh_cong', payment_url: null, txn_ref: 'TXN_0003', gateway_transaction_no: 'GW_0003', raw_request: { amount: 599000 },  raw_response: { code: '00', message: 'success' }, thanh_toan_luc: '2026-02-02 11:00:00', het_han_luc: null, tao_luc: '2026-02-02 10:55:00', cap_nhat_luc: '2026-02-02 11:00:00' },
+    // Customer 4 (tai_khoan_id 14) - mua gói 3 (Thể hình & Tăng cơ 6 buổi - 1.19M)
+    { id: 4,  tai_khoan_id: 14, loai_thanh_toan: 'mua_goi', doi_tuong_id: 4,  ma_giao_dich: 'PAY_0004', cong_thanh_toan: 'vnpay',        so_tien: 1190000, tien_te: 'VND', trang_thai: 'thanh_cong', payment_url: null, txn_ref: 'TXN_0004', gateway_transaction_no: 'GW_0004', raw_request: { amount: 1190000 }, raw_response: { code: '00', message: 'success' }, thanh_toan_luc: '2026-01-11 14:30:00', het_han_luc: null, tao_luc: '2026-01-11 14:25:00', cap_nhat_luc: '2026-01-11 14:30:00' },
+    // Customer 5 (tai_khoan_id 15) - mua gói 2 (Giảm cân Khoa học 3 buổi - 649k)
+    { id: 5,  tai_khoan_id: 15, loai_thanh_toan: 'mua_goi', doi_tuong_id: 5,  ma_giao_dich: 'PAY_0005', cong_thanh_toan: 'vnpay',        so_tien: 649000,  tien_te: 'VND', trang_thai: 'thanh_cong', payment_url: null, txn_ref: 'TXN_0005', gateway_transaction_no: 'GW_0005', raw_request: { amount: 649000 },  raw_response: { code: '00', message: 'success' }, thanh_toan_luc: '2026-02-11 16:00:00', het_han_luc: null, tao_luc: '2026-02-11 15:55:00', cap_nhat_luc: '2026-02-11 16:00:00' },
+    // Customer 6 (tai_khoan_id 16) - mua gói 11 (Sức khoẻ Toàn diện Cao cấp 12 buổi - 3.5M)
+    { id: 6,  tai_khoan_id: 16, loai_thanh_toan: 'mua_goi', doi_tuong_id: 6,  ma_giao_dich: 'PAY_0006', cong_thanh_toan: 'vnpay',        so_tien: 3500000, tien_te: 'VND', trang_thai: 'thanh_cong', payment_url: null, txn_ref: 'TXN_0006', gateway_transaction_no: 'GW_0006', raw_request: { amount: 3500000 }, raw_response: { code: '00', message: 'success' }, thanh_toan_luc: '2026-01-26 09:30:00', het_han_luc: null, tao_luc: '2026-01-26 09:25:00', cap_nhat_luc: '2026-01-26 09:30:00' },
+    // Customer 7 (tai_khoan_id 17) - mua gói 9 (Cardio & Sức bền 6 buổi - 890k)
+    { id: 7,  tai_khoan_id: 17, loai_thanh_toan: 'mua_goi', doi_tuong_id: 7,  ma_giao_dich: 'PAY_0007', cong_thanh_toan: 'chuyen_khoan', so_tien: 890000,  tien_te: 'VND', trang_thai: 'thanh_cong', payment_url: null, txn_ref: 'TXN_0007', gateway_transaction_no: 'GW_0007', raw_request: { amount: 890000 },  raw_response: { code: '00', message: 'success' }, thanh_toan_luc: '2026-02-06 08:45:00', het_han_luc: null, tao_luc: '2026-02-06 08:40:00', cap_nhat_luc: '2026-02-06 08:45:00' },
+    // Customer 8 (tai_khoan_id 18) - mua gói 2 (Giảm cân Khoa học 3 buổi - 649k)
+    { id: 8,  tai_khoan_id: 18, loai_thanh_toan: 'mua_goi', doi_tuong_id: 8,  ma_giao_dich: 'PAY_0008', cong_thanh_toan: 'vnpay',        so_tien: 649000,  tien_te: 'VND', trang_thai: 'thanh_cong', payment_url: null, txn_ref: 'TXN_0008', gateway_transaction_no: 'GW_0008', raw_request: { amount: 649000 },  raw_response: { code: '00', message: 'success' }, thanh_toan_luc: '2026-03-02 10:30:00', het_han_luc: null, tao_luc: '2026-03-02 10:25:00', cap_nhat_luc: '2026-03-02 10:30:00' },
+    // Customer 9 (tai_khoan_id 19) - mua gói 5 (Dinh dưỡng Tổng quát 1 buổi - 249k)
+    { id: 9,  tai_khoan_id: 19, loai_thanh_toan: 'mua_goi', doi_tuong_id: 9,  ma_giao_dich: 'PAY_0009', cong_thanh_toan: 'vnpay',        so_tien: 249000,  tien_te: 'VND', trang_thai: 'thanh_cong', payment_url: null, txn_ref: 'TXN_0009', gateway_transaction_no: 'GW_0009', raw_request: { amount: 249000 },  raw_response: { code: '00', message: 'success' }, thanh_toan_luc: '2026-02-21 13:10:00', het_han_luc: null, tao_luc: '2026-02-21 13:05:00', cap_nhat_luc: '2026-02-21 13:10:00' },
+    // Customer 10 (tai_khoan_id 20) - mua gói 10 (Dinh dưỡng Người Cao tuổi 6 buổi - 990k)
+    { id: 10, tai_khoan_id: 20, loai_thanh_toan: 'mua_goi', doi_tuong_id: 10, ma_giao_dich: 'PAY_0010', cong_thanh_toan: 'chuyen_khoan', so_tien: 990000,  tien_te: 'VND', trang_thai: 'thanh_cong', payment_url: null, txn_ref: 'TXN_0010', gateway_transaction_no: 'GW_0010', raw_request: { amount: 990000 },  raw_response: { code: '00', message: 'success' }, thanh_toan_luc: '2026-01-19 11:00:00', het_han_luc: null, tao_luc: '2026-01-19 10:55:00', cap_nhat_luc: '2026-01-19 11:00:00' },
+    // Customer 11 (tai_khoan_id 21) - mua gói 5 (Dinh dưỡng Tổng quát 1 buổi - 249k)
+    { id: 11, tai_khoan_id: 21, loai_thanh_toan: 'mua_goi', doi_tuong_id: 11, ma_giao_dich: 'PAY_0011', cong_thanh_toan: 'vnpay',        so_tien: 249000,  tien_te: 'VND', trang_thai: 'thanh_cong', payment_url: null, txn_ref: 'TXN_0011', gateway_transaction_no: 'GW_0011', raw_request: { amount: 249000 },  raw_response: { code: '00', message: 'success' }, thanh_toan_luc: '2026-03-06 14:00:00', het_han_luc: null, tao_luc: '2026-03-06 13:55:00', cap_nhat_luc: '2026-03-06 14:00:00' },
+    // Customer 12 (tai_khoan_id 22) - mua gói 4 (Thể thao Hiệu suất cao 12 buổi - 2.19M)
+    { id: 12, tai_khoan_id: 22, loai_thanh_toan: 'mua_goi', doi_tuong_id: 12, ma_giao_dich: 'PAY_0012', cong_thanh_toan: 'vnpay',        so_tien: 2190000, tien_te: 'VND', trang_thai: 'thanh_cong', payment_url: null, txn_ref: 'TXN_0012', gateway_transaction_no: 'GW_0012', raw_request: { amount: 2190000 }, raw_response: { code: '00', message: 'success' }, thanh_toan_luc: '2026-02-16 09:30:00', het_han_luc: null, tao_luc: '2026-02-16 09:25:00', cap_nhat_luc: '2026-02-16 09:30:00' },
+    // Customer 13 (tai_khoan_id 23) - mua gói 2 (Giảm cân Khoa học 3 buổi - 649k)
+    { id: 13, tai_khoan_id: 23, loai_thanh_toan: 'mua_goi', doi_tuong_id: 13, ma_giao_dich: 'PAY_0013', cong_thanh_toan: 'chuyen_khoan', so_tien: 649000,  tien_te: 'VND', trang_thai: 'thanh_cong', payment_url: null, txn_ref: 'TXN_0013', gateway_transaction_no: 'GW_0013', raw_request: { amount: 649000 },  raw_response: { code: '00', message: 'success' }, thanh_toan_luc: '2026-03-11 10:30:00', het_han_luc: null, tao_luc: '2026-03-11 10:25:00', cap_nhat_luc: '2026-03-11 10:30:00' },
+    // Customer 14 (tai_khoan_id 24) - mua gói 3 (Thể hình & Tăng cơ 6 buổi - 1.19M)
+    { id: 14, tai_khoan_id: 24, loai_thanh_toan: 'mua_goi', doi_tuong_id: 14, ma_giao_dich: 'PAY_0014', cong_thanh_toan: 'vnpay',        so_tien: 1190000, tien_te: 'VND', trang_thai: 'thanh_cong', payment_url: null, txn_ref: 'TXN_0014', gateway_transaction_no: 'GW_0014', raw_request: { amount: 1190000 }, raw_response: { code: '00', message: 'success' }, thanh_toan_luc: '2026-03-16 15:00:00', het_han_luc: null, tao_luc: '2026-03-16 14:55:00', cap_nhat_luc: '2026-03-16 15:00:00' },
+    // Customer 1 mua thêm gói 11 (Sức khoẻ Toàn diện Cao cấp - 3.5M) - cho testing
+    { id: 15, tai_khoan_id: 11, loai_thanh_toan: 'mua_goi', doi_tuong_id: 15, ma_giao_dich: 'PAY_0015', cong_thanh_toan: 'vnpay',        so_tien: 3500000, tien_te: 'VND', trang_thai: 'thanh_cong', payment_url: null, txn_ref: 'TXN_0015', gateway_transaction_no: 'GW_0015', raw_request: { amount: 3500000 }, raw_response: { code: '00', message: 'success' }, thanh_toan_luc: '2026-04-01 09:00:00', het_han_luc: null, tao_luc: '2026-04-01 08:55:00', cap_nhat_luc: '2026-04-01 09:00:00' },
+    // Thanh toán bị hoàn tiền (refund test)
+    { id: 16, tai_khoan_id: 12, loai_thanh_toan: 'mua_goi', doi_tuong_id: 16, ma_giao_dich: 'PAY_0016', cong_thanh_toan: 'vnpay',        so_tien: 499000,  tien_te: 'VND', trang_thai: 'thanh_cong', payment_url: null, txn_ref: 'TXN_0016', gateway_transaction_no: 'GW_0016', raw_request: { amount: 499000 },  raw_response: { code: '00', message: 'success' }, thanh_toan_luc: '2026-04-10 10:00:00', het_han_luc: null, tao_luc: '2026-04-10 09:55:00', cap_nhat_luc: '2026-04-10 10:00:00' },
+  ],
 };
 
 export default thanh_toanSeeder;

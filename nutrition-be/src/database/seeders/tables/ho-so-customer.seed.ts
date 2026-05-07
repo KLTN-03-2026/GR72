@@ -1,19 +1,24 @@
-import { createRows } from '../helpers';
 import type { TableSeeder } from '../types';
 
 const ho_so_customerSeeder: TableSeeder = {
   table: 'ho_so_customer',
-  rows: createRows(10, (i) => ({
-    id: i,
-    tai_khoan_id: i + 12,
-    gioi_tinh: i % 3 === 0 ? 'khac' : i % 2 === 0 ? 'nu' : 'nam',
-    ngay_sinh: `199${i % 10}-0${(i % 9) + 1}-15`,
-    anh_dai_dien_url: `/uploads/avatars/customer-${i}.jpg`,
-    ghi_chu_suc_khoe: `Khach hang ${i} muon cai thien suc khoe tong quat.`,
-    tao_luc: '2026-01-04 08:00:00',
-    cap_nhat_luc: '2026-01-04 08:00:00',
-  })),
+  rows: [
+    { id: 1,  tai_khoan_id: 11, gioi_tinh: 'nu',  ngay_sinh: '1995-03-12', anh_dai_dien_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80', ghi_chu_suc_khoe: 'Muốn giảm 5kg trước mùa hè, không có bệnh nền.',                                 tao_luc: '2026-01-15 08:00:00', cap_nhat_luc: '2026-01-15 08:00:00' },
+    { id: 2,  tai_khoan_id: 12, gioi_tinh: 'nam', ngay_sinh: '1990-07-22', anh_dai_dien_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80', ghi_chu_suc_khoe: 'Bị tiểu đường type 2, đang kiểm soát bằng thuốc. Cần chế độ ăn phù hợp.', tao_luc: '2026-01-20 08:00:00', cap_nhat_luc: '2026-01-20 08:00:00' },
+    { id: 3,  tai_khoan_id: 13, gioi_tinh: 'nu',  ngay_sinh: '1998-11-05', anh_dai_dien_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=150&q=80', ghi_chu_suc_khoe: 'Mới sinh con 6 tháng, muốn lấy lại vóc dáng sau sinh an toàn.',                  tao_luc: '2026-02-01 08:00:00', cap_nhat_luc: '2026-02-01 08:00:00' },
+    { id: 4,  tai_khoan_id: 14, gioi_tinh: 'nam', ngay_sinh: '1985-05-18', anh_dai_dien_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&q=80', ghi_chu_suc_khoe: 'Tập gym 4 buổi/tuần, muốn tăng cơ và cải thiện sức bền.',                          tao_luc: '2026-01-10 08:00:00', cap_nhat_luc: '2026-01-10 08:00:00' },
+    { id: 5,  tai_khoan_id: 15, gioi_tinh: 'nu',  ngay_sinh: '2001-09-30', anh_dai_dien_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80', ghi_chu_suc_khoe: 'Sinh viên, hay bỏ bữa sáng và ăn đêm. Muốn cải thiện thói quen ăn uống.',            tao_luc: '2026-02-10 08:00:00', cap_nhat_luc: '2026-02-10 08:00:00' },
+    { id: 6,  tai_khoan_id: 16, gioi_tinh: 'nam', ngay_sinh: '1978-01-14', anh_dai_dien_url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=150&q=80', ghi_chu_suc_khoe: 'Huyết áp cao, mỡ máu cao. Bác sĩ khuyến cáo điều chỉnh chế độ ăn.',                tao_luc: '2026-01-25 08:00:00', cap_nhat_luc: '2026-01-25 08:00:00' },
+    { id: 7,  tai_khoan_id: 17, gioi_tinh: 'nu',  ngay_sinh: '1992-06-27', anh_dai_dien_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80', ghi_chu_suc_khoe: 'Vận động viên chạy bộ nghiệp dư, cần tư vấn dinh dưỡng thể thao.',                  tao_luc: '2026-02-05 08:00:00', cap_nhat_luc: '2026-02-05 08:00:00' },
+    { id: 8,  tai_khoan_id: 18, gioi_tinh: 'nam', ngay_sinh: '1988-12-03', anh_dai_dien_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80', ghi_chu_suc_khoe: 'Làm việc văn phòng, ít vận động. Muốn xây dựng thói quen lành mạnh.',                tao_luc: '2026-03-01 08:00:00', cap_nhat_luc: '2026-03-01 08:00:00' },
+    { id: 9,  tai_khoan_id: 19, gioi_tinh: 'nu',  ngay_sinh: '1996-04-08', anh_dai_dien_url: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=150&q=80', ghi_chu_suc_khoe: 'Có hội chứng ruột kích thích (IBS), cần chế độ ăn phù hợp.',                        tao_luc: '2026-02-20 08:00:00', cap_nhat_luc: '2026-02-20 08:00:00' },
+    { id: 10, tai_khoan_id: 20, gioi_tinh: 'nam', ngay_sinh: '1970-08-15', anh_dai_dien_url: 'https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?auto=format&fit=crop&w=150&q=80', ghi_chu_suc_khoe: 'Trên 50 tuổi, muốn phòng ngừa loãng xương và duy trì sức khỏe tổng quát.',         tao_luc: '2026-01-18 08:00:00', cap_nhat_luc: '2026-01-18 08:00:00' },
+    { id: 11, tai_khoan_id: 21, gioi_tinh: 'nu',  ngay_sinh: '2000-02-14', anh_dai_dien_url: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=150&q=80', ghi_chu_suc_khoe: 'Muốn ăn chay nhưng không biết cách bổ sung đủ dưỡng chất.',                          tao_luc: '2026-03-05 08:00:00', cap_nhat_luc: '2026-03-05 08:00:00' },
+    { id: 12, tai_khoan_id: 22, gioi_tinh: 'nam', ngay_sinh: '1993-10-20', anh_dai_dien_url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=150&q=80', ghi_chu_suc_khoe: 'Bơi lội 5 buổi/tuần, cần kế hoạch dinh dưỡng để tối ưu hiệu suất.',                  tao_luc: '2026-02-15 08:00:00', cap_nhat_luc: '2026-02-15 08:00:00' },
+    { id: 13, tai_khoan_id: 23, gioi_tinh: 'nu',  ngay_sinh: '1987-07-11', anh_dai_dien_url: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=150&q=80', ghi_chu_suc_khoe: 'Tiền mãn kinh, tăng cân nhanh trong 1 năm gần đây.',                                 tao_luc: '2026-03-10 08:00:00', cap_nhat_luc: '2026-03-10 08:00:00' },
+    { id: 14, tai_khoan_id: 24, gioi_tinh: 'nam', ngay_sinh: '1999-12-25', anh_dai_dien_url: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80', ghi_chu_suc_khoe: 'Muốn tăng 8kg cơ trong 6 tháng, đang tập thể hình.',                                  tao_luc: '2026-03-15 08:00:00', cap_nhat_luc: '2026-03-15 08:00:00' },
+    { id: 15, tai_khoan_id: 25, gioi_tinh: 'nu',  ngay_sinh: '1994-05-03', anh_dai_dien_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=150&q=80', ghi_chu_suc_khoe: 'Tài khoản bị khóa do vi phạm.',                                                        tao_luc: '2026-04-01 08:00:00', cap_nhat_luc: '2026-04-10 08:00:00' },
+  ],
 };
 
 export default ho_so_customerSeeder;
-

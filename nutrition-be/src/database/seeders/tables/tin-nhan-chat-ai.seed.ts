@@ -1,22 +1,20 @@
-import { createRows } from '../helpers';
 import type { TableSeeder } from '../types';
 
 const tin_nhan_chat_aiSeeder: TableSeeder = {
   table: 'tin_nhan_chat_ai',
-  rows: createRows(10, (i) => ({
-    id: i,
-    phien_chat_ai_id: i,
-    vai_tro: i % 2 === 0 ? 'assistant' : 'user',
-    noi_dung: i % 2 === 0 ? 'Ban nen duy tri bua sang giau dam va theo doi can nang hang tuan.' : 'Toi muon giam can nhung hay met vao buoi chieu.',
-    model: i % 2 === 0 ? 'gpt-health-assistant' : null,
-    token_input: i % 2 === 0 ? 200 : null,
-    token_output: i % 2 === 0 ? 120 : null,
-    trang_thai: 'thanh_cong',
-    loi: null,
-    metadata: { source: 'seed' },
-    tao_luc: '2026-03-22 08:10:00',
-  })),
+  rows: [
+    // Phiên 1 - customer 11 hỏi giảm cân
+    { id: 1,  phien_chat_ai_id: 1, vai_tro: 'user',      noi_dung: 'Tôi muốn giảm 5kg trong 3 tháng, không nhịn ăn được. Gợi ý giúp tôi với?', model: null, token_input: null, token_output: null, trang_thai: 'thanh_cong', loi: null, metadata: {}, tao_luc: '2026-01-15 09:01:00' },
+    { id: 2,  phien_chat_ai_id: 1, vai_tro: 'assistant', noi_dung: 'Để giảm 5kg trong 3 tháng (~0.4kg/tuần), bạn cần tạo thâm hụt calo khoảng 300-400kcal/ngày mà không cần nhịn ăn:\n• Ăn đủ 3 bữa, tập trung protein tại mỗi bữa\n• Thay cơm trắng bằng gạo lứt hoặc khoai lang\n• Tăng rau xanh tại mỗi bữa\n• Hạn chế đường và đồ uống có gas\n• Đi bộ 30 phút 5 ngày/tuần\nBạn có muốn tôi lập thực đơn cụ thể cho một ngày không?', model: 'gpt-3.5-turbo', token_input: 180, token_output: 220, trang_thai: 'thanh_cong', loi: null, metadata: { model_used: 'gpt-3.5-turbo' }, tao_luc: '2026-01-15 09:01:30' },
+    { id: 3,  phien_chat_ai_id: 1, vai_tro: 'user',      noi_dung: 'Có, lập thực đơn giúp tôi. Tôi không ăn được hải sản.', model: null, token_input: null, token_output: null, trang_thai: 'thanh_cong', loi: null, metadata: {}, tao_luc: '2026-01-15 09:02:00' },
+    { id: 4,  phien_chat_ai_id: 1, vai_tro: 'assistant', noi_dung: 'Thực đơn mẫu 1 ngày (~1500kcal, không hải sản):\n\n**Sáng:** 2 trứng luộc + 1 lát bánh mì đen + 200ml sữa chua không đường\n**Trưa:** 150g ức gà nướng + 1 chén cơm gạo lứt + rau muống xào tỏi\n**Tối:** 150g cá hồi áp chảo + salad rau củ (không dầu) + 1 khoai lang vừa\n**Snack (nếu đói):** 1 trái táo hoặc 30g óc chó\n\nTổng calo khoảng 1450-1500kcal. Uống đủ 2.5L nước/ngày nhé!', model: 'gpt-3.5-turbo', token_input: 250, token_output: 310, trang_thai: 'thanh_cong', loi: null, metadata: { model_used: 'gpt-3.5-turbo' }, tao_luc: '2026-01-15 09:02:30' },
+    // Phiên 2 - customer 12 hỏi tiểu đường
+    { id: 5,  phien_chat_ai_id: 2, vai_tro: 'user',      noi_dung: 'Tôi bị tiểu đường type 2, đường huyết sau ăn hay lên cao. Có nên ăn trái cây không?', model: null, token_input: null, token_output: null, trang_thai: 'thanh_cong', loi: null, metadata: {}, tao_luc: '2026-01-20 10:01:00' },
+    { id: 6,  phien_chat_ai_id: 2, vai_tro: 'assistant', noi_dung: 'Người tiểu đường type 2 vẫn có thể ăn trái cây, nhưng cần chọn loại phù hợp:\n\n**Nên ăn (GI thấp):**\n• Bưởi, táo xanh, lê, dâu tây\n• Ăn sau bữa chính 1-2 tiếng\n• Khẩu phần 100-150g mỗi lần\n\n**Hạn chế:**\n• Dưa hấu, chuối chín, xoài, nhãn, vải\n• Nước ép trái cây (mất chất xơ)\n\n**Lưu ý:** Theo dõi đường huyết sau khi ăn từng loại để biết cơ thể bạn phản ứng thế nào.', model: 'gpt-3.5-turbo', token_input: 160, token_output: 230, trang_thai: 'thanh_cong', loi: null, metadata: { model_used: 'gpt-3.5-turbo' }, tao_luc: '2026-01-20 10:01:40' },
+    // Phiên 9 - đang mở (customer 11 hỏi tiếp)
+    { id: 7,  phien_chat_ai_id: 9, vai_tro: 'user',      noi_dung: 'Tôi đã giảm được 3kg rồi, tiếp tục thế nào để giảm thêm 2kg nữa?', model: null, token_input: null, token_output: null, trang_thai: 'thanh_cong', loi: null, metadata: {}, tao_luc: '2026-05-07 08:01:00' },
+    { id: 8,  phien_chat_ai_id: 9, vai_tro: 'assistant', noi_dung: 'Chúc mừng bạn đã giảm được 3kg! Để tiếp tục giảm 2kg nữa:\n\n• **Đừng giảm calo thêm** - cơ thể đã thích nghi, cần thay đổi cách tiếp cận\n• **Thêm 1-2 buổi tập kháng lực** (squats, plank, push-up) để tăng cơ, đốt calo lúc nghỉ\n• **Thay đổi thực đơn** để tránh nhàm chán và stagnation\n• **Theo dõi protein** - đảm bảo 1.2-1.5g/kg cân nặng mỗi ngày\n• **Ngủ đủ 7-8 tiếng** - thiếu ngủ làm tăng cortisol và cảm giác đói\n\nNếu bị plateau quá 3 tuần, hãy đặt lịch tư vấn với chuyên gia để điều chỉnh kế hoạch nhé!', model: 'gpt-3.5-turbo', token_input: 200, token_output: 280, trang_thai: 'thanh_cong', loi: null, metadata: { model_used: 'gpt-3.5-turbo' }, tao_luc: '2026-05-07 08:01:45' },
+  ],
 };
 
 export default tin_nhan_chat_aiSeeder;
-

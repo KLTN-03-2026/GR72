@@ -204,6 +204,15 @@ export class ExpertService {
     return row;
   }
 
+  async updateAvatar(accountId: number | undefined, avatarUrl: string) {
+    const ctx = await this.context(accountId);
+    await this.dataSource.query(
+      'UPDATE chuyen_gia SET anh_dai_dien_url = ?, cap_nhat_luc = ? WHERE id = ?',
+      [avatarUrl, new Date(), ctx.expertId],
+    );
+    return { anh_dai_dien_url: avatarUrl };
+  }
+
   async updateProfile(accountId: number | undefined, body: Dict) {
     const ctx = await this.context(accountId);
     if (!String(body.chuyen_mon ?? '').trim()) throw new BadRequestException('Vui long nhap chuyen mon');

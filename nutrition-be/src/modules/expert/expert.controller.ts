@@ -1,5 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
 import type { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+import { mkdirSync } from 'fs';
+import { join } from 'path';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { ExpertService } from './expert.service';
 
@@ -19,6 +24,33 @@ export class ExpertController {
 
   @Patch('profile')
   updateProfile(@Req() request: AuthedRequest, @Body() body: Record<string, unknown>) { return this.expertService.updateProfile(request.user?.sub, body); }
+
+  @Post('profile/avatar')
+  @UseInterceptors(
+    FileInterceptor('avatar', {
+      storage: diskStorage({
+        destination: (_req, _file, callback) => {
+          const uploadDir = join(process.cwd(), 'uploads', 'avatars');
+          mkdirSync(uploadDir, { recursive: true });
+          callback(null, uploadDir);
+        },
+        filename: (_req, file, callback) => {
+          const safeExt = extname(file.originalname || '').toLowerCase() || '.jpg';
+          const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          callback(null, `expert-${stamp}${safeExt}`);
+        },
+      }),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_req, file, callback) => {
+        const isImage = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.mimetype);
+        callback(isImage ? null : new BadRequestException('Chi ho tro file JPG, PNG, WEBP, GIF'), isImage);
+      },
+    }),
+  )
+  uploadAvatar(@Req() request: AuthedRequest, @UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('Vui long chon file anh');
+    return this.expertService.updateAvatar(request.user?.sub, `/uploads/avatars/${file.filename}`);
+  }
 
   @Get('availability')
   availability(@Req() request: AuthedRequest) { return this.expertService.getAvailability(request.user?.sub); }

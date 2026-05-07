@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
@@ -11,7 +11,7 @@ import {
   SectionHeader, Card, UserStatCard, UserButton, UserNotice,
   UserEmptyState, StatusBadge, money,
 } from '@/components/user/user-ui'
-import { customerGet, customerPatch, customerPost, customerPostWithInit } from '@/lib/customer-api'
+import { customerGet, customerPatch, customerPost } from '@/lib/customer-api'
 
 type Row = Record<string, any>
 
@@ -158,26 +158,12 @@ function BookingCard({ booking, onAction }: { booking: Row; onAction: () => void
 
 export default function MyBookingsPage() {
   const searchParams = useSearchParams()
-  const packagePurchaseId = searchParams.get('packagePurchaseId')
-  const expertId = searchParams.get('expertId')
 
   const [bookings, setBookings] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [error, setError] = useState('')
-
-  const [slots, setSlots] = useState<Row[]>([])
-  const [loadingSlots, setLoadingSlots] = useState(false)
-  const [startAt, setStartAt] = useState('')
-  const [mucDich, setMucDich] = useState('')
-  const [bookingMessage, setBookingMessage] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-
-  const idempotencyKey = useMemo(() => {
-    if (!packagePurchaseId || !expertId || !startAt) return ''
-    return `booking:${packagePurchaseId}:${expertId}:${startAt}`
-  }, [packagePurchaseId, expertId, startAt])
 
   function loadBookings() {
     setLoading(true)
@@ -190,52 +176,7 @@ export default function MyBookingsPage() {
       .finally(() => setLoading(false))
   }
 
-  async function loadSlots() {
-    if (!packagePurchaseId || !expertId) return
-    setLoadingSlots(true)
-    try {
-      const data = await customerGet<Row>(`/experts/${expertId}/available-slots?packagePurchaseId=${packagePurchaseId}&days=14`)
-      const nextSlots = data.slots ?? []
-      setSlots(nextSlots)
-      setStartAt(nextSlots.length ? String(nextSlots[0].start_at) : '')
-    } catch (e: any) {
-      setBookingMessage(e.message ?? 'Không tải được slot trống')
-    } finally {
-      setLoadingSlots(false)
-    }
-  }
-
-  async function handleCreateBooking() {
-    if (!packagePurchaseId || !expertId || !startAt) return
-    setSubmitting(true)
-    setBookingMessage('')
-    try {
-      const result = await customerPostWithInit<Row>(
-        '/bookings',
-        {
-          package_purchase_id: Number(packagePurchaseId),
-          expert_id: Number(expertId),
-          start_at: startAt,
-          muc_dich: mucDich,
-          idempotency_key: idempotencyKey,
-        },
-        { headers: { 'x-idempotency-key': idempotencyKey } },
-      )
-      setBookingMessage(`✅ Đặt lịch thành công: ${result.booking?.ma_lich_hen ?? ''}`)
-      loadBookings()
-    } catch (e: any) {
-      setBookingMessage(e.message ?? 'Tạo booking thất bại')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
   useEffect(() => { loadBookings() }, [statusFilter])
-  useEffect(() => {
-    if (packagePurchaseId && expertId) {
-      loadSlots().catch(() => undefined)
-    }
-  }, [packagePurchaseId, expertId])
 
   const stats = {
     total: bookings.length,
@@ -249,44 +190,6 @@ export default function MyBookingsPage() {
         title="Lịch hẹn của tôi"
         subtitle="Theo dõi, đổi lịch hoặc hủy lịch tư vấn với chuyên gia."
       />
-
-      {packagePurchaseId && expertId && (
-        <Card>
-          <div style={{ display: 'grid', gap: 12 }}>
-            <p style={{ margin: 0, fontWeight: 700, color: '#0f172a' }}>Đặt lịch mới theo gói/chuyên gia đã chọn</p>
-            <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>Gói #{packagePurchaseId} • Chuyên gia #{expertId}</p>
-            {bookingMessage ? <UserNotice tone={bookingMessage.startsWith('✅') ? 'success' : 'error'}>{bookingMessage}</UserNotice> : null}
-            <div style={{ display: 'grid', gap: 10, gridTemplateColumns: '1fr 1fr auto', alignItems: 'end' }}>
-              <div>
-                <p style={{ margin: '0 0 6px', fontSize: 12, color: '#475569', fontWeight: 600 }}>Khung giờ khả dụng</p>
-                <select
-                  value={startAt}
-                  onChange={(e) => setStartAt(e.target.value)}
-                  disabled={loadingSlots || !slots.length}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 13 }}
-                >
-                  {!slots.length ? <option value=''>{loadingSlots ? 'Đang tải slot...' : 'Không có slot trống'}</option> : null}
-                  {slots.map((slot) => (
-                    <option key={slot.start_at} value={slot.start_at}>{slot.date} | {slot.start_time} - {slot.end_time}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <p style={{ margin: '0 0 6px', fontSize: 12, color: '#475569', fontWeight: 600 }}>Mục đích tư vấn</p>
-                <input
-                  value={mucDich}
-                  onChange={(e) => setMucDich(e.target.value)}
-                  placeholder='Ví dụ: giảm mỡ và cải thiện giấc ngủ'
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 13 }}
-                />
-              </div>
-              <UserButton onClick={handleCreateBooking} disabled={submitting || !startAt || !slots.length}>
-                {submitting ? 'Đang tạo...' : 'Đặt lịch ngay'}
-              </UserButton>
-            </div>
-          </div>
-        </Card>
-      )}
 
       <div className='grid-stats'>
         <UserStatCard label='Tổng lịch hẹn' value={String(stats.total)} icon={CalendarCheck} tone='blue' />

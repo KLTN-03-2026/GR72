@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Camera } from 'lucide-react'
 import { ActionButton, Field, Notice, PageHeader, Panel, StatCard, StatusPill, inputClass } from '@/components/admin/admin-ui'
 import { expertGet, expertPatch } from '@/lib/expert-api'
 import { statusLabel } from '@/lib/i18n'
@@ -13,11 +14,36 @@ export default function ExpertProfilePage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function load() {
     const data = await expertGet<Profile>('/profile')
     setProfile(data)
     setForm({ ...data, nhan_booking: Boolean(data.nhan_booking) })
+    setAvatarPreview(null)
+  }
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setAvatarPreview(URL.createObjectURL(file))
+    setUploadingAvatar(true)
+    try {
+      const formData = new FormData()
+      formData.append('avatar', file)
+      const res = await fetch('/api/expert/profile/avatar', { method: 'POST', body: formData, credentials: 'include' })
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message ?? 'Upload thất bại') }
+      setMessage('Đã cập nhật ảnh đại diện.')
+      await load()
+    } catch (err: any) {
+      setMessage(err.message ?? 'Upload thất bại')
+      setAvatarPreview(null)
+    } finally {
+      setUploadingAvatar(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   useEffect(() => {
@@ -67,6 +93,36 @@ export default function ExpertProfilePage() {
             description='Các trường quan trọng được đặt thành nhóm để dễ kiểm tra trước khi lưu.'
             action={<StatusPill value={profile.trang_thai} />}
           >
+            {/* Avatar upload */}
+            <div className='mb-6 flex items-center gap-5'>
+              <div className='relative h-20 w-20 shrink-0'>
+                {(avatarPreview ?? profile.anh_dai_dien_url) ? (
+                  <img
+                    src={avatarPreview ?? profile.anh_dai_dien_url}
+                    alt='Avatar'
+                    className='h-20 w-20 rounded-full object-cover ring-2 ring-slate-200'
+                  />
+                ) : (
+                  <div className='flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-2xl font-bold text-slate-400 ring-2 ring-slate-200'>
+                    {String(profile.ho_ten ?? 'E').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <button
+                  type='button'
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className='absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600 text-white shadow hover:bg-indigo-700 disabled:opacity-50'
+                >
+                  <Camera size={14} />
+                </button>
+                <input ref={fileInputRef} type='file' accept='image/jpeg,image/png,image/webp' className='hidden' onChange={handleAvatarChange} />
+              </div>
+              <div>
+                <p className='text-sm font-semibold text-slate-700'>Ảnh đại diện</p>
+                <p className='mt-0.5 text-xs text-slate-400'>{uploadingAvatar ? 'Đang tải lên...' : 'JPG, PNG hoặc WEBP · Tối đa 5MB'}</p>
+              </div>
+            </div>
+
             <div className='grid gap-4 lg:grid-cols-2'>
               <Field label='Họ tên' error={errors.ho_ten}>
                 <input className={inputClass} value={form.ho_ten ?? ''} onChange={(e) => { setForm({ ...form, ho_ten: e.target.value }); setErrors({}) }} />

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Clock, User, Package, CreditCard, CheckCircle, ArrowLeft, Star } from 'lucide-react'
 import { Card, UserButton, UserNotice, StatusBadge, money } from '@/components/user/user-ui'
 import { customerGet } from '@/lib/customer-api'
+import { statusLabel } from '@/lib/i18n'
 
 type Row = Record<string, any>
 
@@ -155,7 +156,7 @@ export default function BookingDetailPage() {
                 <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{TIMELINE_LABELS[item.su_kien] ?? item.su_kien}</p>
                 <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
                   {formatDateTime(item.tao_luc)}
-                  {item.trang_thai_sau && ` → ${item.trang_thai_sau}`}
+                  {item.trang_thai_sau && ` → ${statusLabel(item.trang_thai_sau)}`}
                 </p>
                 {item.ghi_chu && <p style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{item.ghi_chu}</p>}
               </div>

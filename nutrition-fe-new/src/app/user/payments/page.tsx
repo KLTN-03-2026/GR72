@@ -5,6 +5,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { CreditCard, CheckCircle, Clock, Receipt } from 'lucide-react'
 import { SectionHeader, Card, UserStatCard, UserButton, UserNotice, UserEmptyState, StatusBadge, money } from '@/components/user/user-ui'
 import { customerGet, customerPost } from '@/lib/customer-api'
+import { statusLabel } from '@/lib/i18n'
 
 type Row = Record<string, any>
 
@@ -35,7 +36,7 @@ function PaymentsContent() {
         setPollingState(payment.trang_thai)
         await load()
         if (['thanh_cong', 'that_bai', 'het_han', 'hoan_tien'].includes(payment.trang_thai)) {
-          setMessage(`✅ Giao dịch #${pollingPaymentId} đã cập nhật: ${payment.trang_thai}`)
+          setMessage(`✅ Giao dịch #${pollingPaymentId} đã cập nhật: ${statusLabel(payment.trang_thai)}`)
           setMsgTone('success')
           setPollingPaymentId(null)
           triesRef.current = 0

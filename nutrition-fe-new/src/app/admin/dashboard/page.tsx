@@ -135,7 +135,7 @@ export default function AdminDashboardPage() {
   return (
     <>
       <PageHeader
-        eyebrow='Admin dashboard'
+        eyebrow='Bảng điều hành'
         title='Bảng điều hành hệ thống'
         description='Màn hình tổng hợp theo dữ liệu: biểu đồ vận hành, bảng xếp hạng chuyên gia và danh sách ưu tiên xử lý.'
         action={<Link href='/admin/revenue'><ActionButton tone='accent'>Xem báo cáo doanh thu</ActionButton></Link>}

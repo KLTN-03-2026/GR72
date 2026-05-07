@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ActionButton, EmptyState, Field, Notice, PageHeader, Panel, StatCard, StatusPill, Toolbar, inputClass, money } from '@/components/admin/admin-ui'
 import { DataTable, Modal, Td, Th } from '@/components/admin/admin-table'
 import { adminGet, adminPost } from '@/lib/admin-api'
+import { STATUS_LABELS } from '@/lib/i18n'
 
 type Period = Record<string, any>
 
@@ -61,14 +62,14 @@ export default function CommissionsPage() {
   const totals = useMemo(() => ({ revenue: periods.reduce((s, p) => s + Number(p.tong_doanh_thu_hop_le ?? 0), 0), commission: periods.reduce((s, p) => s + Number(p.tong_hoa_hong ?? 0), 0), pending: periods.filter((p) => p.trang_thai !== 'da_chi_tra').length }), [periods])
 
   return <>
-    <PageHeader eyebrow='Commission workflow' title='Đối soát và chi trả hoa hồng' description='Quản lý kỳ hoa hồng bằng bảng. Chi tiết kỳ, dòng hoa hồng và payout mở trong modal để không chiếm cố định nửa trang.' />
+    <PageHeader eyebrow='Quy trình hoa hồng' title='Đối soát và chi trả hoa hồng' description='Quản lý kỳ hoa hồng bằng bảng. Chi tiết kỳ, dòng hoa hồng và payout mở trong modal để không chiếm cố định nửa trang.' />
     {message ? <Notice>{message}</Notice> : null}
     <div className='mb-5 grid gap-4 md:grid-cols-3'><StatCard label='Tổng doanh thu kỳ' value={money(totals.revenue)} /><StatCard label='Tổng hoa hồng' value={money(totals.commission)} tone='orange' /><StatCard label='Kỳ chưa chi trả' value={String(totals.pending)} tone='red' /></div>
     <Panel title='Danh sách kỳ hoa hồng' description='Tạo kỳ mới ở toolbar, sau đó dùng action để tính lại/chốt/chi trả.'>
       <Toolbar>
         <Field label='Tháng' error={errors.month}><input type='number' min={1} max={12} className={inputClass} value={month} onChange={(e) => setMonth(Number(e.target.value))} /></Field>
         <Field label='Năm tạo kỳ' error={errors.year}><input type='number' className={inputClass} value={year} onChange={(e) => setYear(Number(e.target.value))} /></Field>
-        <Field label='Lọc trạng thái'><select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value)}><option value=''>Tất cả trạng thái</option>{['nhap','da_chot','da_chi_tra'].map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
+        <Field label='Lọc trạng thái'><select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value)}><option value=''>Tất cả trạng thái</option>{['nhap','da_chot','da_chi_tra'].map((item) => <option key={item} value={item}>{STATUS_LABELS[item]}</option>)}</select></Field>
         <Field label='Lọc năm'><input type='number' className={inputClass} value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') load() }} placeholder='VD: 2026' /></Field>
         <div className='flex items-end gap-2'><ActionButton tone='secondary' onClick={load}>Lọc</ActionButton><ActionButton tone='accent' onClick={createPeriod}>Tạo/mở kỳ</ActionButton></div>
       </Toolbar>

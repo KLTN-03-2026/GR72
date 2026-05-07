@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ActionButton, EmptyState, Notice, PageHeader, Panel, StatCard, StatusPill, Toolbar, inputClass } from '@/components/admin/admin-ui'
 import { DataTable, Td, Th } from '@/components/admin/admin-table'
 import { expertGet, expertPatch } from '@/lib/expert-api'
+import { NOTIFICATION_TYPE_LABELS } from '@/lib/i18n'
 
 type Row = Record<string, any>
 
@@ -57,7 +58,7 @@ export default function ExpertNotificationsPage() {
   return (
     <>
       <PageHeader
-        eyebrow='Notifications'
+        eyebrow='Thông báo'
         title='Thông báo chuyên gia'
         description='Theo dõi booking, tin nhắn, đánh giá, hoa hồng và thông báo hồ sơ liên quan đến bạn.'
         action={<ActionButton tone='accent' onClick={readAll} disabled={readingAll}>{readingAll ? 'Đang cập nhật...' : 'Đánh dấu tất cả đã đọc'}</ActionButton>}
@@ -79,7 +80,7 @@ export default function ExpertNotificationsPage() {
           </select>
           <select className={inputClass} value={type} onChange={(e) => setType(e.target.value)}>
             <option value=''>Tất cả loại</option>
-            {['booking', 'message', 'review', 'commission', 'profile', 'system'].map((item) => <option key={item} value={item}>{item}</option>)}
+            {['booking', 'message', 'review', 'commission', 'profile', 'system'].map((item) => <option key={item} value={item}>{NOTIFICATION_TYPE_LABELS[item]}</option>)}
           </select>
           <ActionButton tone='secondary' onClick={load} disabled={loading}>{loading ? 'Đang lọc...' : 'Lọc'}</ActionButton>
         </Toolbar>
@@ -90,7 +91,7 @@ export default function ExpertNotificationsPage() {
               <tr key={row.id} className='transition-colors duration-200 hover:bg-emerald-50/60'>
                 <Td><b>{row.tieu_de}</b></Td>
                 <Td><p className='line-clamp-2 max-w-md'>{row.noi_dung}</p></Td>
-                <Td>{row.loai}</Td>
+                <Td>{NOTIFICATION_TYPE_LABELS[row.loai] ?? row.loai}</Td>
                 <Td><StatusPill value={row.trang_thai} /></Td>
                 <Td>{String(row.tao_luc).slice(0, 16)}</Td>
                 <Td className='text-right'>{row.trang_thai === 'chua_doc' ? <ActionButton tone='secondary' onClick={() => read(row)}>Đã đọc</ActionButton> : '-'}</Td>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ActionButton, EmptyState, Field, Notice, PageHeader, Panel, StatCard, StatusPill, Toolbar, inputClass } from '@/components/admin/admin-ui'
 import { DataTable, Modal, Td, Th } from '@/components/admin/admin-table'
 import { adminGet, adminPatch } from '@/lib/admin-api'
+import { STATUS_LABELS } from '@/lib/i18n'
 
 type Review = Record<string, any>
 
@@ -55,13 +56,13 @@ export default function ReviewsPage() {
 
   return (
     <>
-      <PageHeader eyebrow='Trust & quality' title='Quản lý đánh giá của user' description='Duyệt đánh giá bằng bảng, mở modal khi cần xem nội dung dài hoặc nhập lý do moderation.' />
+      <PageHeader eyebrow='Chất lượng & tin cậy' title='Quản lý đánh giá của user' description='Duyệt đánh giá bằng bảng, mở modal khi cần xem nội dung dài hoặc nhập lý do moderation.' />
       {message ? <Notice>{message}</Notice> : null}
       <div className='mb-5 grid gap-4 md:grid-cols-3'><StatCard label='Review trong bộ lọc' value={String(stats.total)} /><StatCard label='Điểm trung bình' value={`${stats.avg}/5`} tone='green' /><StatCard label='Cần chú ý' value={String(stats.flagged)} tone='orange' /></div>
       <Panel title='Danh sách đánh giá' description='Không dùng card để tránh dài màn khi có nhiều review.'>
         <Toolbar>
           <input className={inputClass} placeholder='Tìm khách hàng, chuyên gia hoặc nội dung' value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') load() }} />
-          <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value)}><option value=''>Tất cả trạng thái</option>{['hien_thi','bi_an','bi_bao_cao','da_xoa'].map((item) => <option key={item} value={item}>{item}</option>)}</select>
+          <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value)}><option value=''>Tất cả trạng thái</option>{['hien_thi','bi_an','bi_bao_cao','da_xoa'].map((item) => <option key={item} value={item}>{STATUS_LABELS[item]}</option>)}</select>
           <select className={inputClass} value={rating} onChange={(e) => setRating(e.target.value)}><option value=''>Tất cả điểm</option>{[5,4,3,2,1].map((item) => <option key={item} value={item}>{item} sao</option>)}</select>
           <ActionButton tone='secondary' onClick={load}>Lọc</ActionButton>
         </Toolbar>

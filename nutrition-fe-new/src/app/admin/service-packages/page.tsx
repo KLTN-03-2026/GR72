@@ -167,7 +167,7 @@ export default function ServicePackagesPage() {
 
   return (
     <>
-      <PageHeader eyebrow='Service catalog' title='Quản lý gói dịch vụ' description='Danh sách dạng bảng để quản trị nhiều gói. Tạo, sửa, bật/ngừng bán hoặc gán chuyên gia qua modal để không vỡ bố cục khi dữ liệu lớn.' action={<ActionButton tone='accent' onClick={openCreate}>Tạo gói mới</ActionButton>} />
+      <PageHeader eyebrow='Danh mục dịch vụ' title='Quản lý gói dịch vụ' description='Danh sách dạng bảng để quản trị nhiều gói. Tạo, sửa, bật/ngừng bán hoặc gán chuyên gia qua modal để không vỡ bố cục khi dữ liệu lớn.' action={<ActionButton tone='accent' onClick={openCreate}>Tạo gói mới</ActionButton>} />
       {message ? <Notice>{message}</Notice> : null}
       <div className='mb-5 grid gap-4 md:grid-cols-3'>
         <StatCard label='Tổng gói' value={String(packages.length)} />

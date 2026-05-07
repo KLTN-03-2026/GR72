@@ -174,7 +174,7 @@ export default function AdminAuditLogsPage() {
   return (
     <>
       <PageHeader
-        eyebrow='Audit & compliance'
+        eyebrow='Kiểm toán & truy vết'
         title='Nhật ký hệ thống'
         description='Toàn bộ hành động của admin được ghi lại để truy vết và đối soát. Click vào dòng để xem chi tiết thay đổi.'
       />

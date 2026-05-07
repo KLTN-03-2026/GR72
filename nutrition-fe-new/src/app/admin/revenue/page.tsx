@@ -96,7 +96,7 @@ export default function RevenuePage() {
   return (
     <>
       <PageHeader
-        eyebrow='Revenue intelligence'
+        eyebrow='Phân tích doanh thu'
         title='Thống kê Doanh thu'
         description='Theo dõi doanh thu hợp lệ, refund, booking hoàn thành và hoa hồng phải trả để số liệu khớp với đối soát.'
         action={<ActionButton tone='accent' onClick={exportReport}>Export báo cáo</ActionButton>}

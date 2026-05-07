@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { ActionButton, EmptyState, Field, Notice, PageHeader, Panel, StatCard, StatusPill, Toolbar, inputClass, money } from '@/components/admin/admin-ui'
 import { DataTable, Td, Th } from '@/components/admin/admin-table'
 import { expertGet } from '@/lib/expert-api'
+import { statusLabel } from '@/lib/i18n'
 
 type Row = Record<string, any>
 
@@ -44,7 +45,7 @@ export default function EarningsPage() {
   return (
     <>
       <PageHeader
-        eyebrow='Earnings'
+        eyebrow='Thu nhập'
         title='Thu nhập và hoa hồng'
         description='Theo dõi booking hoàn thành, doanh thu hợp lệ, hoa hồng và trạng thái chi trả theo tháng.'
         action={<ActionButton tone='accent' onClick={exportFile} disabled={exporting}>{exporting ? 'Đang export...' : 'Export sao kê'}</ActionButton>}
@@ -66,7 +67,7 @@ export default function EarningsPage() {
             <StatCard label='Booking tính hoa hồng' value={String(data.summary?.bookings ?? 0)} />
             <StatCard label='Doanh thu hợp lệ' value={money(data.summary?.revenue)} tone='green' />
             <StatCard label='Hoa hồng' value={money(data.summary?.commission)} tone='orange' />
-            <StatCard label='Trạng thái kỳ' value={data.period?.trang_thai ?? 'Chưa có kỳ'} tone='slate' />
+            <StatCard label='Trạng thái kỳ' value={data.period?.trang_thai ? statusLabel(data.period.trang_thai) : 'Chưa có kỳ'} tone='slate' />
           </div>
 
           <Panel title='Chi tiết booking tính hoa hồng' description='Dữ liệu này là cơ sở để admin chốt và chi trả hoa hồng theo tháng.'>

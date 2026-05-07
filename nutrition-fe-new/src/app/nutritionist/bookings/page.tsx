@@ -91,7 +91,7 @@ export default function BookingsPage() {
   return (
     <>
       <PageHeader
-        eyebrow='Bookings'
+        eyebrow='Lịch hẹn'
         title='Quản lý booking tư vấn'
         description='Theo dõi và xử lý lịch tư vấn. Lọc theo trạng thái, nhấn Chi tiết để xem và thao tác.'
       />

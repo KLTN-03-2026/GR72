@@ -20,7 +20,7 @@ export default function NutritionistDashboardPage() {
   return (
     <>
       <PageHeader
-        eyebrow='Expert cockpit'
+        eyebrow='Bảng làm việc chuyên gia'
         title='Bảng làm việc hôm nay'
         description='Nắm nhanh lịch cần xử lý, đánh giá, thông báo và hoa hồng đang chờ chi trả.'
       />

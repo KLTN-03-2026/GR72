@@ -63,7 +63,7 @@ export default function NotesPage() {
   return (
     <>
       <PageHeader
-        eyebrow='Consultation notes'
+        eyebrow='Ghi chú tư vấn'
         title='Ghi chú sau tư vấn'
         description='Quản lý ghi chú theo từng booking hoàn thành. Danh sách nằm ở bảng, nội dung dài mở trong modal để màn không bị chia đôi và không vỡ khi nhiều dữ liệu.'
       />

@@ -98,7 +98,7 @@ export default function AvailabilityPage() {
   return (
     <>
       <PageHeader
-        eyebrow='Availability'
+        eyebrow='Lịch làm việc'
         title='Quản lý lịch làm việc'
         description='Cấu hình lịch rảnh theo tuần và các khung giờ bận để khách hàng chỉ có thể book slot hợp lệ.'
       />

@@ -117,7 +117,7 @@ export default function AdminExpertsPage() {
 
   return (
     <>
-      <PageHeader eyebrow='Expert operations' title='Quản lý chuyên gia' description='Quản lý hồ sơ chuyên môn, trạng thái duyệt, nhận booking, rating và hoa hồng mặc định của chuyên gia.' />
+      <PageHeader eyebrow='Quản trị chuyên gia' title='Quản lý chuyên gia' description='Quản lý hồ sơ chuyên môn, trạng thái duyệt, nhận booking, rating và hoa hồng mặc định của chuyên gia.' />
       {message ? <Notice>{message}</Notice> : null}
       <div className='mb-5 grid gap-4 md:grid-cols-3'><StatCard label='Chuyên gia trong bộ lọc' value={String(stats.total)} /><StatCard label='Đang hoạt động' value={String(stats.active)} tone='green' /><StatCard label='Chờ duyệt' value={String(stats.pending)} tone='orange' /></div>
       <Panel title='Danh sách chuyên gia' description='Filter theo tên/email/chuyên môn, trạng thái duyệt và trạng thái nhận booking.'>

@@ -38,7 +38,7 @@ export default function ExpertChatsPage() {
   return (
     <>
       <PageHeader
-        eyebrow='Consultation chat'
+        eyebrow='Chat tư vấn'
         title='Trung tâm chat tư vấn'
         description='Quản lý toàn bộ cuộc trò chuyện theo booking. Mỗi cuộc chat mở ở một trang riêng để dễ tư vấn, theo dõi lịch sử và chuẩn bị call/video sau này.'
       />

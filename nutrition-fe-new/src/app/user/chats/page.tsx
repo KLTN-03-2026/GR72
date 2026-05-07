@@ -5,6 +5,7 @@ import { MessageCircle, Search, Send, Video } from 'lucide-react'
 import { Card, SectionHeader, UserButton, UserEmptyState, UserNotice, userInputClass } from '@/components/user/user-ui'
 import { createChatSocket, type ChatSocketMessage } from '@/lib/chat-socket'
 import { customerGet, customerPatch, customerPost } from '@/lib/customer-api'
+import { statusLabel } from '@/lib/i18n'
 
 type Row = Record<string, any>
 
@@ -201,7 +202,7 @@ export default function UserChatsPage() {
                       <Video size={16} />
                     </button>
                   </div>
-                  <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{activeChat.ma_lich_hen} · {activeChat.ten_goi} · {activeChat.trang_thai}</p>
+                  <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{activeChat.ma_lich_hen} · {activeChat.ten_goi} · {statusLabel(activeChat.trang_thai)}</p>
                 </div>
                 <div style={{ minHeight: 430, maxHeight: 520, overflow: 'auto', display: 'grid', gap: 10, marginBottom: 12 }}>
                   {messages.map((msg) => {

@@ -67,7 +67,7 @@ export default function AdminUsersPage() {
 
   return (
     <>
-      <PageHeader eyebrow='Account operations' title='Quản lý người dùng' description='Theo dõi tài khoản, trạng thái, vai trò, hồ sơ sức khỏe, gói đã mua và lịch sử thanh toán của người dùng.' />
+      <PageHeader eyebrow='Quản trị tài khoản' title='Quản lý người dùng' description='Theo dõi tài khoản, trạng thái, vai trò, hồ sơ sức khỏe, gói đã mua và lịch sử thanh toán của người dùng.' />
       {message ? <Notice>{message}</Notice> : null}
       <div className='mb-5 grid gap-4 md:grid-cols-3'><StatCard label='Tài khoản trong bộ lọc' value={String(stats.total)} /><StatCard label='Đang hoạt động' value={String(stats.active)} tone='green' /><StatCard label='Bị khóa' value={String(stats.locked)} tone='red' /></div>
       <Panel title='Danh sách tài khoản' description='Filter theo tên/email/số điện thoại, vai trò và trạng thái.'>

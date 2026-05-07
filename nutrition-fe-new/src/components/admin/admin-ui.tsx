@@ -1,8 +1,10 @@
+import { STATUS_LABELS, PRIORITY_LABELS, NOTIFICATION_TYPE_LABELS, COMPLAINT_TYPE_LABELS } from '@/lib/i18n'
+
 export function PageHeader({
   title,
   description,
   action,
-  eyebrow = 'Admin workspace',
+  eyebrow = 'Trang quản trị',
 }: {
   title: string
   description: string
@@ -96,51 +98,19 @@ export function Field({ label, children, error, hint }: { label: string; childre
 export const inputClass = 'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-colors duration-200 placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500'
 
 export function StatusPill({ value }: { value: string }) {
-  const labels: Record<string, string> = {
-    dang_ban: 'Đang bán',
-    ban_nhap: 'Bản nháp',
-    ngung_ban: 'Ngừng bán',
-    hoat_dong: 'Hoạt động',
-    khong_hoat_dong: 'Không hoạt động',
-    bi_khoa: 'Bị khóa',
-    customer: 'Người dùng',
-    expert: 'Chuyên gia',
-    admin: 'Quản trị viên',
-    cho_duyet: 'Chờ duyệt',
-    tu_choi: 'Từ chối',
-    tam_dung: 'Tạm dừng',
-    thanh_cong: 'Thành công',
-    hoan_tien: 'Hoàn tiền',
-    hien_thi: 'Hiển thị',
-    bi_an: 'Đã ẩn',
-    bi_bao_cao: 'Bị báo cáo',
-    da_chi_tra: 'Đã chi trả',
-    cho_chi_tra: 'Chờ chi trả',
-    da_chot: 'Đã chốt',
-    nhap: 'Đang nháp',
-    moi: 'Mới',
-    dang_xu_ly: 'Đang xử lý',
-    cho_phan_hoi: 'Chờ phản hồi',
-    da_giai_quyet: 'Đã giải quyết',
-    da_dong: 'Đã đóng',
-    chua_doc: 'Chưa đọc',
-    da_doc: 'Đã đọc',
-    dang_hieu_luc: 'Đang hiệu lực',
-    cho_thanh_toan: 'Chờ thanh toán',
-    het_luot: 'Hết lượt',
-    het_han: 'Hết hạn',
-    da_hoan_tien: 'Đã hoàn tiền',
-    khoi_tao: 'Khởi tạo',
-    that_bai: 'Thất bại',
-  }
-  const positive = ['dang_ban', 'hoat_dong', 'thanh_cong', 'hien_thi', 'da_chi_tra', 'hoan_thanh', 'da_giai_quyet', 'customer', 'expert', 'admin', 'da_doc', 'dang_hieu_luc']
-  const danger = ['ngung_ban', 'hoan_tien', 'bi_an', 'bi_bao_cao', 'that_bai', 'da_xoa', 'bi_khoa', 'tu_choi', 'het_luot', 'het_han', 'da_hoan_tien']
+  const positive = ['dang_ban', 'hoat_dong', 'thanh_cong', 'hien_thi', 'da_chi_tra', 'hoan_thanh', 'da_giai_quyet', 'da_xu_ly', 'customer', 'expert', 'admin', 'da_doc', 'dang_hieu_luc', 'da_xac_nhan', 'da_ap_dung']
+  const danger = ['ngung_ban', 'hoan_tien', 'bi_an', 'bi_bao_cao', 'that_bai', 'da_xoa', 'bi_khoa', 'tu_choi', 'het_luot', 'het_han', 'da_hoan_tien', 'da_huy', 'vo_hieu_hoa', 'cao']
+  const warning = ['cho_duyet', 'cho_xac_nhan', 'cho_thanh_toan', 'cho_chi_tra', 'cho_phan_hoi', 'tam_dung', 'tam_khoa', 'moi', 'dang_xu_ly', 'trung_binh', 'bi_bao_cao', 'da_checkin']
   const className = positive.includes(value)
     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
     : danger.includes(value)
       ? 'bg-red-50 text-red-700 border-red-200'
-      : 'bg-slate-50 text-slate-700 border-slate-200'
-  return <span className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold ${className}`}>{labels[value] ?? value}</span>
+      : warning.includes(value)
+        ? 'bg-orange-50 text-orange-700 border-orange-200'
+        : 'bg-slate-50 text-slate-700 border-slate-200'
+  // Prefer status, fallback sang priority/notification/complaint type
+  const label = STATUS_LABELS[value] ?? PRIORITY_LABELS[value] ?? NOTIFICATION_TYPE_LABELS[value] ?? COMPLAINT_TYPE_LABELS[value] ?? value
+  return <span className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold ${className}`}>{label}</span>
 }
 
 export function EmptyState({ text, action }: { text: string; action?: React.ReactNode }) {

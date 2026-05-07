@@ -1,4 +1,5 @@
 import React, { type ReactNode } from 'react'
+import { STATUS_LABELS, PRIORITY_LABELS } from '@/lib/i18n'
 
 /* ─────────── Section Header ─────────── */
 export function SectionHeader({
@@ -99,58 +100,35 @@ export function UserButton({
 }
 
 /* ─────────── Badge ─────────── */
-const statusConfig: Record<string, { label: string; tone: string }> = {
-  dang_ban: { label: 'Đang bán', tone: 'green' },
-  ban_nhap: { label: 'Bản nháp', tone: 'slate' },
-  ngung_ban: { label: 'Ngừng bán', tone: 'red' },
-  hoat_dong: { label: 'Hoạt động', tone: 'green' },
-  khong_hoat_dong: { label: 'Không hoạt động', tone: 'slate' },
-  bi_khoa: { label: 'Bị khóa', tone: 'red' },
-  cho_duyet: { label: 'Chờ duyệt', tone: 'orange' },
-  tu_choi: { label: 'Từ chối', tone: 'red' },
-  thanh_cong: { label: 'Thành công', tone: 'green' },
-  hoan_tien: { label: 'Hoàn tiền', tone: 'red' },
-  dang_hieu_luc: { label: 'Đang hiệu lực', tone: 'green' },
-  cho_thanh_toan: { label: 'Chờ thanh toán', tone: 'orange' },
-  het_luot: { label: 'Hết lượt', tone: 'red' },
-  het_han: { label: 'Hết hạn', tone: 'red' },
-  khoi_tao: { label: 'Khởi tạo', tone: 'slate' },
-  that_bai: { label: 'Thất bại', tone: 'red' },
-  da_hoan_tien: { label: 'Đã hoàn tiền', tone: 'red' },
-  da_xac_nhan: { label: 'Đã xác nhận', tone: 'green' },
-  cho_xac_nhan: { label: 'Chờ xác nhận', tone: 'orange' },
-  da_huy: { label: 'Đã hủy', tone: 'red' },
-  hoan_thanh: { label: 'Hoàn thành', tone: 'green' },
-  da_checkin: { label: 'Đã check-in', tone: 'blue' },
-  dang_tu_van: { label: 'Đang tư vấn', tone: 'green' },
-  // Reviews
-  hien_thi: { label: 'Hiển thị', tone: 'green' },
-  an: { label: 'Đã ẩn', tone: 'slate' },
-  bi_an: { label: 'Bị ẩn', tone: 'slate' },
-  da_xoa: { label: 'Đã xóa', tone: 'red' },
-  bi_bao_cao: { label: 'Bị báo cáo', tone: 'orange' },
-  // Complaints
-  moi: { label: 'Mới', tone: 'orange' },
-  dang_xu_ly: { label: 'Đang xử lý', tone: 'blue' },
-  da_xu_ly: { label: 'Đã xử lý', tone: 'green' },
-  da_dong: { label: 'Đã đóng', tone: 'slate' },
-  // Purchases
-  tam_khoa: { label: 'Tạm khóa', tone: 'orange' },
-  // Recommendations
-  moi_tao: { label: 'Mới tạo', tone: 'orange' },
-  da_ap_dung: { label: 'Đã áp dụng', tone: 'green' },
-  luu_tru: { label: 'Lưu trữ', tone: 'slate' },
-  // Booking extra
-  vo_hieu_hoa: { label: 'Vô hiệu hóa', tone: 'red' },
+const STATUS_TONE: Record<string, string> = {
+  // Tích cực (green)
+  dang_ban: 'green', hoat_dong: 'green', thanh_cong: 'green', hien_thi: 'green',
+  da_chi_tra: 'green', hoan_thanh: 'green', da_giai_quyet: 'green', da_xu_ly: 'green',
+  dang_hieu_luc: 'green', da_xac_nhan: 'green', dang_tu_van: 'green', da_ap_dung: 'green',
+  customer: 'green', expert: 'green', admin: 'green',
+  // Cảnh báo (orange)
+  cho_duyet: 'orange', cho_xac_nhan: 'orange', cho_thanh_toan: 'orange', cho_chi_tra: 'orange',
+  cho_phan_hoi: 'orange', tam_dung: 'orange', tam_khoa: 'orange', moi: 'orange',
+  bi_bao_cao: 'orange', moi_tao: 'orange', cao: 'orange',
+  // Đang chạy (blue)
+  da_checkin: 'blue', dang_xu_ly: 'blue',
+  // Lỗi / âm tính (red)
+  ngung_ban: 'red', hoan_tien: 'red', that_bai: 'red', da_xoa: 'red', bi_khoa: 'red',
+  tu_choi: 'red', het_luot: 'red', het_han: 'red', da_hoan_tien: 'red', da_huy: 'red',
+  vo_hieu_hoa: 'red',
+  // Trung tính
+  ban_nhap: 'slate', khong_hoat_dong: 'slate', khoi_tao: 'slate', bi_an: 'slate',
+  an: 'slate', da_dong: 'slate', luu_tru: 'slate', da_luu_tru: 'slate',
+  thap: 'slate', trung_binh: 'slate',
 }
 
-
 export function StatusBadge({ value }: { value: string }) {
-  const cfg = statusConfig[value] ?? { label: value, tone: 'slate' }
+  const tone = STATUS_TONE[value] ?? 'slate'
+  const label = STATUS_LABELS[value] ?? PRIORITY_LABELS[value] ?? value
   return (
-    <span className={`user-badge user-badge--${cfg.tone}`}>
+    <span className={`user-badge user-badge--${tone}`}>
       <span className='user-badge__dot' />
-      {cfg.label}
+      {label}
     </span>
   )
 }

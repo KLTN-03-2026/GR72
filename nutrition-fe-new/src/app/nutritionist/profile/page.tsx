@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ActionButton, Field, Notice, PageHeader, Panel, StatCard, StatusPill, inputClass } from '@/components/admin/admin-ui'
 import { expertGet, expertPatch } from '@/lib/expert-api'
+import { statusLabel } from '@/lib/i18n'
 
 type Profile = Record<string, any>
 
@@ -46,7 +47,7 @@ export default function ExpertProfilePage() {
   return (
     <>
       <PageHeader
-        eyebrow='Expert profile'
+        eyebrow='Hồ sơ chuyên gia'
         title='Quản lý hồ sơ chuyên gia'
         description='Cập nhật thông tin khách hàng sẽ nhìn thấy khi chọn chuyên gia: chuyên môn, kinh nghiệm, chứng chỉ và trạng thái nhận booking.'
       />
@@ -55,7 +56,7 @@ export default function ExpertProfilePage() {
       {profile ? (
         <div className='space-y-5'>
           <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>
-            <StatCard label='Trạng thái hồ sơ' value={profile.trang_thai} />
+            <StatCard label='Trạng thái hồ sơ' value={statusLabel(profile.trang_thai)} />
             <StatCard label='Rating trung bình' value={`${Number(profile.diem_danh_gia_trung_binh ?? 0).toFixed(1)}/5`} tone='green' />
             <StatCard label='Lượt đánh giá' value={String(profile.so_luot_danh_gia ?? 0)} tone='slate' />
             <StatCard label='Nhận booking' value={form.nhan_booking ? 'Đang bật' : 'Đang tắt'} tone={form.nhan_booking ? 'green' : 'orange'} />

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ActionButton, EmptyState, Field, Notice, PageHeader, Panel, StatCard, StatusPill, Toolbar, inputClass, money } from '@/components/admin/admin-ui'
 import { DataTable, Modal, Td, Th } from '@/components/admin/admin-table'
 import { adminGet, adminPatch, adminPost } from '@/lib/admin-api'
+import { STATUS_LABELS, PAYMENT_TYPE_LABELS } from '@/lib/i18n'
 
 type Payment = Record<string, any>
 
@@ -87,19 +88,19 @@ export default function PaymentsPage() {
 
   return (
     <>
-      <PageHeader eyebrow='Payment control' title='Quản lý thanh toán' description='Danh sách giao dịch dạng bảng để dễ lọc, đối soát, xem webhook và refund qua modal chi tiết.' />
+      <PageHeader eyebrow='Quản trị thanh toán' title='Quản lý thanh toán' description='Danh sách giao dịch dạng bảng để dễ lọc, đối soát, xem webhook và refund qua modal chi tiết.' />
       {message ? <Notice>{message}</Notice> : null}
       <div className='mb-5 grid gap-4 md:grid-cols-3'><StatCard label='Tổng giá trị danh sách' value={money(totals.value)} /><StatCard label='Thành công' value={String(totals.success)} tone='green' /><StatCard label='Hoàn tiền' value={String(totals.refund)} tone='red' /></div>
       <Panel title='Danh sách giao dịch' description='Dữ liệu nhiều vẫn giữ ổn định nhờ bảng có scroll ngang và action theo từng dòng.'>
         <Toolbar>
           <input className={inputClass} placeholder='Tìm mã giao dịch, khách hàng, txn ref' value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') load() }} />
-          <select className={inputClass} value={filter} onChange={(e) => setFilter(e.target.value)}><option value=''>Tất cả trạng thái</option>{['khoi_tao','cho_thanh_toan','thanh_cong','that_bai','het_han','hoan_tien'].map((item) => <option key={item} value={item}>{item}</option>)}</select>
+          <select className={inputClass} value={filter} onChange={(e) => setFilter(e.target.value)}><option value=''>Tất cả trạng thái</option>{['khoi_tao','cho_thanh_toan','thanh_cong','that_bai','het_han','hoan_tien'].map((item) => <option key={item} value={item}>{STATUS_LABELS[item]}</option>)}</select>
           <select className={inputClass} value={type} onChange={(e) => setType(e.target.value)}><option value=''>Tất cả loại thanh toán</option><option value='mua_goi'>Mua gói</option><option value='tu_van_le'>Tư vấn lẻ</option></select>
           <input type='date' className={inputClass} value={from} onChange={(e) => setFrom(e.target.value)} aria-label='Từ ngày' />
           <input type='date' className={inputClass} value={to} onChange={(e) => setTo(e.target.value)} aria-label='Đến ngày' />
           <ActionButton tone='secondary' onClick={load}>Lọc</ActionButton>
         </Toolbar>
-        <DataTable minWidth='1080px'><thead><tr><Th>Mã giao dịch</Th><Th>Khách hàng</Th><Th>Loại</Th><Th>Cổng</Th><Th>Số tiền</Th><Th>Trạng thái</Th><Th>Thanh toán lúc</Th><Th className='text-right'>Hành động</Th></tr></thead><tbody>{rows.map((row) => <tr key={row.id} className='hover:bg-blue-50/40'><Td><b>{row.ma_giao_dich}</b><p className='font-mono text-xs text-slate-500'>{row.txn_ref}</p></Td><Td>{row.customer_name}<p className='text-xs text-slate-500'>{row.customer_email}</p></Td><Td>{row.loai_thanh_toan}</Td><Td>{row.cong_thanh_toan}</Td><Td><b>{money(row.so_tien)}</b></Td><Td><StatusPill value={row.trang_thai} /></Td><Td>{row.thanh_toan_luc ? String(row.thanh_toan_luc).slice(0, 16) : '-'}</Td><Td className='text-right'><div className='flex justify-end gap-2'><ActionButton tone='secondary' onClick={() => open(row)}>Chi tiết</ActionButton><ActionButton tone='secondary' onClick={() => reconcile(row)}>Đối soát</ActionButton>{row.trang_thai === 'thanh_cong' ? <ActionButton tone='danger' onClick={() => openRefund(row)}>Refund</ActionButton> : null}</div></Td></tr>)}</tbody></DataTable>
+        <DataTable minWidth='1080px'><thead><tr><Th>Mã giao dịch</Th><Th>Khách hàng</Th><Th>Loại</Th><Th>Cổng</Th><Th>Số tiền</Th><Th>Trạng thái</Th><Th>Thanh toán lúc</Th><Th className='text-right'>Hành động</Th></tr></thead><tbody>{rows.map((row) => <tr key={row.id} className='hover:bg-blue-50/40'><Td><b>{row.ma_giao_dich}</b><p className='font-mono text-xs text-slate-500'>{row.txn_ref}</p></Td><Td>{row.customer_name}<p className='text-xs text-slate-500'>{row.customer_email}</p></Td><Td>{PAYMENT_TYPE_LABELS[row.loai_thanh_toan] ?? row.loai_thanh_toan}</Td><Td className='uppercase font-mono text-xs'>{row.cong_thanh_toan}</Td><Td><b>{money(row.so_tien)}</b></Td><Td><StatusPill value={row.trang_thai} /></Td><Td>{row.thanh_toan_luc ? String(row.thanh_toan_luc).slice(0, 16) : '-'}</Td><Td className='text-right'><div className='flex justify-end gap-2'><ActionButton tone='secondary' onClick={() => open(row)}>Chi tiết</ActionButton><ActionButton tone='secondary' onClick={() => reconcile(row)}>Đối soát</ActionButton>{row.trang_thai === 'thanh_cong' ? <ActionButton tone='danger' onClick={() => openRefund(row)}>Refund</ActionButton> : null}</div></Td></tr>)}</tbody></DataTable>
         {!rows.length && !loading ? <div className='mt-4'><EmptyState text='Không có giao dịch theo bộ lọc hiện tại.' /></div> : null}
       </Panel>
       <Modal open={detailOpen} onClose={() => setDetailOpen(false)} title='Chi tiết giao dịch' description='Kiểm tra thông tin gateway và webhook trước khi refund hoặc đối soát.' width='max-w-5xl'>

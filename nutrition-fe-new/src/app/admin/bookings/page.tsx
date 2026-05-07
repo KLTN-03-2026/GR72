@@ -116,7 +116,7 @@ export default function AdminBookingsPage() {
   return (
     <>
       <PageHeader
-        eyebrow='Booking control'
+        eyebrow='Quản lý lịch hẹn'
         title='Quản lý lịch hẹn toàn hệ thống'
         description='Theo dõi tất cả booking giữa khách hàng và chuyên gia. Có thể can thiệp hủy lịch khi cần thiết.'
       />

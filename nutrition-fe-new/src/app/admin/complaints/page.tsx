@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ActionButton, EmptyState, Field, Notice, PageHeader, Panel, StatCard, StatusPill, Toolbar, inputClass } from '@/components/admin/admin-ui'
 import { DataTable, Modal, Td, Th } from '@/components/admin/admin-table'
 import { adminGet, adminPatch, adminPost } from '@/lib/admin-api'
+import { STATUS_LABELS, PRIORITY_LABELS, COMPLAINT_TYPE_LABELS } from '@/lib/i18n'
 
 type Complaint = Record<string, any>
 
@@ -84,15 +85,15 @@ export default function ComplaintsPage() {
   }
 
   return <>
-    <PageHeader eyebrow='Support desk' title='Quản lý khiếu nại' description='Ticket hiển thị dạng bảng để xử lý số lượng lớn. Timeline và phản hồi mở trong modal chi tiết.' />
+    <PageHeader eyebrow='Hỗ trợ khiếu nại' title='Quản lý khiếu nại' description='Ticket hiển thị dạng bảng để xử lý số lượng lớn. Timeline và phản hồi mở trong modal chi tiết.' />
     {notice ? <Notice>{notice}</Notice> : null}
     <div className='mb-5 grid gap-4 md:grid-cols-3'><StatCard label='Đang mở' value={String(stats.open)} tone='orange' /><StatCard label='Ưu tiên cao' value={String(stats.high)} tone='red' /><StatCard label='Đã xử lý' value={String(stats.done)} tone='green' /></div>
     <Panel title='Danh sách ticket' description='Filter theo trạng thái, ưu tiên, loại khiếu nại hoặc tìm nhanh theo mã/tiêu đề/người gửi.'>
       <Toolbar>
         <input className={inputClass} placeholder='Tìm mã ticket, tiêu đề, người gửi' value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') load() }} />
-        <select className={inputClass} value={filter} onChange={(e) => setFilter(e.target.value)}><option value=''>Tất cả trạng thái</option>{['moi','dang_xu_ly','cho_phan_hoi','da_giai_quyet','da_dong'].map((item) => <option key={item} value={item}>{item}</option>)}</select>
-        <select className={inputClass} value={priority} onChange={(e) => setPriority(e.target.value)}><option value=''>Tất cả ưu tiên</option>{['thap','trung_binh','cao'].map((item) => <option key={item} value={item}>{item}</option>)}</select>
-        <select className={inputClass} value={type} onChange={(e) => setType(e.target.value)}><option value=''>Tất cả loại</option>{['thanh_toan','lich_hen','chuyen_gia','he_thong','khac'].map((item) => <option key={item} value={item}>{item}</option>)}</select>
+        <select className={inputClass} value={filter} onChange={(e) => setFilter(e.target.value)}><option value=''>Tất cả trạng thái</option>{['moi','dang_xu_ly','cho_phan_hoi','da_giai_quyet','da_dong'].map((item) => <option key={item} value={item}>{STATUS_LABELS[item]}</option>)}</select>
+        <select className={inputClass} value={priority} onChange={(e) => setPriority(e.target.value)}><option value=''>Tất cả ưu tiên</option>{['thap','trung_binh','cao'].map((item) => <option key={item} value={item}>{PRIORITY_LABELS[item]}</option>)}</select>
+        <select className={inputClass} value={type} onChange={(e) => setType(e.target.value)}><option value=''>Tất cả loại</option>{['thanh_toan','lich_hen','chuyen_gia','he_thong','khac'].map((item) => <option key={item} value={item}>{COMPLAINT_TYPE_LABELS[item]}</option>)}</select>
         <ActionButton tone='secondary' onClick={load}>Lọc</ActionButton>
       </Toolbar>
       <DataTable minWidth='1040px'><thead><tr><Th>Mã ticket</Th><Th>Tiêu đề</Th><Th>Người gửi</Th><Th>Loại</Th><Th>Ưu tiên</Th><Th>Trạng thái</Th><Th className='text-right'>Hành động</Th></tr></thead><tbody>{rows.map((row) => <tr key={row.id} className='hover:bg-blue-50/40'><Td><b>{row.ma_khieu_nai}</b></Td><Td><p className='max-w-sm truncate font-semibold text-slate-950'>{row.tieu_de}</p></Td><Td>{row.sender_name}</Td><Td>{row.loai_khieu_nai}</Td><Td>{row.muc_uu_tien}</Td><Td><StatusPill value={row.trang_thai} /></Td><Td className='text-right'><div className='flex justify-end gap-2'><ActionButton tone='secondary' onClick={() => open(row.id)}>Chi tiết</ActionButton><ActionButton onClick={() => assign(row)}>Nhận</ActionButton></div></Td></tr>)}</tbody></DataTable>

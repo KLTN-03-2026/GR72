@@ -163,8 +163,8 @@ export class OpenAiService {
       const text = response.choices?.[0]?.message?.content ?? '';
       const items = text
         .split('\n')
-        .map((line) => line.replace(/^[-*\d.\s)]+/, '').trim())
-        .filter((line) => line.length > 5 && line.length < 200)
+        .map((line: string) => line.replace(/^[-*\d.\s)]+/, '').trim())
+        .filter((line: string) => line.length > 5 && line.length < 200)
         .slice(0, 5);
       return items.length ? items : fallback;
     } catch (error: any) {

@@ -153,3 +153,82 @@ export function barWidth(value: number, max: number) {
   if (!max) return '0%'
   return `${Math.max(4, Math.min(100, Math.round((value / max) * 100)))}%`
 }
+
+/* ─────────── Filter Chip ─────────── */
+export function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type='button'
+      onClick={onClick}
+      className={`inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors duration-150 ${
+        active
+          ? 'border-[#2563EB] bg-blue-50 text-[#2563EB]'
+          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+/* ─────────── Loading Skeleton ─────────── */
+export function LoadingSkeleton({ rows = 5 }: { rows?: number }) {
+  return (
+    <div className='space-y-3'>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className='h-14 animate-pulse rounded-xl bg-slate-100' />
+      ))}
+    </div>
+  )
+}
+
+/* ─────────── Inline Spinner ─────────── */
+export function Spinner({ size = 14 }: { size?: number }) {
+  return (
+    <span
+      className='inline-block animate-spin rounded-full border-2 border-current border-t-transparent'
+      style={{ width: size, height: size }}
+    />
+  )
+}
+
+/* ─────────── Summary Bar (totals at bottom of list) ─────────── */
+export function SummaryBar({ items }: { items: Array<{ label: string; value: string; tone?: 'green' | 'orange' | 'blue' | 'slate' | 'red' }> }) {
+  const toneClass: Record<string, string> = {
+    green: 'text-emerald-700',
+    orange: 'text-orange-600',
+    blue: 'text-[#2563EB]',
+    slate: 'text-slate-700',
+    red: 'text-red-600',
+  }
+  return (
+    <div className='mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50/50 px-4 py-3'>
+      {items.map((it, i) => (
+        <div key={i} className='flex items-baseline gap-2'>
+          <span className='text-xs font-semibold uppercase tracking-wide text-slate-500'>{it.label}</span>
+          <span className={`text-base font-bold ${toneClass[it.tone ?? 'slate']}`}>{it.value}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ─────────── JSON Viewer (for old/new value, webhook payload) ─────────── */
+export function JsonViewer({ data, maxHeight = 320 }: { data: unknown; maxHeight?: number }) {
+  if (data === null || data === undefined) {
+    return <p className='text-xs italic text-slate-400'>(không có dữ liệu)</p>
+  }
+  let parsed = data
+  if (typeof data === 'string') {
+    try { parsed = JSON.parse(data) } catch { /* keep as string */ }
+  }
+  const pretty = typeof parsed === 'string' ? parsed : JSON.stringify(parsed, null, 2)
+  return (
+    <pre
+      className='overflow-auto rounded-xl border border-slate-200 bg-slate-950 p-3 font-mono text-xs leading-relaxed text-emerald-200'
+      style={{ maxHeight }}
+    >
+      {pretty}
+    </pre>
+  )
+}

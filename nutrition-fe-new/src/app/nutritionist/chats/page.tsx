@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { ActionButton, EmptyState, Notice, PageHeader, Panel, StatCard, StatusPill, Toolbar, inputClass } from '@/components/admin/admin-ui'
-import { DataTable, Td, Th } from '@/components/admin/admin-table'
+import { MessageCircle, MessageSquare, Inbox, Search, ChevronRight, User, Package, Clock } from 'lucide-react'
+import { SectionHeader, Card, UserStatCard, UserButton, UserNotice, UserEmptyState, StatusBadge } from '@/components/user/user-ui'
 import { expertGet } from '@/lib/expert-api'
 
 type Row = Record<string, any>
@@ -12,7 +12,8 @@ export default function ExpertChatsPage() {
   const [chats, setChats] = useState<Row[]>([])
   const [query, setQuery] = useState('')
   const [notice, setNotice] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [tone, setTone] = useState<'success' | 'error' | 'info'>('info')
+  const [loading, setLoading] = useState(true)
 
   async function loadChats() {
     setLoading(true)
@@ -20,73 +21,125 @@ export default function ExpertChatsPage() {
       const params = new URLSearchParams()
       if (query) params.set('search', query)
       setChats(await expertGet<Row[]>(`/chats${params.toString() ? `?${params}` : ''}`))
+    } catch (e: any) {
+      setNotice(e.message ?? 'Lỗi tải chat')
+      setTone('error')
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => {
-    loadChats().catch((err) => setNotice(err.message))
-  }, [])
+  useEffect(() => { loadChats() }, [])
 
   const stats = useMemo(() => ({
     total: chats.length,
     unread: chats.reduce((sum, chat) => sum + Number(chat.unread ?? 0), 0),
-    active: chats.filter((chat) => chat.trang_thai !== 'hoan_thanh').length,
+    active: chats.filter((chat) => chat.trang_thai !== 'hoan_thanh' && chat.trang_thai !== 'da_huy').length,
   }), [chats])
 
   return (
     <>
-      <PageHeader
-        eyebrow='Chat tư vấn'
-        title='Trung tâm chat tư vấn'
-        description='Quản lý toàn bộ cuộc trò chuyện theo booking. Mỗi cuộc chat mở ở một trang riêng để dễ tư vấn, theo dõi lịch sử và chuẩn bị call/video sau này.'
+      <SectionHeader
+        title='Chat với khách hàng'
+        subtitle='Quản lý các cuộc trò chuyện theo booking để tư vấn kịp thời.'
       />
-      {notice ? <Notice>{notice}</Notice> : null}
 
-      <div className='mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3'>
-        <StatCard label='Cuộc chat trong bộ lọc' value={String(stats.total)} />
-        <StatCard label='Tin chưa đọc' value={String(stats.unread)} tone='orange' />
-        <StatCard label='Booking đang mở' value={String(stats.active)} tone='green' />
+      {notice && <UserNotice tone={tone}>{notice}</UserNotice>}
+
+      <div className='grid-stats'>
+        <UserStatCard label='Tổng cuộc chat' value={String(stats.total)} icon={MessageCircle} tone='blue' />
+        <UserStatCard label='Tin chưa đọc' value={String(stats.unread)} icon={Inbox} tone='orange' />
+        <UserStatCard label='Booking đang mở' value={String(stats.active)} icon={MessageSquare} tone='green' />
       </div>
 
-      <Panel title='Danh sách cuộc chat' description='Dùng bảng để xử lý nhiều khách. Bấm mở để vào phòng chat riêng của từng booking.'>
-        <Toolbar>
-          <input className={inputClass} placeholder='Tìm khách hàng, mã lịch, gói' value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') loadChats() }} />
-          <ActionButton tone='secondary' onClick={loadChats} disabled={loading}>{loading ? 'Đang lọc...' : 'Lọc'}</ActionButton>
-        </Toolbar>
-        <DataTable minWidth='980px'>
-          <thead>
-            <tr>
-              <Th>Booking</Th>
-              <Th>Khách hàng</Th>
-              <Th>Gói</Th>
-              <Th>Trạng thái</Th>
-              <Th>Chưa đọc</Th>
-              <Th>Tin cuối</Th>
-              <Th className='text-right'>Hành động</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {chats.map((chat) => (
-              <tr key={chat.booking_id} className='transition-colors duration-200 hover:bg-emerald-50/60'>
-                <Td><b>{chat.ma_lich_hen}</b></Td>
-                <Td>{chat.customer_name}<p className='text-xs text-slate-500'>{chat.customer_email ?? '-'}</p></Td>
-                <Td>{chat.ten_goi}</Td>
-                <Td><StatusPill value={chat.trang_thai} /></Td>
-                <Td><span className='font-mono font-semibold text-[#F97316]'>{Number(chat.unread ?? 0)}</span></Td>
-                <Td>{chat.last_message_at ? String(chat.last_message_at).slice(0, 16) : '-'}</Td>
-                <Td className='text-right'>
-                  <Link href={`/nutritionist/chats/${chat.booking_id}`} className='inline-flex rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition-colors duration-200 hover:border-emerald-600 hover:text-emerald-700'>
-                    Mở phòng chat
-                  </Link>
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </DataTable>
-        {!chats.length && !loading ? <div className='mt-4'><EmptyState text='Chưa có cuộc chat.' /></div> : null}
-      </Panel>
+      {/* Search */}
+      <div style={{ marginBottom: 16, position: 'relative' }}>
+        <Search size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') loadChats() }}
+          placeholder='Tìm khách hàng, mã booking, gói...'
+          style={{ width: '100%', paddingLeft: 38, paddingRight: 14, paddingTop: 11, paddingBottom: 11, borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13.5, outline: 'none' }}
+        />
+      </div>
+
+      {loading ? (
+        <Card><p style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Đang tải...</p></Card>
+      ) : chats.length === 0 ? (
+        <UserEmptyState
+          icon={MessageCircle}
+          title='Chưa có cuộc chat nào'
+          description='Khi có khách đặt lịch, cuộc chat sẽ tự động tạo cho bạn.'
+        />
+      ) : (
+        <div style={{ display: 'grid', gap: 8 }}>
+          {chats.map((chat) => {
+            const unread = Number(chat.unread ?? 0)
+            return (
+              <Link
+                key={chat.booking_id}
+                href={`/nutritionist/chats/${chat.booking_id}`}
+                style={{ textDecoration: 'none' }}
+              >
+                <div style={{
+                  padding: 14, borderRadius: 12,
+                  background: unread > 0 ? 'linear-gradient(90deg, #fffbeb, white 30%)' : 'white',
+                  border: `1px solid ${unread > 0 ? '#fde68a' : '#f1f5f9'}`,
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateX(4px)'; e.currentTarget.style.borderColor = '#6366f1' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateX(0)'; e.currentTarget.style.borderColor = unread > 0 ? '#fde68a' : '#f1f5f9' }}
+                >
+                  {/* Avatar */}
+                  <div style={{
+                    width: 48, height: 48, borderRadius: '50%', flexShrink: 0,
+                    background: '#e0e7ff', color: '#6366f1',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 18, fontWeight: 700, position: 'relative',
+                  }}>
+                    {String(chat.customer_name ?? 'K').charAt(0).toUpperCase()}
+                    {unread > 0 && (
+                      <span style={{
+                        position: 'absolute', top: -2, right: -2, minWidth: 20, height: 20,
+                        padding: '0 5px', borderRadius: 10, background: '#ef4444', color: 'white',
+                        fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        border: '2px solid white',
+                      }}>
+                        {unread > 99 ? '99+' : unread}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{chat.customer_name}</p>
+                      <span style={{ fontSize: 11, color: '#6366f1', fontFamily: 'monospace', fontWeight: 600 }}>
+                        {chat.ma_lich_hen}
+                      </span>
+                      <StatusBadge value={chat.trang_thai} />
+                    </div>
+                    <p style={{ margin: '4px 0 0', fontSize: 12.5, color: '#64748b', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Package size={11} /> {chat.ten_goi}
+                      </span>
+                      {chat.last_message_at && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <Clock size={11} /> {String(chat.last_message_at).slice(0, 16).replace('T', ' ')}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+
+                  <ChevronRight size={18} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      )}
     </>
   )
 }

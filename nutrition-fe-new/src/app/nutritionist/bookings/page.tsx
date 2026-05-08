@@ -1,8 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ActionButton, EmptyState, Field, Notice, PageHeader, Panel, StatCard, StatusPill, Toolbar, inputClass } from '@/components/admin/admin-ui'
-import { DataTable, Modal, Td, Th } from '@/components/admin/admin-table'
+import {
+  CalendarCheck, Clock, CheckCircle, XCircle, AlertCircle,
+  Search, Filter, User, Mail, Target, X, History,
+} from 'lucide-react'
+import {
+  SectionHeader, Card, UserStatCard, UserButton, UserNotice,
+  UserEmptyState, StatusBadge,
+} from '@/components/user/user-ui'
 import { expertGet, expertPatch, expertPost } from '@/lib/expert-api'
 
 type Row = Record<string, any>
@@ -16,12 +22,12 @@ const STATUS_LABELS: Record<string, string> = {
   da_huy: 'Đã hủy',
 }
 
-const statuses = Object.keys(STATUS_LABELS)
+const STATUSES = Object.keys(STATUS_LABELS)
 
-function canConfirm(s: string) { return s === 'cho_xac_nhan' }
-function canCheckin(s: string) { return s === 'da_xac_nhan' }
-function canComplete(s: string) { return s === 'da_checkin' || s === 'dang_tu_van' }
-function canReject(s: string) { return ['cho_xac_nhan', 'da_xac_nhan'].includes(s) }
+const canConfirm = (s: string) => s === 'cho_xac_nhan'
+const canCheckin = (s: string) => s === 'da_xac_nhan'
+const canComplete = (s: string) => s === 'da_checkin' || s === 'dang_tu_van'
+const canReject = (s: string) => ['cho_xac_nhan', 'da_xac_nhan'].includes(s)
 
 export default function BookingsPage() {
   const [rows, setRows] = useState<Row[]>([])
@@ -29,20 +35,34 @@ export default function BookingsPage() {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('')
   const [reason, setReason] = useState('')
+  const [showRejectForm, setShowRejectForm] = useState(false)
   const [message, setMessage] = useState('')
+  const [msgTone, setMsgTone] = useState<'success' | 'error' | 'info'>('info')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [acting, setActing] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   async function load() {
-    const params = new URLSearchParams()
-    if (query) params.set('search', query)
-    if (status) params.set('status', status)
-    setRows(await expertGet<Row[]>(`/bookings${params.toString() ? `?${params}` : ''}`))
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (query) params.set('search', query)
+      if (status) params.set('status', status)
+      setRows(await expertGet<Row[]>(`/bookings${params.toString() ? `?${params}` : ''}`))
+    } catch (e: any) {
+      setMessage(e.message ?? 'Lỗi tải booking')
+      setMsgTone('error')
+    } finally {
+      setLoading(false)
+    }
   }
 
+  useEffect(() => { load() }, [status])
+
   useEffect(() => {
-    load().catch((err) => setMessage(err.message))
-  }, [status])
+    document.body.style.overflow = detail ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [detail])
 
   const stats = useMemo(() => ({
     total: rows.length,
@@ -52,18 +72,29 @@ export default function BookingsPage() {
   }), [rows])
 
   async function open(id: number) {
-    setDetail(await expertGet<Row>(`/bookings/${id}`))
-    setReason('')
-    setErrors({})
+    try {
+      const data = await expertGet<Row>(`/bookings/${id}`)
+      setDetail(data)
+      setReason('')
+      setShowRejectForm(false)
+      setErrors({})
+    } catch (e: any) {
+      setMessage(e.message ?? 'Lỗi tải chi tiết')
+      setMsgTone('error')
+    }
   }
 
-  async function action(id: number, path: string) {
+  async function action(id: number, path: string, label: string) {
     setActing(true)
     try {
       await (path === 'check-in' ? expertPost(`/bookings/${id}/${path}`) : expertPatch(`/bookings/${id}/${path}`))
-      setMessage('Đã cập nhật booking.')
+      setMessage(`✅ ${label}`)
+      setMsgTone('success')
       await load()
       await open(id)
+    } catch (e: any) {
+      setMessage(e.message ?? 'Lỗi')
+      setMsgTone('error')
     } finally {
       setActing(false)
     }
@@ -78,193 +109,298 @@ export default function BookingsPage() {
     setActing(true)
     try {
       await expertPatch(`/bookings/${detail.booking.id}/reject`, { ly_do: reason })
-      setMessage('Đã từ chối booking.')
+      setMessage('✅ Đã từ chối booking.')
+      setMsgTone('success')
       await load()
       setDetail(null)
+    } catch (e: any) {
+      setMessage(e.message ?? 'Lỗi từ chối')
+      setMsgTone('error')
     } finally {
       setActing(false)
     }
   }
 
-  const currentStatus = detail?.booking?.trang_thai ?? ''
-
   return (
     <>
-      <PageHeader
-        eyebrow='Lịch hẹn'
-        title='Quản lý booking tư vấn'
-        description='Theo dõi và xử lý lịch tư vấn. Lọc theo trạng thái, nhấn Chi tiết để xem và thao tác.'
+      <SectionHeader
+        title='Lịch hẹn của tôi'
+        subtitle='Quản lý và xử lý các booking tư vấn từ khách hàng.'
       />
-      {message ? <Notice>{message}</Notice> : null}
 
-      <div className='mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>
-        <StatCard label='Tổng booking' value={String(stats.total)} />
-        <StatCard label='Chờ xác nhận' value={String(stats.pending)} tone='orange' />
-        <StatCard label='Đang xử lý' value={String(stats.active)} tone='blue' />
-        <StatCard label='Hoàn thành' value={String(stats.completed)} tone='green' />
+      {message && <UserNotice tone={msgTone}>{message}</UserNotice>}
+
+      <div className='grid-stats'>
+        <UserStatCard label='Tổng booking' value={String(stats.total)} icon={CalendarCheck} tone='blue' />
+        <UserStatCard label='Chờ xác nhận' value={String(stats.pending)} icon={AlertCircle} tone='orange' />
+        <UserStatCard label='Đang xử lý' value={String(stats.active)} icon={Clock} tone='purple' />
+        <UserStatCard label='Hoàn thành' value={String(stats.completed)} icon={CheckCircle} tone='green' />
       </div>
 
-      <Panel title='Danh sách booking' description='Tìm theo khách hàng, mã lịch hoặc gói dịch vụ. Nhấn Chi tiết để xem và xử lý.'>
-        <Toolbar>
+      {/* Filter bar */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: '1 1 240px' }}>
+          <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
           <input
-            className={inputClass}
+            style={{ width: '100%', paddingLeft: 36, paddingRight: 12, paddingTop: 9, paddingBottom: 9, borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}
             placeholder='Tìm khách hàng, mã lịch, gói...'
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') load() }}
           />
-          <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value)}>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Filter size={15} style={{ color: '#94a3b8' }} />
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: 'white' }}
+          >
             <option value=''>Tất cả trạng thái</option>
-            {statuses.map((s) => (
-              <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-            ))}
+            {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
           </select>
-          <ActionButton tone='secondary' onClick={load}>Lọc</ActionButton>
-        </Toolbar>
+        </div>
+        <UserButton size='sm' variant='secondary' onClick={load}>Tìm kiếm</UserButton>
+      </div>
 
-        <DataTable minWidth='1060px'>
-          <thead>
-            <tr>
-              <Th>Mã lịch</Th>
-              <Th>Khách hàng</Th>
-              <Th>Gói</Th>
-              <Th>Ngày giờ</Th>
-              <Th>Mục đích</Th>
-              <Th>Trạng thái</Th>
-              <Th className='text-right'>Hành động</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr
-                key={row.id}
-                className='cursor-pointer transition-colors duration-150 hover:bg-emerald-50/60'
-                onClick={() => open(row.id)}
-              >
-                <Td><b className='font-mono text-xs'>{row.ma_lich_hen}</b></Td>
-                <Td>
-                  <p className='font-medium'>{row.customer_name}</p>
-                  <p className='text-xs text-slate-500'>{row.customer_email}</p>
-                </Td>
-                <Td>{row.ten_goi}</Td>
-                <Td>
-                  <p>{String(row.ngay_hen).slice(0, 10)}</p>
-                  <p className='text-xs text-slate-500'>{row.gio_bat_dau}</p>
-                </Td>
-                <Td><p className='line-clamp-2 max-w-xs text-sm'>{row.muc_dich ?? '—'}</p></Td>
-                <Td><StatusPill value={row.trang_thai} /></Td>
-                <Td className='text-right' onClick={(e) => e.stopPropagation()}>
-                  <ActionButton tone='secondary' onClick={() => open(row.id)}>Chi tiết</ActionButton>
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </DataTable>
-        {!rows.length ? <div className='mt-4'><EmptyState text='Chưa có booking theo bộ lọc.' /></div> : null}
-      </Panel>
+      {loading ? (
+        <Card><p style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Đang tải...</p></Card>
+      ) : rows.length === 0 ? (
+        <UserEmptyState
+          icon={CalendarCheck}
+          title='Chưa có booking'
+          description='Khi có khách đặt lịch, các booking sẽ xuất hiện ở đây.'
+        />
+      ) : (
+        <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))' }}>
+          {rows.map((row) => (
+            <BookingItem key={row.id} row={row} onOpen={() => open(row.id)} />
+          ))}
+        </div>
+      )}
 
-      <Modal
-        open={Boolean(detail)}
-        onClose={() => setDetail(null)}
-        title={detail ? `Booking ${detail.booking.ma_lich_hen}` : 'Chi tiết booking'}
-        description='Xem thông tin và thao tác theo đúng trạng thái nghiệp vụ.'
-        width='max-w-5xl'
-      >
-        {detail ? (
-          <div className='space-y-5'>
-            <div className='grid gap-3 md:grid-cols-3'>
-              <StatCard label='Khách hàng' value={detail.booking.customer_name} tone='slate' />
-              <StatCard label='Gói dịch vụ' value={detail.booking.ten_goi} />
-              <div className='flex flex-col justify-between rounded-2xl border border-slate-100 bg-slate-50 p-4'>
-                <p className='text-xs font-semibold uppercase tracking-wide text-slate-500'>Trạng thái</p>
-                <div className='mt-2'>
-                  <StatusPill value={currentStatus} />
-                </div>
+      {detail && (
+        <BookingDetailModal
+          detail={detail}
+          onClose={() => setDetail(null)}
+          onAction={action}
+          onShowReject={() => setShowRejectForm(true)}
+          showRejectForm={showRejectForm}
+          reason={reason}
+          setReason={(v) => { setReason(v); setErrors({}) }}
+          rejectError={errors.reason}
+          onReject={reject}
+          onCancelReject={() => { setShowRejectForm(false); setReason(''); setErrors({}) }}
+          acting={acting}
+        />
+      )}
+    </>
+  )
+}
+
+function BookingItem({ row, onOpen }: { row: Row; onOpen: () => void }) {
+  const isPending = row.trang_thai === 'cho_xac_nhan'
+  return (
+    <Card hover>
+      <div onClick={onOpen} style={{ cursor: 'pointer' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+          <div>
+            <p style={{ margin: 0, fontSize: 12, color: '#6366f1', fontWeight: 700, fontFamily: 'monospace' }}>
+              {row.ma_lich_hen}
+            </p>
+            <p style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 700, color: '#0f172a' }}>
+              {row.ten_goi}
+            </p>
+          </div>
+          <StatusBadge value={row.trang_thai} />
+        </div>
+
+        <div style={{ display: 'grid', gap: 6, fontSize: 13, color: '#475569', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <User size={13} style={{ color: '#94a3b8' }} />
+            <strong style={{ color: '#0f172a' }}>{row.customer_name}</strong>
+            {row.customer_email && <span style={{ color: '#94a3b8' }}>· {row.customer_email}</span>}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Clock size={13} style={{ color: '#94a3b8' }} />
+            {String(row.ngay_hen).slice(0, 10)} · {row.gio_bat_dau}
+          </div>
+          {row.muc_dich && (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+              <Target size={13} style={{ color: '#94a3b8', flexShrink: 0, marginTop: 2 }} />
+              <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                {row.muc_dich}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <UserButton size='sm' variant={isPending ? 'primary' : 'secondary'} onClick={onOpen}>
+            {isPending ? 'Cần xử lý' : 'Xem chi tiết'}
+          </UserButton>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function BookingDetailModal({
+  detail, onClose, onAction, onShowReject, showRejectForm, reason, setReason, rejectError, onReject, onCancelReject, acting,
+}: {
+  detail: Row
+  onClose: () => void
+  onAction: (id: number, path: string, label: string) => Promise<void>
+  onShowReject: () => void
+  showRejectForm: boolean
+  reason: string
+  setReason: (v: string) => void
+  rejectError?: string
+  onReject: () => void
+  onCancelReject: () => void
+  acting: boolean
+}) {
+  const b = detail.booking
+  const s = b.trang_thai
+  const timeline: Row[] = Array.isArray(detail.timeline) ? detail.timeline : []
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(15,23,42,.6)', zIndex: 9999,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+      animation: 'fadeIn 0.2s ease',
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        background: 'white', borderRadius: 20, maxWidth: 720, width: '100%',
+        maxHeight: '92vh', overflow: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,.25)',
+        animation: 'slideUp 0.3s ease',
+      }}>
+        {/* Header */}
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <p style={{ margin: 0, fontSize: 11, color: '#6366f1', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', fontFamily: 'monospace' }}>
+              {b.ma_lich_hen}
+            </p>
+            <h2 style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 800, color: '#0f172a' }}>
+              {b.ten_goi}
+            </h2>
+          </div>
+          <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: '50%', border: 'none', background: '#f1f5f9', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label='Đóng'>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div style={{ padding: 24 }}>
+          {/* Status banner */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 14, background: '#fafafa', borderRadius: 12, border: '1px solid #f1f5f9', marginBottom: 18 }}>
+            <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>Trạng thái hiện tại</span>
+            <StatusBadge value={s} />
+          </div>
+
+          {/* Customer + time info */}
+          <div style={{ display: 'grid', gap: 10, marginBottom: 18 }}>
+            <InfoRow icon={<User size={15} />} label='Khách hàng' value={b.customer_name} />
+            {b.customer_email && <InfoRow icon={<Mail size={15} />} label='Email' value={b.customer_email} />}
+            <InfoRow icon={<Clock size={15} />} label='Thời gian' value={`${String(b.ngay_hen).slice(0, 10)} · ${b.gio_bat_dau}`} />
+          </div>
+
+          {/* Mục đích */}
+          <div style={{ marginBottom: 18 }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Target size={14} style={{ color: '#6366f1' }} />
+              Mục đích tư vấn
+            </h3>
+            <p style={{ margin: 0, padding: 14, background: '#fafafa', borderRadius: 10, fontSize: 14, lineHeight: 1.6, color: b.muc_dich ? '#475569' : '#94a3b8', fontStyle: b.muc_dich ? 'normal' : 'italic' }}>
+              {b.muc_dich ?? 'Khách chưa nhập mục đích tư vấn.'}
+            </p>
+          </div>
+
+          {/* Action buttons */}
+          {(canConfirm(s) || canCheckin(s) || canComplete(s) || canReject(s)) && !showRejectForm && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: 14, background: 'linear-gradient(135deg, #faf5ff, #eff6ff)', borderRadius: 12, border: '1px solid #e0e7ff', marginBottom: 18 }}>
+              {canConfirm(s) && (
+                <UserButton onClick={() => onAction(b.id, 'confirm', 'Đã xác nhận booking')} disabled={acting}>
+                  <CheckCircle size={14} /> Xác nhận
+                </UserButton>
+              )}
+              {canCheckin(s) && (
+                <UserButton variant='secondary' onClick={() => onAction(b.id, 'check-in', 'Đã check-in khách')} disabled={acting}>
+                  <CheckCircle size={14} /> Check-in
+                </UserButton>
+              )}
+              {canComplete(s) && (
+                <UserButton onClick={() => onAction(b.id, 'complete', 'Đã hoàn thành buổi tư vấn')} disabled={acting}>
+                  <CheckCircle size={14} /> Hoàn thành
+                </UserButton>
+              )}
+              {canReject(s) && (
+                <UserButton variant='danger' onClick={onShowReject} disabled={acting}>
+                  <XCircle size={14} /> Từ chối
+                </UserButton>
+              )}
+            </div>
+          )}
+
+          {/* Reject form */}
+          {showRejectForm && (
+            <div style={{ marginBottom: 18, padding: 14, background: '#fff5f5', borderRadius: 12, border: '1px solid #fecaca' }}>
+              <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: '#dc2626' }}>Lý do từ chối *</p>
+              <textarea
+                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${rejectError ? '#fca5a5' : '#fecaca'}`, fontSize: 13, resize: 'vertical', minHeight: 72, outline: 'none' }}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder='Nhập lý do từ chối để khách hiểu...'
+              />
+              {rejectError && <p style={{ margin: '6px 0 0', fontSize: 12, color: '#dc2626' }}>{rejectError}</p>}
+              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                <UserButton size='sm' variant='danger' onClick={onReject} disabled={acting}>Xác nhận từ chối</UserButton>
+                <UserButton size='sm' variant='ghost' onClick={onCancelReject}>Huỷ</UserButton>
               </div>
             </div>
+          )}
 
-            <Panel title='Thông tin tư vấn'>
-              <div className='grid gap-4 text-sm md:grid-cols-2'>
-                <div className='rounded-2xl bg-slate-50 p-4'>
-                  <p className='text-xs text-slate-500'>Thời gian</p>
-                  <p className='mt-1 font-semibold'>{String(detail.booking.ngay_hen).slice(0, 10)} · {detail.booking.gio_bat_dau}</p>
-                </div>
-                <div className='rounded-2xl bg-slate-50 p-4'>
-                  <p className='text-xs text-slate-500'>Email khách</p>
-                  <p className='mt-1 font-semibold'>{detail.booking.customer_email ?? '—'}</p>
-                </div>
+          {/* Timeline */}
+          {timeline.length > 0 && (
+            <div>
+              <h3 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <History size={14} style={{ color: '#6366f1' }} />
+                Timeline ({timeline.length})
+              </h3>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {timeline.map((t) => (
+                  <div key={t.id} style={{ display: 'flex', gap: 12, padding: 12, background: '#fafafa', borderRadius: 10, border: '1px solid #f1f5f9' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1', marginTop: 6, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{t.su_kien}</p>
+                      {t.trang_thai_truoc && t.trang_thai_sau && (
+                        <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748b' }}>
+                          {STATUS_LABELS[t.trang_thai_truoc] ?? t.trang_thai_truoc} → <strong>{STATUS_LABELS[t.trang_thai_sau] ?? t.trang_thai_sau}</strong>
+                        </p>
+                      )}
+                      <p style={{ margin: '4px 0 0', fontSize: 11, color: '#94a3b8' }}>{String(t.tao_luc).slice(0, 19).replace('T', ' ')}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className='mt-4 rounded-2xl border border-slate-200 p-4 text-sm leading-6 text-slate-700'>
-                {detail.booking.muc_dich ?? 'Khách chưa nhập mục đích tư vấn.'}
-              </div>
-            </Panel>
+            </div>
+          )}
+        </div>
+      </div>
 
-            {/* Action buttons — chỉ hiển thị nếu status phù hợp */}
-            {(canConfirm(currentStatus) || canCheckin(currentStatus) || canComplete(currentStatus)) && (
-              <div className='flex flex-wrap justify-end gap-2'>
-                {canConfirm(currentStatus) && (
-                  <ActionButton onClick={() => action(detail.booking.id, 'confirm')} disabled={acting}>
-                    Xác nhận
-                  </ActionButton>
-                )}
-                {canCheckin(currentStatus) && (
-                  <ActionButton tone='secondary' onClick={() => action(detail.booking.id, 'check-in')} disabled={acting}>
-                    Check-in
-                  </ActionButton>
-                )}
-                {canComplete(currentStatus) && (
-                  <ActionButton tone='accent' onClick={() => action(detail.booking.id, 'complete')} disabled={acting}>
-                    Hoàn thành
-                  </ActionButton>
-                )}
-              </div>
-            )}
+      <style jsx>{`
+        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px) } to { opacity: 1; transform: translateY(0) } }
+      `}</style>
+    </div>
+  )
+}
 
-            {/* Từ chối — chỉ hiện khi còn có thể từ chối */}
-            {canReject(currentStatus) && (
-              <Panel title='Từ chối booking' description='Chỉ dùng khi không thể nhận lịch. Lý do sẽ được lưu vào lịch sử.'>
-                <Field label='Lý do từ chối' error={errors.reason}>
-                  <textarea
-                    className={inputClass}
-                    rows={3}
-                    value={reason}
-                    onChange={(e) => { setReason(e.target.value); setErrors({}) }}
-                    placeholder='Nhập lý do từ chối...'
-                  />
-                </Field>
-                <div className='mt-3 flex justify-end'>
-                  <ActionButton tone='danger' onClick={reject} disabled={acting}>Từ chối booking</ActionButton>
-                </div>
-              </Panel>
-            )}
-
-            <Panel title='Timeline'>
-              <DataTable minWidth='760px'>
-                <thead>
-                  <tr>
-                    <Th>Sự kiện</Th>
-                    <Th>Chuyển trạng thái</Th>
-                    <Th>Thời gian</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {detail.timeline?.map((row: Row) => (
-                    <tr key={row.id}>
-                      <Td>{row.su_kien}</Td>
-                      <Td>
-                        <span className='text-slate-400'>{STATUS_LABELS[row.trang_thai_truoc] ?? row.trang_thai_truoc}</span>
-                        {' → '}
-                        <span className='font-medium'>{STATUS_LABELS[row.trang_thai_sau] ?? row.trang_thai_sau}</span>
-                      </Td>
-                      <Td>{String(row.tao_luc).slice(0, 16)}</Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </DataTable>
-            </Panel>
-          </div>
-        ) : null}
-      </Modal>
-    </>
+function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#fafafa', borderRadius: 10, border: '1px solid #f1f5f9' }}>
+      <span style={{ color: '#94a3b8' }}>{icon}</span>
+      <span style={{ fontSize: 12, color: '#64748b', minWidth: 80 }}>{label}</span>
+      <span style={{ flex: 1, fontSize: 14, color: '#0f172a', fontWeight: 600, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
+    </div>
   )
 }

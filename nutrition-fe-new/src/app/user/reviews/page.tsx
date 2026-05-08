@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Star, Edit2, Trash2, MessageCircle } from 'lucide-react'
+import { Star, Edit2, Trash2, MessageCircle, Calendar, ChevronRight, Package } from 'lucide-react'
 import { SectionHeader, Card, UserButton, UserNotice, UserEmptyState, StatusBadge } from '@/components/user/user-ui'
 import { customerGet, customerPatch, customerDelete } from '@/lib/customer-api'
 
@@ -70,10 +70,40 @@ function ReviewCard({ review, onUpdated }: { review: Row; onUpdated: () => void 
 
   return (
     <Card hover>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-        <div>
-          <p style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{review.expert_name}</p>
-          <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{review.ten_goi} · {review.ma_lich_hen}</p>
+      {/* Booking header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 14, paddingBottom: 14, borderBottom: '1px dashed #e2e8f0' }}>
+        <div style={{
+          width: 48, height: 48, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+          background: '#e0e7ff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 18, fontWeight: 700, color: '#6366f1',
+        }}>
+          {review.anh_dai_dien_url
+            ? <img src={review.anh_dai_dien_url} alt={review.expert_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : (review.expert_name ?? 'E').charAt(0).toUpperCase()
+          }
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: 0 }}>{review.expert_name}</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 4, fontSize: 12, color: '#64748b' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Package size={11} /> {review.ten_goi}
+            </span>
+            {review.ngay_hen && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Calendar size={11} /> {String(review.ngay_hen).slice(0, 10)}
+              </span>
+            )}
+          </div>
+          <Link
+            href={`/user/bookings/${review.lich_hen_id}`}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 2, marginTop: 4,
+              fontSize: 11, color: '#6366f1', fontWeight: 600, fontFamily: 'monospace',
+              textDecoration: 'none',
+            }}
+          >
+            {review.ma_lich_hen} <ChevronRight size={11} />
+          </Link>
         </div>
         <StatusBadge value={review.trang_thai} />
       </div>

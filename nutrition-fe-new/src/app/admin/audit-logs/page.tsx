@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { ScrollText, Eye, ArrowRight, Search, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
-import { ActionButton, EmptyState, Notice, PageHeader, Panel, StatCard, Toolbar, inputClass } from '@/components/admin/admin-ui'
+import { ActionButton, EmptyState, JsonViewer, LoadingSkeleton, Notice, PageHeader, Panel, StatCard, Toolbar, inputClass } from '@/components/admin/admin-ui'
 import { DataTable, Modal, Td, Th } from '@/components/admin/admin-table'
 import { adminGet } from '@/lib/admin-api'
 
@@ -93,21 +93,10 @@ function fmt(value?: string | null) {
 
 /* Render JSON đẹp với highlight cơ bản */
 function JsonBlock({ value, label }: { value: any; label: string }) {
-  if (value === null || value === undefined) {
-    return (
-      <div>
-        <p className='mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500'>{label}</p>
-        <p className='rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs italic text-slate-400'>(không có)</p>
-      </div>
-    )
-  }
-  const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2)
   return (
     <div>
-      <p className='mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500'>{label}</p>
-      <pre className='max-h-80 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-800'>
-        {text}
-      </pre>
+      <p className='mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500'>{label}</p>
+      <JsonViewer data={value} maxHeight={320} />
     </div>
   )
 }

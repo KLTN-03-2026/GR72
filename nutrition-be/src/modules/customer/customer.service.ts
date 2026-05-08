@@ -932,7 +932,13 @@ export class CustomerService {
   async getPayment(accountId: number | undefined, paymentId: number) {
     const userId = await this.assertAccount(accountId);
     const [payment] = await this.dataSource.query(
-      `SELECT * FROM thanh_toan WHERE id = ? AND tai_khoan_id = ?`,
+      `SELECT tt.*, gdm.ma_goi_da_mua, gdm.so_luot_tong, gdm.so_luot_da_dung, gdm.so_luot_con_lai,
+              gdm.bat_dau_luc AS goi_bat_dau_luc, gdm.het_han_luc AS goi_het_han_luc,
+              gdv.ten_goi, gdv.loai_goi, gdv.thoi_han_ngay, gdv.so_luot_tu_van, gdv.thoi_luong_tu_van_phut, gdv.thumbnail_url AS goi_thumbnail_url
+       FROM thanh_toan tt
+       LEFT JOIN goi_da_mua gdm ON tt.loai_thanh_toan = 'mua_goi' AND gdm.id = tt.doi_tuong_id
+       LEFT JOIN goi_dich_vu gdv ON gdv.id = gdm.goi_dich_vu_id
+       WHERE tt.id = ? AND tt.tai_khoan_id = ?`,
       [paymentId, userId],
     );
     if (!payment) throw new NotFoundException('Khong tim thay giao dich');
@@ -941,7 +947,11 @@ export class CustomerService {
       `SELECT id, loai_webhook, hop_le, tao_luc FROM payment_webhook_log WHERE thanh_toan_id = ? ORDER BY tao_luc DESC`,
       [paymentId],
     );
-    return { ...payment, webhooks };
+    const refunds = await this.dataSource.query(
+      `SELECT id, so_tien AS so_tien_hoan, ly_do, trang_thai, tao_luc, xu_ly_luc AS hoan_tat_luc FROM refund WHERE thanh_toan_id = ? ORDER BY tao_luc DESC`,
+      [paymentId],
+    );
+    return { ...payment, webhooks, refunds };
   }
 
   async processPaymentWebhook(kind: 'return' | 'ipn', payload: Dict) {

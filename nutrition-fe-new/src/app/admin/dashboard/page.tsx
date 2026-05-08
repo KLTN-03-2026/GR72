@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import { TrendingUp, AlertCircle, MessageSquare, Wallet, Receipt, Users, Star, RefreshCw } from 'lucide-react'
 import { adminGet } from '@/lib/admin-api'
-import { ActionButton, Notice, PageHeader, Panel, money } from '@/components/admin/admin-ui'
+import { ActionButton, LoadingSkeleton, Notice, PageHeader, Panel, StatCard, money } from '@/components/admin/admin-ui'
 
 type Overview = {
   revenue: number
@@ -35,62 +36,27 @@ export default function AdminDashboardPage() {
   const [experts, setExperts] = useState<ExpertRow[]>([])
   const [error, setError] = useState('')
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
-  useEffect(() => {
-    Promise.all([
-      adminGet<Overview>('/overview'),
-      adminGet<ExpertRow[]>('/experts'),
-    ])
-      .then(([overviewData, expertRows]) => {
-        setOverview(overviewData)
-        setExperts(expertRows)
-        setLastUpdated(new Date())
-      })
-      .catch((err: Error) => setError(err.message))
-  }, [])
+  async function load() {
+    setRefreshing(true)
+    try {
+      const [overviewData, expertRows] = await Promise.all([
+        adminGet<Overview>('/overview'),
+        adminGet<ExpertRow[]>('/experts'),
+      ])
+      setOverview(overviewData)
+      setExperts(expertRows)
+      setLastUpdated(new Date())
+      setError('')
+    } catch (err: any) {
+      setError(err.message ?? 'Lỗi tải dashboard')
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
-  const chartRows = useMemo(() => {
-    if (!overview) return []
-    const successRate = overview.payments ? Math.round((overview.successfulPayments / overview.payments) * 100) : 0
-    const refundRate = overview.payments ? Math.round((overview.refundedPayments / overview.payments) * 100) : 0
-    return [
-      {
-        label: 'Thanh toán thành công',
-        value: overview.successfulPayments,
-        percent: successRate,
-        tone: 'bg-blue-500',
-        detail: `${overview.successfulPayments}/${overview.payments} giao dịch`,
-      },
-      {
-        label: 'Hoàn tiền',
-        value: overview.refundedPayments,
-        percent: refundRate,
-        tone: 'bg-rose-500',
-        detail: `${overview.refundedPayments}/${overview.payments} giao dịch`,
-      },
-      {
-        label: 'Khiếu nại mở',
-        value: overview.openComplaints,
-        percent: Math.min(100, overview.openComplaints * 8),
-        tone: 'bg-orange-500',
-        detail: 'Ticket cần phản hồi',
-      },
-      {
-        label: 'Review bị báo cáo',
-        value: overview.flaggedReviews,
-        percent: Math.min(100, overview.flaggedReviews * 10),
-        tone: 'bg-violet-500',
-        detail: 'Nội dung cần duyệt',
-      },
-      {
-        label: 'Hoa hồng chờ chi',
-        value: Number((overview.pendingCommission / 1000000).toFixed(1)),
-        percent: Math.min(100, Math.round((overview.pendingCommission / Math.max(overview.revenue, 1)) * 100)),
-        tone: 'bg-emerald-500',
-        detail: `${money(overview.pendingCommission)} đang chờ payout`,
-      },
-    ]
-  }, [overview])
+  useEffect(() => { load() }, [])
 
   const topExperts = useMemo(() => {
     return [...experts]
@@ -99,140 +65,213 @@ export default function AdminDashboardPage() {
         if (ratingDiff !== 0) return ratingDiff
         return Number(b.booking_count ?? 0) - Number(a.booking_count ?? 0)
       })
-      .slice(0, 10)
+      .slice(0, 8)
   }, [experts])
 
-  const priorityIssues = useMemo(() => {
-    if (!overview) return []
-    return [
-      {
-        issue: 'Khiếu nại mở',
-        value: overview.openComplaints,
-        severity: overview.openComplaints > 0 ? 'Cao' : 'Thấp',
-        action: '/admin/complaints',
-      },
-      {
-        issue: 'Review bị báo cáo',
-        value: overview.flaggedReviews,
-        severity: overview.flaggedReviews > 0 ? 'Trung bình' : 'Thấp',
-        action: '/admin/reviews',
-      },
-      {
-        issue: 'Giao dịch hoàn tiền',
-        value: overview.refundedPayments,
-        severity: overview.refundedPayments > 0 ? 'Trung bình' : 'Thấp',
-        action: '/admin/payments',
-      },
-      {
-        issue: 'Hoa hồng chờ chi',
-        value: money(overview.pendingCommission),
-        severity: overview.pendingCommission > 0 ? 'Trung bình' : 'Thấp',
-        action: '/admin/commissions',
-      },
-    ]
-  }, [overview])
+  const successRate = overview?.payments ? Math.round((overview.successfulPayments / overview.payments) * 100) : 0
+  const refundRate = overview?.payments ? Math.round((overview.refundedPayments / overview.payments) * 100) : 0
 
   return (
     <>
       <PageHeader
         eyebrow='Bảng điều hành'
         title='Bảng điều hành hệ thống'
-        description='Màn hình tổng hợp theo dữ liệu: biểu đồ vận hành, bảng xếp hạng chuyên gia và danh sách ưu tiên xử lý.'
-        action={<Link href='/admin/revenue'><ActionButton tone='accent'>Xem báo cáo doanh thu</ActionButton></Link>}
+        description='Tổng hợp KPI, chỉ số vận hành và các vấn đề cần xử lý ngay.'
+        action={
+          <div className='flex gap-2'>
+            <ActionButton tone='secondary' onClick={load} disabled={refreshing}>
+              <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+              {refreshing ? 'Đang tải...' : 'Làm mới'}
+            </ActionButton>
+            <Link href='/admin/revenue'><ActionButton tone='accent'>Xem doanh thu</ActionButton></Link>
+          </div>
+        }
       />
       {error ? <Notice tone='error'>{error}</Notice> : null}
 
       {!overview ? (
-        <Panel><p className='text-sm text-slate-500'>Đang tải dữ liệu dashboard...</p></Panel>
+        <Panel><LoadingSkeleton rows={4} /></Panel>
       ) : (
         <div className='space-y-5'>
+          {/* Key metrics */}
+          <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>
+            <StatCard
+              label='Doanh thu tổng'
+              value={money(overview.revenue)}
+              icon={TrendingUp}
+              tone='green'
+              caption={lastUpdated ? `Cập nhật ${lastUpdated.toLocaleTimeString('vi-VN')}` : undefined}
+            />
+            <StatCard
+              label='Tỉ lệ thành công'
+              value={`${successRate}%`}
+              icon={Receipt}
+              tone='blue'
+              caption={`${overview.successfulPayments}/${overview.payments} giao dịch`}
+            />
+            <StatCard
+              label='Hoa hồng chờ chi'
+              value={money(overview.pendingCommission)}
+              icon={Wallet}
+              tone='orange'
+            />
+            <StatCard
+              label='Gói đang bán'
+              value={String(overview.packages)}
+              icon={Users}
+              tone='slate'
+            />
+          </div>
+
+          {/* Priority issues - colored cards */}
+          <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'>
+            <PriorityCard
+              icon={MessageSquare}
+              label='Khiếu nại đang mở'
+              value={overview.openComplaints}
+              href='/admin/complaints'
+              critical={overview.openComplaints > 5}
+              warning={overview.openComplaints > 0}
+            />
+            <PriorityCard
+              icon={Star}
+              label='Review bị báo cáo'
+              value={overview.flaggedReviews}
+              href='/admin/reviews'
+              warning={overview.flaggedReviews > 0}
+            />
+            <PriorityCard
+              icon={RefreshCw}
+              label='Giao dịch hoàn tiền'
+              value={overview.refundedPayments}
+              href='/admin/payments'
+              warning={refundRate > 5}
+              caption={`${refundRate}% tổng giao dịch`}
+            />
+            <PriorityCard
+              icon={Wallet}
+              label='Hoa hồng chờ payout'
+              value={money(overview.pendingCommission)}
+              href='/admin/commissions'
+              warning={overview.pendingCommission > 0}
+              isText
+            />
+          </div>
+
+          {/* Operational chart */}
           <Panel
-            title='Biểu đồ vận hành hôm nay'
-            description='Các chỉ số trọng yếu để nhìn nhanh chất lượng hoạt động toàn hệ thống.'
-            action={<span className='text-xs font-semibold text-slate-500'>Cập nhật lúc {lastUpdated ? lastUpdated.toLocaleTimeString('vi-VN') : '--:--:--'}</span>}
+            title='Biểu đồ vận hành'
+            description='Các chỉ số trọng yếu để theo dõi chất lượng hoạt động.'
+            action={<span className='text-xs font-medium text-slate-500'>Cập nhật {lastUpdated ? lastUpdated.toLocaleTimeString('vi-VN') : '--:--'}</span>}
           >
             <div className='space-y-4'>
-              {chartRows.map((row) => (
-                <div key={row.label} className='space-y-1.5'>
-                  <div className='flex items-center justify-between gap-3 text-sm'>
-                    <p className='font-semibold text-slate-700'>{row.label}</p>
-                    <p className='font-semibold text-slate-950'>{row.value}</p>
-                  </div>
-                  <div className='h-2.5 overflow-hidden rounded-full bg-slate-100'>
-                    <div className={`${row.tone} h-full rounded-full`} style={{ width: `${Math.max(6, row.percent)}%` }} />
-                  </div>
-                  <p className='text-xs text-slate-500'>{row.detail}</p>
-                </div>
-              ))}
+              <ChartRow
+                label='Thanh toán thành công'
+                value={overview.successfulPayments}
+                total={overview.payments}
+                tone='emerald'
+              />
+              <ChartRow
+                label='Hoàn tiền'
+                value={overview.refundedPayments}
+                total={overview.payments}
+                tone='rose'
+              />
+              <ChartRow
+                label='Hoa hồng chờ / Doanh thu'
+                value={overview.pendingCommission}
+                total={Math.max(overview.revenue, 1)}
+                tone='amber'
+                isMoney
+              />
             </div>
           </Panel>
 
-          <div className='grid gap-5 xl:grid-cols-[1.35fr_1fr]'>
-            <Panel title='Bảng xếp hạng chuyên gia' description='Sắp xếp theo rating trung bình, ưu tiên chuyên gia có hiệu suất booking tốt.'>
-              <div className='overflow-x-auto'>
-                <table className='min-w-full text-sm'>
-                  <thead>
-                    <tr className='border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500'>
-                      <th className='px-3 py-2'>#</th>
-                      <th className='px-3 py-2'>Chuyên gia</th>
-                      <th className='px-3 py-2'>Chuyên môn</th>
-                      <th className='px-3 py-2'>Rating</th>
-                      <th className='px-3 py-2'>Bookings</th>
-                      <th className='px-3 py-2'>Gói</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {topExperts.map((row, index) => (
-                      <tr key={row.id} className='border-b border-slate-100 hover:bg-slate-50'>
-                        <td className='px-3 py-3 font-semibold text-slate-700'>{index + 1}</td>
-                        <td className='px-3 py-3'>
-                          <p className='font-semibold text-slate-900'>{row.ho_ten}</p>
-                          <p className='text-xs text-slate-500'>{row.email}</p>
-                        </td>
-                        <td className='px-3 py-3 text-slate-700'>{row.chuyen_mon ?? '-'}</td>
-                        <td className='px-3 py-3 font-semibold text-slate-900'>{Number(row.diem_danh_gia_trung_binh ?? 0).toFixed(1)} <span className='text-xs text-slate-500'>({row.so_luot_danh_gia ?? 0})</span></td>
-                        <td className='px-3 py-3 text-slate-700'>{row.booking_count ?? 0}</td>
-                        <td className='px-3 py-3 text-slate-700'>{row.package_count ?? 0}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {/* Top experts */}
+          <Panel
+            title='Top chuyên gia'
+            description='Sắp xếp theo rating, sau đó theo số booking.'
+            action={<Link href='/admin/experts'><ActionButton tone='secondary'>Xem tất cả</ActionButton></Link>}
+          >
+            {topExperts.length === 0 ? (
+              <p className='py-8 text-center text-sm text-slate-400'>Chưa có dữ liệu chuyên gia.</p>
+            ) : (
+              <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>
+                {topExperts.map((row, idx) => (
+                  <div key={row.id} className='flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 transition-colors hover:border-blue-200'>
+                    <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold ${idx < 3 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'}`}>
+                      {idx + 1}
+                    </div>
+                    <div className='min-w-0 flex-1'>
+                      <p className='truncate text-sm font-semibold text-slate-900'>{row.ho_ten}</p>
+                      <p className='truncate text-xs text-slate-500'>{row.chuyen_mon ?? '—'}</p>
+                      <div className='mt-1 flex items-center gap-3 text-xs'>
+                        <span className='inline-flex items-center gap-1 font-semibold text-amber-600'>
+                          <Star size={11} fill='currentColor' />
+                          {Number(row.diem_danh_gia_trung_binh ?? 0).toFixed(1)}
+                        </span>
+                        <span className='text-slate-500'>{row.booking_count ?? 0} booking</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className='mt-4 flex justify-end'>
-                <Link href='/admin/experts'><ActionButton tone='secondary'>Xem toàn bộ chuyên gia</ActionButton></Link>
-              </div>
-            </Panel>
-
-            <Panel title='Bảng ưu tiên xử lý' description='Các khu vực admin cần xử lý theo mức ảnh hưởng hiện tại.'>
-              <div className='overflow-x-auto'>
-                <table className='min-w-full text-sm'>
-                  <thead>
-                    <tr className='border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500'>
-                      <th className='px-3 py-2'>Hạng mục</th>
-                      <th className='px-3 py-2'>Giá trị</th>
-                      <th className='px-3 py-2'>Mức độ</th>
-                      <th className='px-3 py-2 text-right'>Đi đến</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {priorityIssues.map((row) => (
-                      <tr key={row.issue} className='border-b border-slate-100 hover:bg-slate-50'>
-                        <td className='px-3 py-3 font-semibold text-slate-900'>{row.issue}</td>
-                        <td className='px-3 py-3 text-slate-700'>{row.value}</td>
-                        <td className='px-3 py-3 text-slate-700'>{row.severity}</td>
-                        <td className='px-3 py-3 text-right'>
-                          <Link href={row.action} className='text-xs font-semibold text-[#2563EB] hover:underline'>Mở</Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Panel>
-          </div>
+            )}
+          </Panel>
         </div>
       )}
     </>
   )
 }
 
+function PriorityCard({
+  icon: Icon, label, value, href, critical, warning, caption, isText,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string }>
+  label: string
+  value: number | string
+  href: string
+  critical?: boolean
+  warning?: boolean
+  caption?: string
+  isText?: boolean
+}) {
+  const tone = critical
+    ? 'border-red-200 bg-red-50 text-red-700'
+    : warning
+      ? 'border-orange-200 bg-orange-50 text-orange-700'
+      : 'border-slate-200 bg-white text-slate-700'
+
+  return (
+    <Link href={href} className={`group flex items-center gap-3 rounded-2xl border p-4 transition-all hover:shadow-md ${tone}`}>
+      <div className='flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/80'>
+        <Icon size={18} />
+      </div>
+      <div className='min-w-0 flex-1'>
+        <p className='text-xs font-semibold uppercase tracking-wide opacity-70'>{label}</p>
+        <p className={`mt-0.5 font-bold leading-tight ${isText ? 'text-base' : 'text-2xl'}`}>{value}</p>
+        {caption && <p className='mt-1 text-xs opacity-70'>{caption}</p>}
+      </div>
+      <span className='text-xs font-semibold opacity-0 transition-opacity group-hover:opacity-100'>→</span>
+    </Link>
+  )
+}
+
+function ChartRow({ label, value, total, tone, isMoney }: { label: string; value: number; total: number; tone: 'emerald' | 'rose' | 'amber'; isMoney?: boolean }) {
+  const percent = total ? Math.round((value / total) * 100) : 0
+  const toneBg = { emerald: 'bg-emerald-500', rose: 'bg-rose-500', amber: 'bg-amber-500' }[tone]
+  return (
+    <div>
+      <div className='mb-1.5 flex items-baseline justify-between gap-2 text-sm'>
+        <p className='font-medium text-slate-700'>{label}</p>
+        <p className='font-bold text-slate-950'>
+          {isMoney ? money(value) : value}
+          <span className='ml-2 text-xs font-medium text-slate-500'>({percent}%)</span>
+        </p>
+      </div>
+      <div className='h-2.5 overflow-hidden rounded-full bg-slate-100'>
+        <div className={`${toneBg} h-full rounded-full transition-all duration-500`} style={{ width: `${Math.max(2, percent)}%` }} />
+      </div>
+    </div>
+  )
+}

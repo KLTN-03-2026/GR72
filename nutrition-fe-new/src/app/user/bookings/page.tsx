@@ -5,13 +5,13 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
   CalendarCheck, Clock, User, ChevronRight, Search, Filter,
-  Star, CheckCircle, XCircle, RotateCcw, LogIn,
+  Star, CheckCircle, XCircle, RotateCcw,
 } from 'lucide-react'
 import {
   SectionHeader, Card, UserStatCard, UserButton, UserNotice,
   UserEmptyState, StatusBadge, money,
 } from '@/components/user/user-ui'
-import { customerGet, customerPatch, customerPost } from '@/lib/customer-api'
+import { customerGet, customerPatch } from '@/lib/customer-api'
 
 type Row = Record<string, any>
 
@@ -41,7 +41,6 @@ function BookingCard({ booking, onAction }: { booking: Row; onAction: () => void
 
   const canCancel = ['cho_xac_nhan', 'cho_thanh_toan', 'da_xac_nhan'].includes(booking.trang_thai)
   const canReschedule = ['cho_xac_nhan', 'da_xac_nhan'].includes(booking.trang_thai)
-  const canCheckin = booking.trang_thai === 'da_xac_nhan'
   const canReview = booking.trang_thai === 'hoan_thanh' && !booking.da_danh_gia
 
   async function handleCancel() {
@@ -62,15 +61,6 @@ function BookingCard({ booking, onAction }: { booking: Row; onAction: () => void
       await customerPatch(`/bookings/${booking.id}/reschedule`, { start_at: new Date(newTime).toISOString() })
       setMsg('✅ Đã đổi lịch thành công.')
       setShowRescheduleForm(false)
-      onAction()
-    } catch (e: any) { setMsg(e.message ?? 'Lỗi') } finally { setLoading(false) }
-  }
-
-  async function handleCheckin() {
-    setLoading(true)
-    try {
-      await customerPost(`/bookings/${booking.id}/check-in`)
-      setMsg('✅ Check-in thành công!')
       onAction()
     } catch (e: any) { setMsg(e.message ?? 'Lỗi') } finally { setLoading(false) }
   }
@@ -135,7 +125,6 @@ function BookingCard({ booking, onAction }: { booking: Row; onAction: () => void
         <Link href={`/user/bookings/${booking.id}`}>
           <UserButton size='sm' variant='secondary'>Chi tiết <ChevronRight size={12} /></UserButton>
         </Link>
-        {canCheckin && <UserButton size='sm' onClick={handleCheckin} disabled={loading}><LogIn size={12} /> Check-in</UserButton>}
         {canReschedule && !showRescheduleForm && (
           <UserButton size='sm' variant='secondary' onClick={() => { setShowRescheduleForm(true); setShowCancelForm(false) }}>
             <RotateCcw size={12} /> Đổi lịch

@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarCheck, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
-import { ActionButton, EmptyState, Field, Notice, PageHeader, Panel, StatCard, StatusPill, Toolbar, inputClass, money } from '@/components/admin/admin-ui'
+import {
+  ActionButton, EmptyState, Field, FilterChip, LoadingSkeleton, Notice,
+  PageHeader, Panel, StatCard, StatusPill, SummaryBar, inputClass, money,
+} from '@/components/admin/admin-ui'
+import { Search } from 'lucide-react'
 import { DataTable, Modal, Td, Th } from '@/components/admin/admin-table'
 import { adminGet, adminPatch } from '@/lib/admin-api'
 
@@ -134,24 +138,31 @@ export default function AdminBookingsPage() {
 
       <Panel
         title='Danh sách booking'
-        description='Lọc theo trạng thái, ngày, hoặc tìm theo mã lịch / tên khách / chuyên gia / gói. Nhấn dòng để xem chi tiết.'
+        description='Bấm vào hàng để xem chi tiết và timeline.'
       >
-        <Toolbar>
-          <input
-            className={inputClass}
-            placeholder='Tìm mã lịch, khách hàng, chuyên gia, gói...'
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') load() }}
-          />
-          <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value=''>Tất cả trạng thái</option>
-            {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-          </select>
+        <div className='mb-3 grid gap-2 sm:grid-cols-[1fr_auto_auto_auto]'>
+          <div className='relative'>
+            <Search size={15} className='absolute left-3 top-1/2 -translate-y-1/2 text-slate-400' />
+            <input
+              className={`${inputClass} pl-10`}
+              placeholder='Tìm mã lịch, khách hàng, chuyên gia, gói...'
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') load() }}
+            />
+          </div>
           <input type='date' className={inputClass} value={from} onChange={(e) => setFrom(e.target.value)} aria-label='Từ ngày' />
           <input type='date' className={inputClass} value={to} onChange={(e) => setTo(e.target.value)} aria-label='Đến ngày' />
-          <ActionButton tone='secondary' onClick={load}>Lọc</ActionButton>
-        </Toolbar>
+          <ActionButton tone='secondary' onClick={load}>Áp dụng</ActionButton>
+        </div>
+
+        <div className='mb-4 flex flex-wrap items-center gap-2'>
+          <span className='text-xs font-semibold uppercase text-slate-500'>Trạng thái:</span>
+          <FilterChip active={!status} onClick={() => setStatus('')}>Tất cả</FilterChip>
+          {STATUS_OPTIONS.map((s) => <FilterChip key={s} active={status === s} onClick={() => setStatus(s)}>{STATUS_LABELS[s]}</FilterChip>)}
+        </div>
+
+        {loading && rows.length === 0 ? <LoadingSkeleton rows={5} /> : null}
 
         <DataTable minWidth='1100px'>
           <thead>
@@ -195,6 +206,15 @@ export default function AdminBookingsPage() {
           </tbody>
         </DataTable>
         {!rows.length && !loading ? <div className='mt-4'><EmptyState text='Không có booking phù hợp với bộ lọc.' /></div> : null}
+
+        {rows.length > 0 && (
+          <SummaryBar items={[
+            { label: 'Tổng', value: String(rows.length), tone: 'slate' },
+            { label: 'Hoàn thành', value: String(rows.filter(r => r.trang_thai === 'hoan_thanh').length), tone: 'green' },
+            { label: 'Đã hủy', value: String(rows.filter(r => r.trang_thai === 'da_huy').length), tone: 'red' },
+            { label: 'Đang xử lý', value: String(rows.filter(r => ['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'cho_xac_nhan'].includes(r.trang_thai)).length), tone: 'orange' },
+          ]} />
+        )}
       </Panel>
 
       {/* Detail modal */}

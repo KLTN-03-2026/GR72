@@ -22,6 +22,7 @@ import {
   Utensils,
   UserCircle2,
   Bot,
+  Camera,
 } from 'lucide-react'
 import { LogoutButton } from '@/components/dashboard/logout-button'
 import { UserNotificationBell } from '@/components/user/user-notification-bell'
@@ -43,6 +44,7 @@ const navItems = [
   { label: 'Gợi ý sức khỏe', href: '/user/health-recommendations', icon: Sparkles, description: 'Kế hoạch sức khỏe' },
   { label: 'Dinh dưỡng', href: '/user/wellness-recommendations', icon: Utensils, description: 'Dinh dưỡng & tập luyện' },
   { label: 'Trợ lý AI', href: '/user/ai-chat', icon: Bot, description: 'Hỏi đáp AI sức khỏe' },
+  { label: 'Phân tích món ăn AI', href: '/user/food-analyzer', icon: Camera, description: 'Upload ảnh món → ước lượng calo' },
 ]
 
 

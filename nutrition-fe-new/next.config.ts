@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
         destination: `${process.env.BACKEND_URL ?? 'http://127.0.0.1:8009'}/uploads/:path*`,
       },
       {
+        source: '/ai/:path*',
+        destination: `${process.env.AI_URL ?? 'http://127.0.0.1:8888'}/:path*`,
+      },
+      {
         source: '/api/:path*',
         destination: `${process.env.BACKEND_URL ?? 'http://127.0.0.1:8009'}/:path*`,
       },

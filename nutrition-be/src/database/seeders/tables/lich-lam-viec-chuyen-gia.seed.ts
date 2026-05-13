@@ -2,65 +2,81 @@ import type { TableSeeder } from '../types';
 
 // thu_trong_tuan: 1=CN, 2=T2, 3=T3, 4=T4, 5=T5, 6=T6, 7=T7
 const T = '2026-01-06 09:00:00';
+
+type Slot = {
+  chuyen_gia_id: number;
+  thu_trong_tuan: number;
+  gio_bat_dau: string;
+  gio_ket_thuc: string;
+  thoi_luong_slot_phut: number;
+};
+
+// 6 khung chuẩn cho mỗi ngày: 6:30, 9, 12, 14, 17, 20 — đảm bảo full-time
+const STANDARD_FRAMES: Array<[string, string]> = [
+  ['06:30:00', '09:00:00'],   // Sáng sớm
+  ['09:00:00', '12:00:00'],   // Sáng
+  ['13:30:00', '17:00:00'],   // Chiều
+  ['17:30:00', '20:30:00'],   // Tối
+];
+
+// Frame gọn hơn cho cuối tuần (CN, T7)
+const WEEKEND_FRAMES: Array<[string, string]> = [
+  ['07:00:00', '11:00:00'],
+  ['14:00:00', '17:30:00'],
+];
+
+// Build helper: mỗi expert được gán: T2-T6 đầy đủ 4 frames + T7/CN 2 frames
+function buildExpertSchedule(
+  expertId: number,
+  slotMinutes: number,
+): Slot[] {
+  const slots: Slot[] = [];
+  // T2 → T6
+  for (let day = 2; day <= 6; day++) {
+    for (const [start, end] of STANDARD_FRAMES) {
+      slots.push({ chuyen_gia_id: expertId, thu_trong_tuan: day, gio_bat_dau: start, gio_ket_thuc: end, thoi_luong_slot_phut: slotMinutes });
+    }
+  }
+  // T7
+  for (const [start, end] of WEEKEND_FRAMES) {
+    slots.push({ chuyen_gia_id: expertId, thu_trong_tuan: 7, gio_bat_dau: start, gio_ket_thuc: end, thoi_luong_slot_phut: slotMinutes });
+  }
+  // CN
+  for (const [start, end] of WEEKEND_FRAMES) {
+    slots.push({ chuyen_gia_id: expertId, thu_trong_tuan: 1, gio_bat_dau: start, gio_ket_thuc: end, thoi_luong_slot_phut: slotMinutes });
+  }
+  return slots;
+}
+
+// 7 chuyên gia active (1, 2, 3, 4, 5, 6, 8) — Expert 7 đang `cho_duyet` nên không có lịch
+const EXPERT_CONFIG: Array<{ id: number; slotMinutes: number }> = [
+  { id: 1, slotMinutes: 45 },
+  { id: 2, slotMinutes: 45 },
+  { id: 3, slotMinutes: 60 }, // PT, slot dài hơn
+  { id: 4, slotMinutes: 45 },
+  { id: 5, slotMinutes: 45 },
+  { id: 6, slotMinutes: 60 },
+  { id: 8, slotMinutes: 45 },
+];
+
+const allSlots: Slot[] = [];
+for (const cfg of EXPERT_CONFIG) {
+  allSlots.push(...buildExpertSchedule(cfg.id, cfg.slotMinutes));
+}
+
 const lich_lam_viec_chuyen_giaSeeder: TableSeeder = {
   table: 'lich_lam_viec_chuyen_gia',
-  rows: [
-    // ─── Expert 1 (ThS Lê Minh Phương) — full-time, đa khung giờ T2/T4/T6 + tối T5 ───
-    { id: 1,  chuyen_gia_id: 1, thu_trong_tuan: 2, gio_bat_dau: '07:00:00', gio_ket_thuc: '11:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T },
-    { id: 2,  chuyen_gia_id: 1, thu_trong_tuan: 2, gio_bat_dau: '13:30:00', gio_ket_thuc: '17:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T },
-    { id: 3,  chuyen_gia_id: 1, thu_trong_tuan: 4, gio_bat_dau: '07:00:00', gio_ket_thuc: '11:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T },
-    { id: 4,  chuyen_gia_id: 1, thu_trong_tuan: 4, gio_bat_dau: '13:30:00', gio_ket_thuc: '17:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T },
-    { id: 5,  chuyen_gia_id: 1, thu_trong_tuan: 5, gio_bat_dau: '18:00:00', gio_ket_thuc: '21:00:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T }, // Tối T5
-    { id: 6,  chuyen_gia_id: 1, thu_trong_tuan: 6, gio_bat_dau: '07:00:00', gio_ket_thuc: '11:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T },
-
-    // ─── Expert 2 (BS Nguyễn Thu Hà) — sáng + tối T3/T5, full cuối tuần ───
-    { id: 7,  chuyen_gia_id: 2, thu_trong_tuan: 3, gio_bat_dau: '06:30:00', gio_ket_thuc: '10:00:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T }, // Sáng sớm
-    { id: 8,  chuyen_gia_id: 2, thu_trong_tuan: 3, gio_bat_dau: '19:00:00', gio_ket_thuc: '21:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T }, // Tối
-    { id: 9,  chuyen_gia_id: 2, thu_trong_tuan: 5, gio_bat_dau: '06:30:00', gio_ket_thuc: '10:00:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T },
-    { id: 10, chuyen_gia_id: 2, thu_trong_tuan: 5, gio_bat_dau: '19:00:00', gio_ket_thuc: '21:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T },
-    { id: 11, chuyen_gia_id: 2, thu_trong_tuan: 7, gio_bat_dau: '08:00:00', gio_ket_thuc: '11:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T }, // T7 sáng
-    { id: 12, chuyen_gia_id: 2, thu_trong_tuan: 7, gio_bat_dau: '14:00:00', gio_ket_thuc: '17:00:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T },
-    { id: 13, chuyen_gia_id: 2, thu_trong_tuan: 1, gio_bat_dau: '08:00:00', gio_ket_thuc: '11:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T }, // CN
-
-    // ─── Expert 3 (PT Trần Văn Khải) — sau giờ làm, cuối tuần (gym đối tượng) ───
-    { id: 14, chuyen_gia_id: 3, thu_trong_tuan: 2, gio_bat_dau: '17:30:00', gio_ket_thuc: '21:30:00', thoi_luong_slot_phut: 60, trang_thai: 'hoat_dong', tao_luc: '2026-01-07 09:00:00', cap_nhat_luc: '2026-01-07 09:00:00' },
-    { id: 15, chuyen_gia_id: 3, thu_trong_tuan: 4, gio_bat_dau: '17:30:00', gio_ket_thuc: '21:30:00', thoi_luong_slot_phut: 60, trang_thai: 'hoat_dong', tao_luc: '2026-01-07 09:00:00', cap_nhat_luc: '2026-01-07 09:00:00' },
-    { id: 16, chuyen_gia_id: 3, thu_trong_tuan: 6, gio_bat_dau: '17:30:00', gio_ket_thuc: '21:30:00', thoi_luong_slot_phut: 60, trang_thai: 'hoat_dong', tao_luc: '2026-01-07 09:00:00', cap_nhat_luc: '2026-01-07 09:00:00' },
-    { id: 17, chuyen_gia_id: 3, thu_trong_tuan: 7, gio_bat_dau: '07:00:00', gio_ket_thuc: '11:00:00', thoi_luong_slot_phut: 60, trang_thai: 'hoat_dong', tao_luc: '2026-01-07 09:00:00', cap_nhat_luc: '2026-01-07 09:00:00' }, // T7 sáng sớm
-    { id: 18, chuyen_gia_id: 3, thu_trong_tuan: 7, gio_bat_dau: '15:00:00', gio_ket_thuc: '19:00:00', thoi_luong_slot_phut: 60, trang_thai: 'hoat_dong', tao_luc: '2026-01-07 09:00:00', cap_nhat_luc: '2026-01-07 09:00:00' },
-    { id: 19, chuyen_gia_id: 3, thu_trong_tuan: 1, gio_bat_dau: '07:00:00', gio_ket_thuc: '11:00:00', thoi_luong_slot_phut: 60, trang_thai: 'hoat_dong', tao_luc: '2026-01-07 09:00:00', cap_nhat_luc: '2026-01-07 09:00:00' }, // CN sáng
-
-    // ─── Expert 4 (ThS Phạm Ngọc Linh) — đa dạng cả ngày, tối T2 ───
-    { id: 20, chuyen_gia_id: 4, thu_trong_tuan: 2, gio_bat_dau: '09:00:00', gio_ket_thuc: '12:00:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: '2026-01-08 09:00:00', cap_nhat_luc: '2026-01-08 09:00:00' },
-    { id: 21, chuyen_gia_id: 4, thu_trong_tuan: 2, gio_bat_dau: '19:30:00', gio_ket_thuc: '21:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: '2026-01-08 09:00:00', cap_nhat_luc: '2026-01-08 09:00:00' }, // Tối
-    { id: 22, chuyen_gia_id: 4, thu_trong_tuan: 3, gio_bat_dau: '09:00:00', gio_ket_thuc: '12:00:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: '2026-01-08 09:00:00', cap_nhat_luc: '2026-01-08 09:00:00' },
-    { id: 23, chuyen_gia_id: 4, thu_trong_tuan: 3, gio_bat_dau: '14:00:00', gio_ket_thuc: '17:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: '2026-01-08 09:00:00', cap_nhat_luc: '2026-01-08 09:00:00' },
-    { id: 24, chuyen_gia_id: 4, thu_trong_tuan: 5, gio_bat_dau: '09:00:00', gio_ket_thuc: '12:00:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: '2026-01-08 09:00:00', cap_nhat_luc: '2026-01-08 09:00:00' },
-    { id: 25, chuyen_gia_id: 4, thu_trong_tuan: 5, gio_bat_dau: '14:00:00', gio_ket_thuc: '17:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: '2026-01-08 09:00:00', cap_nhat_luc: '2026-01-08 09:00:00' },
-    { id: 26, chuyen_gia_id: 4, thu_trong_tuan: 7, gio_bat_dau: '09:00:00', gio_ket_thuc: '12:00:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: '2026-01-08 09:00:00', cap_nhat_luc: '2026-01-08 09:00:00' }, // T7
-
-    // ─── Expert 5 (TS Vũ Thị Mai Anh) — chuyên gia hàng đầu, đa khung ───
-    { id: 27, chuyen_gia_id: 5, thu_trong_tuan: 2, gio_bat_dau: '08:00:00', gio_ket_thuc: '11:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T },
-    { id: 28, chuyen_gia_id: 5, thu_trong_tuan: 2, gio_bat_dau: '14:00:00', gio_ket_thuc: '17:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T },
-    { id: 29, chuyen_gia_id: 5, thu_trong_tuan: 3, gio_bat_dau: '08:00:00', gio_ket_thuc: '11:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T },
-    { id: 30, chuyen_gia_id: 5, thu_trong_tuan: 4, gio_bat_dau: '08:00:00', gio_ket_thuc: '11:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T },
-    { id: 31, chuyen_gia_id: 5, thu_trong_tuan: 4, gio_bat_dau: '20:00:00', gio_ket_thuc: '22:00:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T }, // Tối muộn T4
-    { id: 32, chuyen_gia_id: 5, thu_trong_tuan: 5, gio_bat_dau: '08:00:00', gio_ket_thuc: '11:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T },
-    { id: 33, chuyen_gia_id: 5, thu_trong_tuan: 6, gio_bat_dau: '08:00:00', gio_ket_thuc: '11:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T },
-    { id: 34, chuyen_gia_id: 5, thu_trong_tuan: 6, gio_bat_dau: '14:00:00', gio_ket_thuc: '17:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: T, cap_nhat_luc: T },
-
-    // ─── Expert 6 (BS Đỗ Thanh Bình) — văn phòng, hơi rộng ───
-    { id: 35, chuyen_gia_id: 6, thu_trong_tuan: 3, gio_bat_dau: '09:00:00', gio_ket_thuc: '17:00:00', thoi_luong_slot_phut: 60, trang_thai: 'hoat_dong', tao_luc: '2026-01-09 09:00:00', cap_nhat_luc: '2026-01-09 09:00:00' },
-    { id: 36, chuyen_gia_id: 6, thu_trong_tuan: 5, gio_bat_dau: '09:00:00', gio_ket_thuc: '17:00:00', thoi_luong_slot_phut: 60, trang_thai: 'hoat_dong', tao_luc: '2026-01-09 09:00:00', cap_nhat_luc: '2026-01-09 09:00:00' },
-
-    // ─── Expert 8 (ThS Lý Quốc Bảo) — sáng + cuối tuần ───
-    { id: 37, chuyen_gia_id: 8, thu_trong_tuan: 2, gio_bat_dau: '09:00:00', gio_ket_thuc: '12:00:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: '2026-01-10 09:00:00', cap_nhat_luc: '2026-01-10 09:00:00' },
-    { id: 38, chuyen_gia_id: 8, thu_trong_tuan: 4, gio_bat_dau: '09:00:00', gio_ket_thuc: '12:00:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: '2026-01-10 09:00:00', cap_nhat_luc: '2026-01-10 09:00:00' },
-    { id: 39, chuyen_gia_id: 8, thu_trong_tuan: 6, gio_bat_dau: '20:00:00', gio_ket_thuc: '21:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: '2026-01-10 09:00:00', cap_nhat_luc: '2026-01-10 09:00:00' }, // Tối T6
-    { id: 40, chuyen_gia_id: 8, thu_trong_tuan: 7, gio_bat_dau: '08:00:00', gio_ket_thuc: '11:30:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: '2026-01-10 09:00:00', cap_nhat_luc: '2026-01-10 09:00:00' },
-    { id: 41, chuyen_gia_id: 8, thu_trong_tuan: 7, gio_bat_dau: '14:00:00', gio_ket_thuc: '17:00:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: '2026-01-10 09:00:00', cap_nhat_luc: '2026-01-10 09:00:00' },
-    { id: 42, chuyen_gia_id: 8, thu_trong_tuan: 1, gio_bat_dau: '14:00:00', gio_ket_thuc: '17:00:00', thoi_luong_slot_phut: 45, trang_thai: 'hoat_dong', tao_luc: '2026-01-10 09:00:00', cap_nhat_luc: '2026-01-10 09:00:00' }, // CN
-  ],
+  rows: allSlots.map((s, idx) => ({
+    id: idx + 1,
+    chuyen_gia_id: s.chuyen_gia_id,
+    thu_trong_tuan: s.thu_trong_tuan,
+    gio_bat_dau: s.gio_bat_dau,
+    gio_ket_thuc: s.gio_ket_thuc,
+    thoi_luong_slot_phut: s.thoi_luong_slot_phut,
+    trang_thai: 'hoat_dong',
+    tao_luc: T,
+    cap_nhat_luc: T,
+  })),
 };
 
 export default lich_lam_viec_chuyen_giaSeeder;

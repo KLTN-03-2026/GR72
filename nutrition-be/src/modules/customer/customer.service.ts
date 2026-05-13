@@ -595,11 +595,15 @@ export class CustomerService {
         const endTime = new Date(date);
         endTime.setHours(endH, endM, 0, 0);
 
+        // Buffer 30 phút: chuyên gia cần thời gian chuẩn bị, không cho book sát giờ
+        const MIN_LEAD_TIME_MS = 30 * 60 * 1000;
+        const minBookableTime = Date.now() + MIN_LEAD_TIME_MS;
+
         while (cursor.getTime() + duration * 60 * 1000 <= endTime.getTime()) {
           const candidateStart = cursor.getTime();
           const candidateEnd = candidateStart + duration * 60 * 1000;
           const isBusy = busyRanges.some((range) => candidateStart < range.end && candidateEnd > range.start);
-          if (!isBusy && candidateStart > Date.now()) {
+          if (!isBusy && candidateStart > minBookableTime) {
             const startAt = new Date(candidateStart);
             const endAt = new Date(candidateEnd);
             slots.push({

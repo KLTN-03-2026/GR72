@@ -13,6 +13,13 @@ function ExpertsContent() {
   const params = useSearchParams()
   const packagePurchaseId = params.get('packagePurchaseId')
 
+  // Tick mỗi phút để re-filter slot quá khứ
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000)
+    return () => clearInterval(timer)
+  }, [])
+
   const [rows, setRows] = useState<Row[]>([])
   const [message, setMessage] = useState('')
 
@@ -66,7 +73,14 @@ function ExpertsContent() {
     setLoadingSlots(true)
     try {
       const data = await customerGet<Row>(`/experts/${expert.expert_id}/available-slots?packagePurchaseId=${packagePurchaseId}&days=14`)
-      const nextSlots = data.slots ?? []
+      // Dedupe theo start_at vì BE đôi khi trả slot trùng
+      const seen = new Set<string>()
+      const nextSlots = (data.slots ?? []).filter((s: Row) => {
+        const key = String(s.start_at)
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
       setSlots(nextSlots)
       setStartAt(nextSlots.length ? String(nextSlots[0].start_at) : '')
     } catch (e: any) {
@@ -174,20 +188,31 @@ function ExpertsContent() {
                       <p style={{ fontSize: 12, color: bookingMsg.startsWith('✅') ? '#059669' : '#dc2626', marginBottom: 8 }}>{bookingMsg}</p>
                     )}
                     <div style={{ marginBottom: 8 }}>
-                      <p style={{ margin: '0 0 4px', fontSize: 12, fontWeight: 600, color: '#475569' }}>Khung giờ khả dụng</p>
-                      <select
-                        value={startAt}
-                        onChange={(e) => setStartAt(e.target.value)}
-                        disabled={loadingSlots || !slots.length}
-                        style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}
-                      >
-                        {!slots.length
-                          ? <option value=''>{loadingSlots ? 'Đang tải slot...' : 'Không có slot trống'}</option>
-                          : null}
-                        {slots.map((slot) => (
-                          <option key={slot.start_at} value={slot.start_at}>{slot.date} | {slot.start_time} - {slot.end_time}</option>
-                        ))}
-                      </select>
+                      <p style={{ margin: '0 0 4px', fontSize: 12, fontWeight: 600, color: '#475569' }}>
+                        Khung giờ khả dụng
+                        <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 6 }}>
+                          (sau ít nhất 30 phút từ bây giờ)
+                        </span>
+                      </p>
+                      {(() => {
+                        // Filter slot quá khứ realtime (BE đã filter, đây là safety net)
+                        const validSlots = slots.filter((s: Row) => new Date(s.start_at).getTime() > now)
+                        return (
+                          <select
+                            value={startAt}
+                            onChange={(e) => setStartAt(e.target.value)}
+                            disabled={loadingSlots || !validSlots.length}
+                            style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}
+                          >
+                            {!validSlots.length
+                              ? <option value=''>{loadingSlots ? 'Đang tải slot...' : 'Không có slot trống'}</option>
+                              : null}
+                            {validSlots.map((slot, idx) => (
+                              <option key={`${slot.start_at}-${idx}`} value={slot.start_at}>{slot.date} | {slot.start_time} - {slot.end_time}</option>
+                            ))}
+                          </select>
+                        )
+                      })()}
                     </div>
                     <div style={{ marginBottom: 10 }}>
                       <p style={{ margin: '0 0 4px', fontSize: 12, fontWeight: 600, color: '#475569' }}>Mục đích tư vấn</p>

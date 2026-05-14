@@ -832,9 +832,41 @@ export class AdminService {
   }
 
   async payoutCommissionPeriod(id: number, actorId?: number) {
-    await this.dataSource.query("UPDATE chi_tra_hoa_hong SET trang_thai = 'da_chi_tra', chi_tra_luc = ?, cap_nhat_luc = ? WHERE ky_hoa_hong_id = ? AND trang_thai = 'cho_chi_tra'", [new Date(), new Date(), id]);
-    await this.dataSource.query("UPDATE ky_hoa_hong SET trang_thai = 'da_chi_tra', chi_tra_boi = ?, chi_tra_luc = ?, cap_nhat_luc = ? WHERE id = ?", [actorId ?? null, new Date(), new Date(), id]);
+    const now = new Date();
+    await this.dataSource.query("UPDATE chi_tra_hoa_hong SET trang_thai = 'da_chi_tra', chi_tra_luc = ?, cap_nhat_luc = ? WHERE ky_hoa_hong_id = ? AND trang_thai = 'cho_chi_tra'", [now, now, id]);
+    await this.dataSource.query("UPDATE ky_hoa_hong SET trang_thai = 'da_chi_tra', chi_tra_boi = ?, chi_tra_luc = ?, cap_nhat_luc = ? WHERE id = ?", [actorId ?? null, now, now, id]);
     await this.audit(actorId, 'payout_commission', 'ky_hoa_hong', id, null, { status: 'da_chi_tra' });
+
+    // Notify từng chuyên gia về số tiền đã chi trả
+    const [period] = await this.dataSource.query('SELECT ma_ky, thang, nam FROM ky_hoa_hong WHERE id = ?', [id]);
+    const payouts = await this.dataSource.query(
+      `SELECT p.tong_hoa_hong, p.so_booking, cg.tai_khoan_id, tk.ho_ten AS expert_name
+       FROM chi_tra_hoa_hong p
+       JOIN chuyen_gia cg ON cg.id = p.chuyen_gia_id
+       JOIN tai_khoan tk ON tk.id = cg.tai_khoan_id
+       WHERE p.ky_hoa_hong_id = ? AND p.trang_thai = 'da_chi_tra'`,
+      [id],
+    );
+    const formatter = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
+    for (const p of payouts) {
+      const amount = formatter.format(Number(p.tong_hoa_hong ?? 0));
+      const periodLabel = period ? `${String(period.thang).padStart(2, '0')}/${period.nam}` : '';
+      await this.dataSource.query(
+        `INSERT INTO thong_bao (tai_khoan_id, nguoi_gui_id, loai, tieu_de, noi_dung, trang_thai, duong_dan_hanh_dong, entity_type, entity_id, tao_luc, cap_nhat_luc)
+         VALUES (?, ?, 'commission', ?, ?, 'chua_doc', ?, 'ky_hoa_hong', ?, ?, ?)`,
+        [
+          p.tai_khoan_id,
+          actorId ?? null,
+          `💰 Hoa hồng kỳ ${periodLabel} đã được chi trả`,
+          `Bạn đã nhận ${amount} từ ${p.so_booking} booking trong kỳ ${periodLabel}. Vui lòng kiểm tra tài khoản ngân hàng.`,
+          `/nutritionist/earnings`,
+          id,
+          now,
+          now,
+        ],
+      );
+    }
+
     return this.getCommissionPeriod(id);
   }
 

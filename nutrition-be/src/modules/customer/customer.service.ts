@@ -63,6 +63,8 @@ function formatDateOnly(date: Date) {
 }
 
 function toWeekday(date: Date) {
+  // ISO convention: T2(Mon)=1, T3=2, ..., T7(Sat)=6, CN(Sun)=7
+  // Matches FE DAY_LABELS = ['', 'Thứ 2', ..., 'Thứ 7', 'Chủ nhật']
   const weekday = date.getDay();
   return weekday === 0 ? 7 : weekday;
 }

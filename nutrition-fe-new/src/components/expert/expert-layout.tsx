@@ -11,6 +11,7 @@ import {
   FileText,
   Star,
   TrendingUp,
+  DollarSign,
   Bell,
   MessageCircle,
   ChevronRight,
@@ -26,7 +27,8 @@ const navItems = [
   { label: 'Booking', href: '/nutritionist/bookings', icon: BookOpen },
   { label: 'Ghi chú', href: '/nutritionist/notes', icon: FileText },
   { label: 'Đánh giá', href: '/nutritionist/reviews', icon: Star },
-  { label: 'Thu nhập', href: '/nutritionist/earnings', icon: TrendingUp },
+  { label: 'Doanh thu', href: '/nutritionist/revenue', icon: DollarSign },
+  { label: 'Thu nhập theo kỳ', href: '/nutritionist/earnings', icon: TrendingUp },
   { label: 'Thông báo', href: '/nutritionist/notifications', icon: Bell },
   { label: 'Chat tư vấn', href: '/nutritionist/chats', icon: MessageCircle },
 ]

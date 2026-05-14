@@ -103,6 +103,12 @@ export class ExpertController {
   @Get('earnings')
   earnings(@Req() request: AuthedRequest, @Query() query: Record<string, string>) { return this.expertService.getEarnings(request.user?.sub, query); }
 
+  @Get('earnings/summary')
+  earningsSummary(@Req() request: AuthedRequest) { return this.expertService.getCommissionSummary(request.user?.sub); }
+
+  @Get('revenue')
+  revenue(@Req() request: AuthedRequest, @Query() query: Record<string, string>) { return this.expertService.getRevenueOverview(request.user?.sub, query); }
+
   @Get('earnings/:periodId/bookings')
   earningBookings(@Req() request: AuthedRequest, @Param('periodId') periodId: string) { return this.expertService.getEarningBookings(request.user?.sub, id(periodId)); }
 

@@ -188,10 +188,127 @@ export class ExpertService {
       [ctx.expertId],
     );
     const [review] = await this.dataSource.query("SELECT AVG(diem) AS avgRating, COUNT(*) AS totalReviews FROM danh_gia WHERE chuyen_gia_id = ? AND trang_thai <> 'da_xoa'", [ctx.expertId]);
-    const [commission] = await this.dataSource.query("SELECT COALESCE(SUM(tong_hoa_hong), 0) AS pending FROM chi_tra_hoa_hong WHERE chuyen_gia_id = ? AND trang_thai = 'cho_chi_tra'", [ctx.expertId]);
+    const [commission] = await this.dataSource.query(
+      `SELECT
+         COALESCE(SUM(CASE WHEN trang_thai = 'cho_chi_tra' THEN tong_hoa_hong ELSE 0 END), 0) AS pending,
+         COALESCE(SUM(CASE WHEN trang_thai = 'da_chi_tra' THEN tong_hoa_hong ELSE 0 END), 0) AS total_received,
+         COUNT(CASE WHEN trang_thai = 'da_chi_tra' THEN 1 END) AS periods_received
+       FROM chi_tra_hoa_hong WHERE chuyen_gia_id = ?`,
+      [ctx.expertId],
+    );
     const nextBookings = await this.listBookings(accountId, { status: 'da_xac_nhan' });
     const notifications = await this.getNotificationSummary(accountId);
     return { profile, booking, review, commission, nextBookings: nextBookings.slice(0, 5), notifications };
+  }
+
+  async getRevenueOverview(accountId: number | undefined, query: Dict) {
+    const ctx = await this.context(accountId);
+    const range = String(query.range ?? 'last30');
+    let from: Date;
+    const to = new Date();
+    switch (range) {
+      case 'last7': from = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000); break;
+      case 'last30': from = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000); break;
+      case 'last90': from = new Date(Date.now() - 89 * 24 * 60 * 60 * 1000); break;
+      case 'year': from = new Date(Date.now() - 364 * 24 * 60 * 60 * 1000); break;
+      case 'all': from = new Date('2020-01-01'); break;
+      default: from = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000);
+    }
+    const fromStr = from.toISOString().slice(0, 10);
+    const toStr = to.toISOString().slice(0, 10);
+
+    // Doanh thu hợp lệ và hoa hồng từ chi_tiet_hoa_hong (booking hoàn thành)
+    const [summary] = await this.dataSource.query(
+      `SELECT
+         COUNT(*) AS total_bookings,
+         COALESCE(SUM(ct.doanh_thu_hop_le), 0) AS total_revenue,
+         COALESCE(SUM(ct.so_tien_hoa_hong), 0) AS total_commission,
+         COALESCE(AVG(ct.ty_le_hoa_hong), 0) AS avg_rate
+       FROM chi_tiet_hoa_hong ct JOIN lich_hen lh ON lh.id = ct.lich_hen_id
+       WHERE ct.chuyen_gia_id = ? AND lh.ngay_hen BETWEEN ? AND ?`,
+      [ctx.expertId, fromStr, toStr],
+    );
+
+    // Doanh thu theo ngày
+    const timeseries = await this.dataSource.query(
+      `SELECT DATE(lh.ngay_hen) AS date,
+              COUNT(*) AS bookings,
+              SUM(ct.doanh_thu_hop_le) AS revenue,
+              SUM(ct.so_tien_hoa_hong) AS commission
+       FROM chi_tiet_hoa_hong ct JOIN lich_hen lh ON lh.id = ct.lich_hen_id
+       WHERE ct.chuyen_gia_id = ? AND lh.ngay_hen BETWEEN ? AND ?
+       GROUP BY DATE(lh.ngay_hen) ORDER BY DATE(lh.ngay_hen) ASC`,
+      [ctx.expertId, fromStr, toStr],
+    );
+
+    // Doanh thu theo gói
+    const byPackage = await this.dataSource.query(
+      `SELECT gdv.id, gdv.ten_goi, gdv.loai_goi,
+              COUNT(*) AS bookings,
+              SUM(ct.doanh_thu_hop_le) AS revenue,
+              SUM(ct.so_tien_hoa_hong) AS commission
+       FROM chi_tiet_hoa_hong ct
+       JOIN lich_hen lh ON lh.id = ct.lich_hen_id
+       JOIN goi_dich_vu gdv ON gdv.id = ct.goi_dich_vu_id
+       WHERE ct.chuyen_gia_id = ? AND lh.ngay_hen BETWEEN ? AND ?
+       GROUP BY gdv.id, gdv.ten_goi, gdv.loai_goi
+       ORDER BY revenue DESC LIMIT 10`,
+      [ctx.expertId, fromStr, toStr],
+    );
+
+    // Doanh thu theo tháng (12 tháng gần nhất)
+    const byMonth = await this.dataSource.query(
+      `SELECT DATE_FORMAT(lh.ngay_hen, '%Y-%m') AS month,
+              COUNT(*) AS bookings,
+              SUM(ct.doanh_thu_hop_le) AS revenue,
+              SUM(ct.so_tien_hoa_hong) AS commission
+       FROM chi_tiet_hoa_hong ct JOIN lich_hen lh ON lh.id = ct.lich_hen_id
+       WHERE ct.chuyen_gia_id = ? AND lh.ngay_hen >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+       GROUP BY DATE_FORMAT(lh.ngay_hen, '%Y-%m') ORDER BY month ASC`,
+      [ctx.expertId],
+    );
+
+    return {
+      range,
+      from: fromStr,
+      to: toStr,
+      summary: {
+        total_bookings: Number(summary?.total_bookings ?? 0),
+        total_revenue: Number(summary?.total_revenue ?? 0),
+        total_commission: Number(summary?.total_commission ?? 0),
+        avg_rate: Number(summary?.avg_rate ?? 0),
+      },
+      timeseries,
+      by_package: byPackage,
+      by_month: byMonth,
+    };
+  }
+
+  async getCommissionSummary(accountId?: number) {
+    const ctx = await this.context(accountId);
+    const [summary] = await this.dataSource.query(
+      `SELECT
+         COALESCE(SUM(CASE WHEN trang_thai = 'da_chi_tra' THEN tong_hoa_hong ELSE 0 END), 0) AS total_received,
+         COALESCE(SUM(CASE WHEN trang_thai = 'cho_chi_tra' THEN tong_hoa_hong ELSE 0 END), 0) AS pending,
+         COUNT(CASE WHEN trang_thai = 'da_chi_tra' THEN 1 END) AS periods_received,
+         MAX(CASE WHEN trang_thai = 'da_chi_tra' THEN chi_tra_luc END) AS last_paid_at
+       FROM chi_tra_hoa_hong WHERE chuyen_gia_id = ?`,
+      [ctx.expertId],
+    );
+    const recentPaid = await this.dataSource.query(
+      `SELECT p.tong_hoa_hong, p.so_booking, p.chi_tra_luc, k.thang, k.nam, k.ma_ky
+       FROM chi_tra_hoa_hong p JOIN ky_hoa_hong k ON k.id = p.ky_hoa_hong_id
+       WHERE p.chuyen_gia_id = ? AND p.trang_thai = 'da_chi_tra'
+       ORDER BY p.chi_tra_luc DESC LIMIT 6`,
+      [ctx.expertId],
+    );
+    return {
+      total_received: Number(summary?.total_received ?? 0),
+      pending: Number(summary?.pending ?? 0),
+      periods_received: Number(summary?.periods_received ?? 0),
+      last_paid_at: summary?.last_paid_at ?? null,
+      recent: recentPaid,
+    };
   }
 
   async getProfile(accountId?: number) {

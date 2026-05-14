@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Wallet, TrendingUp, Calendar, Download, FileText, Hash, Package } from 'lucide-react'
+import { Wallet, TrendingUp, Calendar, Download, FileText, Hash, Package, CheckCircle, Clock } from 'lucide-react'
 import { SectionHeader, Card, UserStatCard, UserButton, UserNotice, UserEmptyState, StatusBadge, money } from '@/components/user/user-ui'
 import { expertGet } from '@/lib/expert-api'
 import { statusLabel } from '@/lib/i18n'
@@ -11,6 +11,7 @@ type Row = Record<string, any>
 export default function EarningsPage() {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
   const [data, setData] = useState<Row | null>(null)
+  const [summary, setSummary] = useState<Row | null>(null)
   const [message, setMessage] = useState('')
   const [msgTone, setMsgTone] = useState<'success' | 'error' | 'info'>('info')
   const [loading, setLoading] = useState(false)
@@ -19,7 +20,12 @@ export default function EarningsPage() {
   async function load() {
     setLoading(true)
     try {
-      setData(await expertGet<Row>(`/earnings?month=${month}`))
+      const [monthData, summaryData] = await Promise.all([
+        expertGet<Row>(`/earnings?month=${month}`),
+        expertGet<Row>('/earnings/summary').catch(() => null),
+      ])
+      setData(monthData)
+      if (summaryData) setSummary(summaryData)
     } catch (e: any) {
       setMessage(e.message ?? 'Lỗi tải dữ liệu')
       setMsgTone('error')
@@ -72,6 +78,77 @@ export default function EarningsPage() {
       />
 
       {message && <UserNotice tone={msgTone}>{message}</UserNotice>}
+
+      {/* Tổng doanh thu all-time */}
+      {summary && (
+        <Card>
+          <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+            <div style={{ padding: 16, background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)', borderRadius: 14, border: '1px solid #bbf7d0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <CheckCircle size={18} color='white' />
+                </div>
+                <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: '#065f46', letterSpacing: 0.3 }}>
+                  💰 TỔNG DOANH THU ĐÃ NHẬN
+                </p>
+              </div>
+              <p style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#065f46', lineHeight: 1.2 }}>
+                {money(summary.total_received)}
+              </p>
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: '#047857' }}>
+                Qua {summary.periods_received} kỳ thanh toán
+                {summary.last_paid_at && ` · Gần nhất: ${String(summary.last_paid_at).slice(0, 10)}`}
+              </p>
+            </div>
+
+            <div style={{ padding: 16, background: '#fffbeb', borderRadius: 14, border: '1px solid #fde68a' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Clock size={18} color='white' />
+                </div>
+                <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: '#92400e', letterSpacing: 0.3 }}>
+                  ⏳ ĐANG CHỜ CHI TRẢ
+                </p>
+              </div>
+              <p style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#92400e', lineHeight: 1.2 }}>
+                {money(summary.pending)}
+              </p>
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: '#a16207' }}>
+                Sẽ được chuyển khoản theo kỳ
+              </p>
+            </div>
+          </div>
+
+          {/* Lịch sử các kỳ đã chi trả */}
+          {summary.recent?.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+                Lịch sử {summary.recent.length} kỳ gần nhất đã chi trả
+              </p>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {summary.recent.map((r: Row) => (
+                  <div key={r.ma_ky} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '10px 14px', background: '#fafafa', borderRadius: 10, border: '1px solid #f1f5f9',
+                  }}>
+                    <div>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+                        Kỳ {String(r.thang).padStart(2, '0')}/{r.nam}
+                      </p>
+                      <p style={{ margin: '2px 0 0', fontSize: 11.5, color: '#64748b' }}>
+                        {r.so_booking} booking · {r.chi_tra_luc ? `chi trả ${String(r.chi_tra_luc).slice(0, 10)}` : ''}
+                      </p>
+                    </div>
+                    <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#10b981' }}>
+                      +{money(r.tong_hoa_hong)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Filter bar */}
       <Card>

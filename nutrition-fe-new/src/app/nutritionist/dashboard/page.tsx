@@ -53,6 +53,12 @@ export default function NutritionistDashboardPage() {
             <UserStatCard label='Booking đang xử lý' value={String(data.booking?.active ?? 0)} icon={CalendarClock} tone='orange' />
             <UserStatCard label='Đã hoàn thành' value={String(data.booking?.completed ?? 0)} icon={CheckCircle} tone='green' />
             <UserStatCard label='Rating trung bình' value={`${Number(data.review?.avgRating ?? 0).toFixed(1)}/5`} icon={Star} tone='purple' />
+            <UserStatCard
+              label='Tổng đã nhận'
+              value={money(data.commission?.total_received)}
+              icon={Wallet}
+              tone='green'
+            />
             <UserStatCard label='Hoa hồng chờ chi' value={money(data.commission?.pending)} icon={Wallet} tone='blue' />
           </div>
 

@@ -1,6 +1,6 @@
 import type { TableSeeder } from '../types';
 
-// thu_trong_tuan: 1=CN, 2=T2, 3=T3, 4=T4, 5=T5, 6=T6, 7=T7
+// thu_trong_tuan ISO: 1=T2(Mon), 2=T3, 3=T4, 4=T5, 5=T6, 6=T7(Sat), 7=CN(Sun)
 const T = '2026-01-06 09:00:00';
 
 type Slot = {

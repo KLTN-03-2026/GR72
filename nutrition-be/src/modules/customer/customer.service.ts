@@ -118,10 +118,11 @@ export class CustomerService {
 
   private async assertBookablePackagePurchase(accountId: number | undefined, purchaseId: number) {
     const purchase = await this.assertPackagePurchase(accountId, purchaseId);
-    const runtime = this.purchaseRuntimeStatus(purchase);
-    if (runtime !== 'dang_hieu_luc') {
-      throw new BadRequestException('Goi da mua khong con hieu luc de dat lich');
-    }
+    // DEMO: bỏ check runtime status để cho phép booking dù gói het_luot/het_han/cho_thanh_toan
+    // const runtime = this.purchaseRuntimeStatus(purchase);
+    // if (runtime !== 'dang_hieu_luc') {
+    //   throw new BadRequestException('Goi da mua khong con hieu luc de dat lich');
+    // }
     return purchase;
   }
 
@@ -488,12 +489,13 @@ export class CustomerService {
        WHERE gdcg.goi_dich_vu_id = ? AND gdcg.chuyen_gia_id = ?`,
       [purchase.goi_dich_vu_id, expertId],
     );
-    if (!mapping || mapping.trang_thai !== 'hoat_dong') {
-      throw new BadRequestException('Chuyen gia khong thuoc goi da mua');
-    }
-    if (mapping.expert_status !== 'hoat_dong' || !mapping.nhan_booking) {
-      throw new BadRequestException('Chuyen gia tam thoi khong nhan lich');
-    }
+    // DEMO: bỏ validate expert có thuộc gói + có nhận booking hay không
+    // if (!mapping || mapping.trang_thai !== 'hoat_dong') {
+    //   throw new BadRequestException('Chuyen gia khong thuoc goi da mua');
+    // }
+    // if (mapping.expert_status !== 'hoat_dong' || !mapping.nhan_booking) {
+    //   throw new BadRequestException('Chuyen gia tam thoi khong nhan lich');
+    // }
     return purchase;
   }
 
@@ -663,53 +665,61 @@ export class CustomerService {
 
       const [lockedPurchase] = await manager.query('SELECT * FROM goi_da_mua WHERE id = ? FOR UPDATE', [purchaseId]);
       if (!lockedPurchase) throw new NotFoundException('Khong tim thay goi da mua');
-      if (this.purchaseRuntimeStatus(lockedPurchase) !== 'dang_hieu_luc') {
-        throw new BadRequestException('Goi da mua khong con hieu luc');
-      }
+      // DEMO: bỏ check gói còn hiệu lực
+      // if (this.purchaseRuntimeStatus(lockedPurchase) !== 'dang_hieu_luc') {
+      //   throw new BadRequestException('Goi da mua khong con hieu luc');
+      // }
 
-      const clash = await manager.query(
-        `SELECT id FROM lich_hen
-         WHERE (tai_khoan_id = ? OR chuyen_gia_id = ?)
-           AND bat_dau_luc < ? AND ket_thuc_luc > ?
-           AND trang_thai IN ('cho_xac_nhan', 'cho_thanh_toan', 'da_xac_nhan', 'da_checkin', 'dang_tu_van')
-         LIMIT 1`,
-        [userId, expertId, endAt, startAt],
-      );
-      if (clash.length) throw new BadRequestException('Khung gio da duoc dat');
+      // DEMO: bỏ check clash giờ — cho phép book trùng booking khác
+      // const clash = await manager.query(
+      //   `SELECT id FROM lich_hen
+      //    WHERE (tai_khoan_id = ? OR chuyen_gia_id = ?)
+      //      AND bat_dau_luc < ? AND ket_thuc_luc > ?
+      //      AND trang_thai IN ('cho_xac_nhan', 'cho_thanh_toan', 'da_xac_nhan', 'da_checkin', 'dang_tu_van')
+      //    LIMIT 1`,
+      //   [userId, expertId, endAt, startAt],
+      // );
+      // if (clash.length) throw new BadRequestException('Khung gio da duoc dat');
 
       const [expert] = await manager.query('SELECT * FROM chuyen_gia WHERE id = ? FOR UPDATE', [expertId]);
-      if (!expert || expert.trang_thai !== 'hoat_dong' || !expert.nhan_booking) {
-        throw new BadRequestException('Chuyen gia khong san sang nhan lich');
+      // DEMO: chỉ check expert có tồn tại, bỏ status & nhan_booking
+      if (!expert) {
+        throw new NotFoundException('Khong tim thay chuyen gia');
       }
+      // if (!expert || expert.trang_thai !== 'hoat_dong' || !expert.nhan_booking) {
+      //   throw new BadRequestException('Chuyen gia khong san sang nhan lich');
+      // }
 
-      const weekday = toWeekday(startAt);
-      const startTime = startAt.toTimeString().slice(0, 8);
-      const endTime = endAt.toTimeString().slice(0, 8);
-      const workSlot = await manager.query(
-        `SELECT id FROM lich_lam_viec_chuyen_gia
-         WHERE chuyen_gia_id = ?
-           AND thu_trong_tuan = ?
-           AND trang_thai = 'hoat_dong'
-           AND gio_bat_dau <= ?
-           AND gio_ket_thuc >= ?
-         LIMIT 1`,
-        [expertId, weekday, startTime, endTime],
-      );
-      if (!workSlot.length) {
-        throw new BadRequestException('Khung gio khong nam trong lich lam viec cua chuyen gia');
-      }
+      // DEMO: bỏ check khung giờ nằm trong lịch làm việc của expert
+      // const weekday = toWeekday(startAt);
+      // const startTime = startAt.toTimeString().slice(0, 8);
+      // const endTime = endAt.toTimeString().slice(0, 8);
+      // const workSlot = await manager.query(
+      //   `SELECT id FROM lich_lam_viec_chuyen_gia
+      //    WHERE chuyen_gia_id = ?
+      //      AND thu_trong_tuan = ?
+      //      AND trang_thai = 'hoat_dong'
+      //      AND gio_bat_dau <= ?
+      //      AND gio_ket_thuc >= ?
+      //    LIMIT 1`,
+      //   [expertId, weekday, startTime, endTime],
+      // );
+      // if (!workSlot.length) {
+      //   throw new BadRequestException('Khung gio khong nam trong lich lam viec cua chuyen gia');
+      // }
 
-      const blockedAt = await manager.query(
-        `SELECT id FROM lich_ban_chuyen_gia
-         WHERE chuyen_gia_id = ?
-           AND bat_dau_luc < ?
-           AND ket_thuc_luc > ?
-         LIMIT 1`,
-        [expertId, endAt, startAt],
-      );
-      if (blockedAt.length) {
-        throw new BadRequestException('Chuyen gia khong kha dung trong khung gio nay');
-      }
+      // DEMO: bỏ check blocked time của expert
+      // const blockedAt = await manager.query(
+      //   `SELECT id FROM lich_ban_chuyen_gia
+      //    WHERE chuyen_gia_id = ?
+      //      AND bat_dau_luc < ?
+      //      AND ket_thuc_luc > ?
+      //    LIMIT 1`,
+      //   [expertId, endAt, startAt],
+      // );
+      // if (blockedAt.length) {
+      //   throw new BadRequestException('Chuyen gia khong kha dung trong khung gio nay');
+      // }
 
       const bookingCode = makeCode('LH').slice(0, 80);
       const now = new Date();
@@ -1150,26 +1160,12 @@ export class CustomerService {
   }
 
   private evaluateCallJoin(booking: Dict) {
-    if (!CALL_JOIN_ALLOWED_STATUSES.has(String(booking.trang_thai))) {
-      return { canJoin: false, reason: 'Booking chua o trang thai cho phep vao phong goi.' };
-    }
-
+    // DEMO: luôn cho phép vào phòng gọi — bỏ check trạng thái + khung giờ
     const startAt = asDate(booking.bat_dau_luc);
     const endAt = asDate(booking.ket_thuc_luc);
-    if (!startAt || !endAt) {
-      return { canJoin: false, reason: 'Booking chua co moc thoi gian call hop le.' };
-    }
-
-    const openFrom = new Date(startAt.getTime() - CALL_OPEN_BEFORE_START_MINUTES * 60 * 1000);
-    const openUntil = new Date(endAt.getTime() + CALL_OPEN_AFTER_END_MINUTES * 60 * 1000);
+    const openFrom = startAt ? new Date(startAt.getTime() - CALL_OPEN_BEFORE_START_MINUTES * 60 * 1000) : null;
+    const openUntil = endAt ? new Date(endAt.getTime() + CALL_OPEN_AFTER_END_MINUTES * 60 * 1000) : null;
     const now = new Date();
-
-    if (now < openFrom) {
-      return { canJoin: false, reason: 'Chua den khung gio cho phep vao phong goi.', openFrom, openUntil, now };
-    }
-    if (now > openUntil) {
-      return { canJoin: false, reason: 'Da qua khung gio cho phep vao phong goi.', openFrom, openUntil, now };
-    }
     return { canJoin: true, reason: null, openFrom, openUntil, now };
   }
 
@@ -1305,9 +1301,10 @@ export class CustomerService {
 
   async sendMessage(accountId: number | undefined, bookingId: number, body: Dict) {
     const booking = await this.assertBooking(accountId, bookingId);
-    if (!CHAT_SEND_ALLOWED_STATUSES.has(String(booking.trang_thai))) {
-      throw new BadRequestException('Booking hien khong cho phep gui tin nhan');
-    }
+    // DEMO: bỏ check trạng thái booking trước khi gửi tin nhắn
+    // if (!CHAT_SEND_ALLOWED_STATUSES.has(String(booking.trang_thai))) {
+    //   throw new BadRequestException('Booking hien khong cho phep gui tin nhan');
+    // }
     const content = String(body.noi_dung ?? body.content ?? '').trim();
     if (!content) throw new BadRequestException('Vui long nhap tin nhan');
 
@@ -1396,42 +1393,45 @@ export class CustomerService {
 
   async rescheduleBooking(accountId: number | undefined, bookingId: number, body: Dict) {
     const booking = await this.assertBooking(accountId, bookingId);
-    if (!['cho_xac_nhan', 'da_xac_nhan'].includes(booking.trang_thai)) {
-      throw new BadRequestException('Chi co the doi lich khi booking dang cho xac nhan hoac da xac nhan');
+    // DEMO: nới lỏng — chỉ chặn 2 trạng thái terminal để khỏi phá dữ liệu báo cáo
+    if (['hoan_thanh', 'da_huy'].includes(booking.trang_thai)) {
+      throw new BadRequestException('Booking da ket thuc, khong the doi lich');
     }
 
     const newStartAtRaw = body.start_at;
     if (!newStartAtRaw) throw new BadRequestException('Thieu thoi gian moi');
     const newStartAt = new Date(String(newStartAtRaw));
     if (Number.isNaN(newStartAt.getTime())) throw new BadRequestException('Thoi gian khong hop le');
-    if (newStartAt.getTime() <= Date.now()) throw new BadRequestException('Thoi gian moi phai trong tuong lai');
+    // DEMO: bỏ check thời gian phải trong tương lai
+    // if (newStartAt.getTime() <= Date.now()) throw new BadRequestException('Thoi gian moi phai trong tuong lai');
 
     // thoi_luong_tu_van_phut gia tri lay tu assertBooking (da JOIN vao gdv)
     const duration = Math.max(15, toNumber(booking.thoi_luong_tu_van_phut, 30));
     const newEndAt = new Date(newStartAt.getTime() + duration * 60 * 1000);
 
     return this.dataSource.transaction(async (manager) => {
-      const clash = await manager.query(
-        `SELECT id FROM lich_hen
-         WHERE (tai_khoan_id = ? OR chuyen_gia_id = ?)
-           AND id <> ?
-           AND bat_dau_luc < ? AND ket_thuc_luc > ?
-           AND trang_thai IN ('cho_xac_nhan','cho_thanh_toan','da_xac_nhan','da_checkin','dang_tu_van')
-         LIMIT 1`,
-        [booking.tai_khoan_id, booking.chuyen_gia_id, bookingId, newEndAt, newStartAt],
-      );
-      if (clash.length) throw new BadRequestException('Khung gio moi da duoc dat');
+      // DEMO: bỏ check clash giờ + lịch làm việc expert khi đổi lịch
+      // const clash = await manager.query(
+      //   `SELECT id FROM lich_hen
+      //    WHERE (tai_khoan_id = ? OR chuyen_gia_id = ?)
+      //      AND id <> ?
+      //      AND bat_dau_luc < ? AND ket_thuc_luc > ?
+      //      AND trang_thai IN ('cho_xac_nhan','cho_thanh_toan','da_xac_nhan','da_checkin','dang_tu_van')
+      //    LIMIT 1`,
+      //   [booking.tai_khoan_id, booking.chuyen_gia_id, bookingId, newEndAt, newStartAt],
+      // );
+      // if (clash.length) throw new BadRequestException('Khung gio moi da duoc dat');
 
-      const weekday = toWeekday(newStartAt);
-      const startTime = newStartAt.toTimeString().slice(0, 8);
-      const endTime = newEndAt.toTimeString().slice(0, 8);
-      const workSlot = await manager.query(
-        `SELECT id FROM lich_lam_viec_chuyen_gia
-         WHERE chuyen_gia_id = ? AND thu_trong_tuan = ? AND trang_thai = 'hoat_dong'
-           AND gio_bat_dau <= ? AND gio_ket_thuc >= ? LIMIT 1`,
-        [booking.chuyen_gia_id, weekday, startTime, endTime],
-      );
-      if (!workSlot.length) throw new BadRequestException('Khung gio ngoai lich lam viec cua chuyen gia');
+      // const weekday = toWeekday(newStartAt);
+      // const startTime = newStartAt.toTimeString().slice(0, 8);
+      // const endTime = newEndAt.toTimeString().slice(0, 8);
+      // const workSlot = await manager.query(
+      //   `SELECT id FROM lich_lam_viec_chuyen_gia
+      //    WHERE chuyen_gia_id = ? AND thu_trong_tuan = ? AND trang_thai = 'hoat_dong'
+      //      AND gio_bat_dau <= ? AND gio_ket_thuc >= ? LIMIT 1`,
+      //   [booking.chuyen_gia_id, weekday, startTime, endTime],
+      // );
+      // if (!workSlot.length) throw new BadRequestException('Khung gio ngoai lich lam viec cua chuyen gia');
 
       const now = new Date();
       await manager.query(
@@ -1517,20 +1517,11 @@ export class CustomerService {
 
   async checkInBooking(accountId: number | undefined, bookingId: number) {
     const booking = await this.assertBooking(accountId, bookingId);
-    if (booking.trang_thai !== 'da_xac_nhan') {
-      throw new BadRequestException('Chi co the check-in booking da xac nhan');
+    // DEMO: nới lỏng — chỉ chặn 2 trạng thái terminal để khỏi phá dữ liệu báo cáo
+    if (['hoan_thanh', 'da_huy'].includes(booking.trang_thai)) {
+      throw new BadRequestException('Booking da ket thuc, khong the check-in');
     }
-    const startAt = new Date(booking.bat_dau_luc);
-    const diffMs = startAt.getTime() - Date.now();
-
-    // Chưa đến giờ: chỉ được check-in trong vòng 15 phút trước
-    if (diffMs > 15 * 60 * 1000) {
-      throw new BadRequestException('Chi duoc check-in trong vong 15 phut truoc gio bat dau');
-    }
-    // Đã qua giờ: không được check-in sau 60 phút kể từ giờ hẹn
-    if (diffMs < -60 * 60 * 1000) {
-      throw new BadRequestException('Da qua 60 phut gio hen, booking bi bo lo - lien he chuyen gia de ho tro');
-    }
+    // Bỏ time window 15 phút trước / 60 phút sau giờ hẹn — cho phép check-in mọi lúc
 
     const now = new Date();
     await this.dataSource.query(
@@ -1540,7 +1531,7 @@ export class CustomerService {
     await this.dataSource.query(
       `INSERT INTO booking_timeline (lich_hen_id,actor_id,su_kien,trang_thai_truoc,trang_thai_sau,ghi_chu,metadata,tao_luc)
        VALUES (?,?,?,?,?,NULL,NULL,?)`,
-      [bookingId, accountId, 'customer_checkin', 'da_xac_nhan', 'da_checkin', now],
+      [bookingId, accountId, 'customer_checkin', booking.trang_thai, 'da_checkin', now],
     );
     return this.getBookingDetail(accountId, bookingId);
   }

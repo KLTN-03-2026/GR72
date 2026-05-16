@@ -60,26 +60,12 @@ export class ExpertService {
   }
 
   private evaluateCallJoin(booking: Dict) {
-    if (!CALL_JOIN_ALLOWED_STATUSES.has(String(booking.trang_thai))) {
-      return { canJoin: false, reason: 'Booking chua o trang thai cho phep vao phong goi.' };
-    }
-
+    // DEMO: luôn cho phép expert vào phòng gọi
     const startAt = asDate(booking.bat_dau_luc);
     const endAt = asDate(booking.ket_thuc_luc);
-    if (!startAt || !endAt) {
-      return { canJoin: false, reason: 'Booking chua co moc thoi gian call hop le.' };
-    }
-
-    const openFrom = new Date(startAt.getTime() - CALL_OPEN_BEFORE_START_MINUTES * 60 * 1000);
-    const openUntil = new Date(endAt.getTime() + CALL_OPEN_AFTER_END_MINUTES * 60 * 1000);
+    const openFrom = startAt ? new Date(startAt.getTime() - CALL_OPEN_BEFORE_START_MINUTES * 60 * 1000) : null;
+    const openUntil = endAt ? new Date(endAt.getTime() + CALL_OPEN_AFTER_END_MINUTES * 60 * 1000) : null;
     const now = new Date();
-
-    if (now < openFrom) {
-      return { canJoin: false, reason: 'Chua den khung gio cho phep vao phong goi.', openFrom, openUntil, now };
-    }
-    if (now > openUntil) {
-      return { canJoin: false, reason: 'Da qua khung gio cho phep vao phong goi.', openFrom, openUntil, now };
-    }
     return { canJoin: true, reason: null, openFrom, openUntil, now };
   }
 
@@ -615,9 +601,10 @@ export class ExpertService {
 
   async sendMessage(accountId: number | undefined, bookingId: number, body: Dict) {
     const { ctx, booking } = await this.assertBooking(accountId, bookingId);
-    if (!CHAT_SEND_ALLOWED_STATUSES.has(String(booking.trang_thai))) {
-      throw new BadRequestException('Booking hien khong cho phep gui tin nhan');
-    }
+    // DEMO: bỏ check trạng thái booking trước khi gửi tin nhắn
+    // if (!CHAT_SEND_ALLOWED_STATUSES.has(String(booking.trang_thai))) {
+    //   throw new BadRequestException('Booking hien khong cho phep gui tin nhan');
+    // }
     const content = String(body.noi_dung ?? body.content ?? '').trim();
     if (!content) throw new BadRequestException('Vui long nhap tin nhan');
     const now = new Date();

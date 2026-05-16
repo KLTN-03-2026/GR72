@@ -163,9 +163,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         [accountId, bookingId, accountId, accountId],
       );
       if (!booking) return { ok: false, message: 'Bạn không có quyền xem phòng chat này.' };
-      if (!CHAT_ALLOWED_STATUSES.has(String(booking.trang_thai))) {
-        return { ok: false, message: 'Booking hiện không cho phép chat realtime.' };
-      }
+      // DEMO: bỏ check trạng thái booking để join chat room
+      // if (!CHAT_ALLOWED_STATUSES.has(String(booking.trang_thai))) {
+      //   return { ok: false, message: 'Booking hiện không cho phép chat realtime.' };
+      // }
       return { ok: true };
     } catch (error) {
       this.logger.error(`Cannot authorize chat room ${bookingId}`, error as Error);

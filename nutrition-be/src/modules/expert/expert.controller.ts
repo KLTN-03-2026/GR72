@@ -139,6 +139,39 @@ export class ExpertController {
   @Patch('chats/:bookingId/read')
   readChat(@Req() request: AuthedRequest, @Param('bookingId') bookingId: string) { return this.expertService.markChatRead(request.user?.sub, id(bookingId)); }
 
+  @Post('chats/:bookingId/upload')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: (_req, _file, callback) => {
+          const uploadDir = join(process.cwd(), 'uploads', 'chat');
+          mkdirSync(uploadDir, { recursive: true });
+          callback(null, uploadDir);
+        },
+        filename: (_req, file, callback) => {
+          const safeExt = extname(file.originalname || '').toLowerCase() || '.jpg';
+          const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          callback(null, `chat-${stamp}${safeExt}`);
+        },
+      }),
+      // DEMO: không giới hạn dung lượng
+    }),
+  )
+  uploadChatFile(
+    @Req() request: AuthedRequest,
+    @Param('bookingId') bookingId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: Record<string, unknown>,
+  ) {
+    if (!file) throw new BadRequestException('Vui long chon file');
+    return this.expertService.sendChatAttachment(
+      request.user?.sub,
+      id(bookingId),
+      file,
+      String(body.noi_dung ?? body.content ?? ''),
+    );
+  }
+
   @Get('bookings/:id/call-session')
   callSession(@Req() request: AuthedRequest, @Param('id') bookingId: string) { return this.expertService.getCallSession(request.user?.sub, id(bookingId)); }
 

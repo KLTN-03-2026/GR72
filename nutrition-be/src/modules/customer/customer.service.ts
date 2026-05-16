@@ -1345,6 +1345,66 @@ export class CustomerService {
     return this.getMessages(accountId, bookingId);
   }
 
+  async sendChatAttachment(
+    accountId: number | undefined,
+    bookingId: number,
+    file: Express.Multer.File,
+    caption: string,
+  ) {
+    const booking = await this.assertBooking(accountId, bookingId);
+    const url = `/uploads/chat/${file.filename}`;
+    const isImage = (file.mimetype || '').startsWith('image/');
+    const attachments = [
+      {
+        url,
+        name: file.originalname,
+        size: file.size,
+        mime: file.mimetype,
+        type: isImage ? 'image' : 'file',
+      },
+    ];
+    const noiDung = (caption ?? '').trim();
+    // Column tin_nhan.loai chỉ có ENUM('text','file') — dùng 'file' cho cả ảnh,
+    // FE phân biệt image vs file dựa vào mime trong tep_dinh_kem.
+    const loai = 'file';
+
+    const now = new Date();
+    const result = await this.dataSource.query(
+      'INSERT INTO tin_nhan (lich_hen_id, nguoi_gui_id, loai, noi_dung, tep_dinh_kem, da_doc_luc, da_doc_boi_id, tao_luc, cap_nhat_luc) VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, ?)',
+      [bookingId, accountId, loai, noiDung, JSON.stringify(attachments), now, now],
+    );
+    await this.dataSource.query(
+      'INSERT INTO thong_bao (tai_khoan_id, nguoi_gui_id, loai, tieu_de, noi_dung, trang_thai, duong_dan_hanh_dong, entity_type, entity_id, tao_luc, doc_luc, cap_nhat_luc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)',
+      [
+        booking.expert_account_id,
+        accountId,
+        'message',
+        isImage ? 'Khach hang gui anh' : 'Khach hang gui tep dinh kem',
+        (noiDung || file.originalname).slice(0, 180),
+        'chua_doc',
+        `/nutritionist/chats/${bookingId}`,
+        'lich_hen',
+        bookingId,
+        now,
+        now,
+      ],
+    );
+
+    const [message] = await this.dataSource.query(
+      `SELECT msg.*, tk.ho_ten AS sender_name, tk.vai_tro AS sender_role
+       FROM tin_nhan msg JOIN tai_khoan tk ON tk.id = msg.nguoi_gui_id
+       WHERE msg.id = ?`,
+      [result.insertId],
+    );
+    if (message) {
+      this.chatGateway.emitMessageCreated(bookingId, {
+        ...message,
+        tep_dinh_kem: parseJson(message.tep_dinh_kem),
+      });
+    }
+    return this.getMessages(accountId, bookingId);
+  }
+
   async markChatRead(accountId: number | undefined, bookingId: number) {
     await this.assertBooking(accountId, bookingId);
     await this.dataSource.query(

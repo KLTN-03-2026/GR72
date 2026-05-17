@@ -155,6 +155,14 @@ function ReviewCard({ review, onUpdated }: { review: Row; onUpdated: () => void 
               ))}
             </div>
           )}
+          {review.expert_reply && (
+            <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, borderLeft: '3px solid #6366f1', marginBottom: 12 }}>
+              <p style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <MessageCircle size={12} /> Phản hồi từ {review.expert_name || 'chuyên gia'}:
+              </p>
+              <p style={{ fontSize: 13, color: '#334155', lineHeight: 1.5 }}>{review.expert_reply}</p>
+            </div>
+          )}
           {msg && <p style={{ fontSize: 12, color: '#dc2626', marginBottom: 8 }}>{msg}</p>}
           <div style={{ display: 'flex', gap: 8 }}>
             {!deadlinePassed && review.trang_thai !== 'an' && (

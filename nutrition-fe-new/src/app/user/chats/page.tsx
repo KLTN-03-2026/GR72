@@ -58,7 +58,23 @@ function resolveFileUrl(url?: string) {
   return url
 }
 
-function Avatar({ name, size = 36 }: { name?: string; size?: number }) {
+function Avatar({ name, size = 36, src }: { name?: string; size?: number; src?: string }) {
+  if (src) {
+    return (
+      <img
+        src={resolveFileUrl(src)}
+        alt={name ?? 'avatar'}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          objectFit: 'cover',
+          flexShrink: 0,
+          boxShadow: '0 2px 6px rgba(15,23,42,0.12)',
+        }}
+      />
+    )
+  }
   return (
     <div
       style={{
@@ -266,7 +282,7 @@ export default function UserChatsPage() {
                     onClick={() => setActiveBookingId(Number(chat.booking_id))}
                     style={{ textAlign: 'left', borderRadius: 12, border: active ? '1px solid #818cf8' : '1px solid #e2e8f0', background: active ? '#eef2ff' : 'white', padding: 10, display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', transition: 'all 0.15s' }}
                   >
-                    <Avatar name={chat.expert_name} size={40} />
+                    <Avatar name={chat.expert_name} size={40} src={chat.expert_avatar} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                         <b style={{ fontSize: 13, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{chat.expert_name}</b>
@@ -288,21 +304,23 @@ export default function UserChatsPage() {
                 <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: 12, marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                      <Avatar name={activeChat.expert_name} size={44} />
+                      <Avatar name={activeChat.expert_name} size={44} src={activeChat.expert_avatar} />
                       <div style={{ minWidth: 0 }}>
                         <p style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeChat.expert_name}</p>
                         <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{activeChat.ma_lich_hen} · {activeChat.ten_goi} · {statusLabel(activeChat.trang_thai)}</p>
                       </div>
                     </div>
-                    <button
-                      type='button'
-                      onClick={openVideoCall}
-                      title='Bắt đầu video call'
-                      aria-label='Bắt đầu video call'
-                      style={{ width: 38, height: 38, border: '1px solid #c7d2fe', background: 'white', color: '#3730a3', borderRadius: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
-                    >
-                      <Video size={16} />
-                    </button>
+                    {['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai) && (
+                      <button
+                        type='button'
+                        onClick={openVideoCall}
+                        title='Bắt đầu video call'
+                        aria-label='Bắt đầu video call'
+                        style={{ width: 38, height: 38, border: '1px solid #c7d2fe', background: 'white', color: '#3730a3', borderRadius: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+                      >
+                        <Video size={16} />
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div
@@ -361,7 +379,7 @@ export default function UserChatsPage() {
                         >
                           {!mine && (
                             <div style={{ width: 36, flexShrink: 0, paddingTop: showHeader ? 18 : 0 }}>
-                              {showAvatar ? <Avatar name={msg.sender_name} size={36} /> : null}
+                              {showAvatar ? <Avatar name={msg.sender_name} size={36} src={msg.sender_avatar} /> : null}
                             </div>
                           )}
                           <div style={{ maxWidth: '68%', display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start', minWidth: 0 }}>
@@ -446,7 +464,7 @@ export default function UserChatsPage() {
                           </div>
                           {mine && (
                             <div style={{ width: 36, flexShrink: 0, paddingTop: 0 }}>
-                              {showAvatar ? <Avatar name={msg.sender_name} size={36} /> : null}
+                              {showAvatar ? <Avatar name={msg.sender_name} size={36} src={msg.sender_avatar} /> : null}
                             </div>
                           )}
                         </div>
@@ -465,28 +483,53 @@ export default function UserChatsPage() {
                   <input
                     ref={fileInputRef}
                     type='file'
-                    accept='image/*'
                     multiple
                     style={{ display: 'none' }}
                     onChange={(e) => uploadFiles(e.target.files)}
                   />
                   <button
                     type='button'
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
+                    onClick={() => { fileInputRef.current!.accept = 'image/*'; fileInputRef.current?.click() }}
+                    disabled={uploading || !['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai)}
                     title='Đính kèm ảnh'
                     aria-label='Đính kèm ảnh'
                     style={{
                       width: 40, height: 40, borderRadius: 10, flexShrink: 0,
                       border: '1px solid #e2e8f0', background: 'white', color: '#4f46e5',
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: uploading ? 'wait' : 'pointer',
+                      cursor: uploading || !['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai) ? 'not-allowed' : 'pointer',
+                      opacity: ['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai) ? 1 : 0.5,
                     }}
                   >
                     <ImageIcon size={18} />
                   </button>
-                  <input className={userInputClass} placeholder={uploading ? 'Đang tải ảnh lên...' : 'Nhập tin nhắn tư vấn...'} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') send() }} />
-                  <UserButton onClick={send} disabled={sending || uploading || !text.trim()}><Send size={14} /> {sending ? 'Đang gửi' : 'Gửi'}</UserButton>
+                  <button
+                    type='button'
+                    onClick={() => { fileInputRef.current!.accept = '*/*'; fileInputRef.current?.click() }}
+                    disabled={uploading || !['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai)}
+                    title='Đính kèm file'
+                    aria-label='Đính kèm file'
+                    style={{
+                      width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                      border: '1px solid #e2e8f0', background: 'white', color: '#4f46e5',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: uploading || !['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai) ? 'not-allowed' : 'pointer',
+                      opacity: ['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai) ? 1 : 0.5,
+                    }}
+                  >
+                    <Paperclip size={18} />
+                  </button>
+                  <input
+                    className={userInputClass}
+                    placeholder={!['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai) ? 'Chuyên gia chưa nhận lịch...' : uploading ? 'Đang tải lên...' : 'Nhập tin nhắn tư vấn...'}
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') send() }}
+                    disabled={uploading || !['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai)}
+                  />
+                  <UserButton onClick={send} disabled={sending || uploading || !text.trim() || !['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai)}>
+                    <Send size={14} /> {sending ? 'Đang gửi' : 'Gửi'}
+                  </UserButton>
                 </div>
               </>
             ) : (

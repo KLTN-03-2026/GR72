@@ -1,3 +1,9 @@
 chuc-nang/
 *.md
 *.sql
+venv/
+__pycache__/
+*.pyc
+__MACOSX/
+uploads/
+node_modules/

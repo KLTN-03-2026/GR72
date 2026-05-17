@@ -1273,7 +1273,7 @@ export class CustomerService {
     }
 
     return this.dataSource.query(
-      `SELECT lh.id AS booking_id, lh.ma_lich_hen, lh.trang_thai, expert_account.ho_ten AS expert_name, gdv.ten_goi,
+      `SELECT lh.id AS booking_id, lh.ma_lich_hen, lh.trang_thai, expert_account.ho_ten AS expert_name, cg.anh_dai_dien_url AS expert_avatar, gdv.ten_goi,
               MAX(msg.tao_luc) AS last_message_at,
               SUM(CASE WHEN msg.nguoi_gui_id <> ? AND msg.da_doc_luc IS NULL THEN 1 ELSE 0 END) AS unread
        FROM lich_hen lh
@@ -1291,8 +1291,12 @@ export class CustomerService {
   async getMessages(accountId: number | undefined, bookingId: number) {
     await this.assertBooking(accountId, bookingId);
     const rows = await this.dataSource.query(
-      `SELECT msg.*, tk.ho_ten AS sender_name, tk.vai_tro AS sender_role
-       FROM tin_nhan msg JOIN tai_khoan tk ON tk.id = msg.nguoi_gui_id
+      `SELECT msg.*, tk.ho_ten AS sender_name, tk.vai_tro AS sender_role,
+              CASE WHEN tk.vai_tro = 'expert' THEN cg.anh_dai_dien_url ELSE hsc.anh_dai_dien_url END AS sender_avatar
+       FROM tin_nhan msg 
+       JOIN tai_khoan tk ON tk.id = msg.nguoi_gui_id
+       LEFT JOIN chuyen_gia cg ON cg.tai_khoan_id = tk.id
+       LEFT JOIN ho_so_customer hsc ON hsc.tai_khoan_id = tk.id
        WHERE msg.lich_hen_id = ? ORDER BY msg.tao_luc ASC`,
       [bookingId],
     );
@@ -1622,10 +1626,10 @@ export class CustomerService {
     return this.dataSource.transaction(async (manager) => {
       const now = new Date();
       const result = await manager.query(
-        `INSERT INTO danh_gia (tai_khoan_id,chuyen_gia_id,lich_hen_id,diem,noi_dung,tag,trang_thai,tao_luc,cap_nhat_luc)
+        `INSERT INTO danh_gia (tai_khoan_id,chuyen_gia_id,lich_hen_id,diem,noi_dung,tags,trang_thai,tao_luc,cap_nhat_luc)
          VALUES (?,?,?,?,?,?,?,?,?)`,
         [userId, booking.chuyen_gia_id, bookingId, diem, noiDung,
-         JSON.stringify(body.tag ?? []), 'hien_thi', now, now],
+         JSON.stringify(body.tags ?? body.tag ?? []), 'hien_thi', now, now],
       );
 
       // Cập nhật aggregate rating chuyên gia
@@ -1667,12 +1671,15 @@ export class CustomerService {
     if (query.status) { where.push('dg.trang_thai = ?'); params.push(query.status); }
 
     return this.dataSource.query(
-      `SELECT dg.*, lh.ma_lich_hen, lh.ngay_hen, tk.ho_ten AS expert_name, cg.anh_dai_dien_url, gdv.ten_goi
+      `SELECT dg.*, lh.ma_lich_hen, lh.ngay_hen, tk.ho_ten AS expert_name, cg.anh_dai_dien_url, gdv.ten_goi,
+              CASE WHEN dg.trang_thai = 'hien_thi' THEN ph.noi_dung ELSE NULL END AS expert_reply,
+              CASE WHEN dg.trang_thai = 'hien_thi' THEN ph.tao_luc ELSE NULL END AS expert_reply_at
        FROM danh_gia dg
        JOIN lich_hen lh ON lh.id = dg.lich_hen_id
        JOIN chuyen_gia cg ON cg.id = dg.chuyen_gia_id
        JOIN tai_khoan tk ON tk.id = cg.tai_khoan_id
        JOIN goi_dich_vu gdv ON gdv.id = lh.goi_dich_vu_id
+       LEFT JOIN phan_hoi_danh_gia ph ON ph.danh_gia_id = dg.id
        WHERE ${where.join(' AND ')}
        ORDER BY dg.tao_luc DESC`,
       params,
@@ -1696,9 +1703,9 @@ export class CustomerService {
     return this.dataSource.transaction(async (manager) => {
       const now = new Date();
       await manager.query(
-        'UPDATE danh_gia SET diem=?, noi_dung=?, tag=?, cap_nhat_luc=? WHERE id=?',
+        'UPDATE danh_gia SET diem=?, noi_dung=?, tags=?, cap_nhat_luc=? WHERE id=?',
         [diem, String(body.noi_dung ?? review.noi_dung ?? '').trim(),
-         JSON.stringify(body.tag ?? parseJson(review.tag) ?? []), now, reviewId],
+         JSON.stringify(body.tags ?? body.tag ?? parseJson(review.tags ?? review.tag) ?? []), now, reviewId],
       );
       await manager.query(
         `UPDATE chuyen_gia

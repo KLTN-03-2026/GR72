@@ -591,8 +591,12 @@ export class ExpertService {
   async getMessages(accountId: number | undefined, bookingId: number) {
     await this.assertBooking(accountId, bookingId);
     const rows = await this.dataSource.query(
-      `SELECT msg.*, tk.ho_ten AS sender_name, tk.vai_tro AS sender_role
-       FROM tin_nhan msg JOIN tai_khoan tk ON tk.id = msg.nguoi_gui_id
+      `SELECT msg.*, tk.ho_ten AS sender_name, tk.vai_tro AS sender_role,
+              CASE WHEN tk.vai_tro = 'expert' THEN cg.anh_dai_dien_url ELSE hsc.anh_dai_dien_url END AS sender_avatar
+       FROM tin_nhan msg 
+       JOIN tai_khoan tk ON tk.id = msg.nguoi_gui_id
+       LEFT JOIN chuyen_gia cg ON cg.tai_khoan_id = tk.id
+       LEFT JOIN ho_so_customer hsc ON hsc.tai_khoan_id = tk.id
        WHERE msg.lich_hen_id = ? ORDER BY msg.tao_luc ASC`,
       [bookingId],
     );

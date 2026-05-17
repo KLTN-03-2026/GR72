@@ -29,7 +29,7 @@ function decodeJwtPayload(token: string) {
   }
 }
 
-export function proxy(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl
   if (pathname.startsWith('/dashboard')) {
     const suffix = pathname.replace(/^\/dashboard/, '')

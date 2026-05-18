@@ -254,6 +254,8 @@ export default function UserChatsPage() {
     [chats, activeBookingId],
   )
 
+  const canChat = activeChat ? ['da_xac_nhan', 'da_checkin', 'dang_tu_van'].includes(activeChat.trang_thai) : false
+
   return (
     <>
       <SectionHeader title='Chat tư vấn realtime' subtitle='Trao đổi với chuyên gia trong phạm vi booking hợp lệ. Booking bị hủy/vô hiệu sẽ không cho gửi mới.' />
@@ -310,7 +312,7 @@ export default function UserChatsPage() {
                         <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{activeChat.ma_lich_hen} · {activeChat.ten_goi} · {statusLabel(activeChat.trang_thai)}</p>
                       </div>
                     </div>
-                    {['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai) && (
+                    {canChat && (
                       <button
                         type='button'
                         onClick={openVideoCall}
@@ -490,15 +492,15 @@ export default function UserChatsPage() {
                   <button
                     type='button'
                     onClick={() => { fileInputRef.current!.accept = 'image/*'; fileInputRef.current?.click() }}
-                    disabled={uploading || !['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai)}
+                    disabled={uploading || !canChat}
                     title='Đính kèm ảnh'
                     aria-label='Đính kèm ảnh'
                     style={{
                       width: 40, height: 40, borderRadius: 10, flexShrink: 0,
                       border: '1px solid #e2e8f0', background: 'white', color: '#4f46e5',
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: uploading || !['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai) ? 'not-allowed' : 'pointer',
-                      opacity: ['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai) ? 1 : 0.5,
+                      cursor: uploading || !canChat ? 'not-allowed' : 'pointer',
+                      opacity: canChat ? 1 : 0.5,
                     }}
                   >
                     <ImageIcon size={18} />
@@ -506,28 +508,28 @@ export default function UserChatsPage() {
                   <button
                     type='button'
                     onClick={() => { fileInputRef.current!.accept = '*/*'; fileInputRef.current?.click() }}
-                    disabled={uploading || !['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai)}
+                    disabled={uploading || !canChat}
                     title='Đính kèm file'
                     aria-label='Đính kèm file'
                     style={{
                       width: 40, height: 40, borderRadius: 10, flexShrink: 0,
                       border: '1px solid #e2e8f0', background: 'white', color: '#4f46e5',
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: uploading || !['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai) ? 'not-allowed' : 'pointer',
-                      opacity: ['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai) ? 1 : 0.5,
+                      cursor: uploading || !canChat ? 'not-allowed' : 'pointer',
+                      opacity: canChat ? 1 : 0.5,
                     }}
                   >
                     <Paperclip size={18} />
                   </button>
                   <input
                     className={userInputClass}
-                    placeholder={!['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai) ? 'Chuyên gia chưa nhận lịch...' : uploading ? 'Đang tải lên...' : 'Nhập tin nhắn tư vấn...'}
+                    placeholder={activeChat.trang_thai === 'hoan_thanh' ? 'Booking đã hoàn thành nên không thể nhắn tin' : !canChat ? 'Chuyên gia chưa nhận lịch...' : uploading ? 'Đang tải lên...' : 'Nhập tin nhắn tư vấn...'}
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') send() }}
-                    disabled={uploading || !['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai)}
+                    disabled={uploading || !canChat}
                   />
-                  <UserButton onClick={send} disabled={sending || uploading || !text.trim() || !['da_xac_nhan', 'da_checkin', 'dang_tu_van', 'hoan_thanh'].includes(activeChat.trang_thai)}>
+                  <UserButton onClick={send} disabled={sending || uploading || !text.trim() || !canChat}>
                     <Send size={14} /> {sending ? 'Đang gửi' : 'Gửi'}
                   </UserButton>
                 </div>

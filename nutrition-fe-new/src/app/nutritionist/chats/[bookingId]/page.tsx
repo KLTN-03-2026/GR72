@@ -40,8 +40,17 @@ function avatarGradient(seed: string) {
   return palette[Math.abs(hash) % palette.length]
 }
 
-function Avatar({ name, size = 'md' }: { name?: string; size?: 'sm' | 'md' | 'lg' }) {
+function Avatar({ name, size = 'md', src }: { name?: string; size?: 'sm' | 'md' | 'lg'; src?: string }) {
   const cls = size === 'sm' ? 'h-8 w-8 text-xs' : size === 'lg' ? 'h-12 w-12 text-base' : 'h-10 w-10 text-sm'
+  if (src) {
+    return (
+      <img
+        src={resolveFileUrl(src)}
+        alt={name ?? 'avatar'}
+        className={`${cls} inline-flex flex-shrink-0 rounded-full object-cover shadow-sm`}
+      />
+    )
+  }
   return (
     <div className={`${cls} inline-flex flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${avatarGradient(name ?? 'x')} font-bold text-white shadow-sm`}>
       {getInitials(name)}
@@ -153,6 +162,7 @@ export default function ExpertChatRoomPage() {
   }, [text])
 
   const booking = detail?.booking
+  const canChat = booking ? ['da_xac_nhan', 'da_checkin', 'dang_tu_van'].includes(booking.trang_thai) : false
   const timelineCount = useMemo(() => detail?.timeline?.length ?? 0, [detail])
 
   async function send() {
@@ -206,7 +216,7 @@ export default function ExpertChatRoomPage() {
           <section className='overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm'>
             <div className='flex flex-col gap-3 border-b border-slate-100 bg-slate-50/80 px-5 py-4 lg:flex-row lg:items-center lg:justify-between'>
               <div className='flex min-w-0 items-center gap-3'>
-                {booking && <Avatar name={booking.customer_name} size='lg' />}
+                {booking && <Avatar name={booking.customer_name} size='lg' src={booking.customer_avatar} />}
                 <div className='min-w-0'>
                   <Link href='/nutritionist/chats' className='text-xs font-semibold text-emerald-700 hover:text-emerald-800'>← Quay lại danh sách chat</Link>
                   <p className='mt-1 truncate text-lg font-semibold text-slate-950'>{booking ? booking.customer_name : `${messages.length} tin nhắn`}</p>
@@ -215,9 +225,11 @@ export default function ExpertChatRoomPage() {
               </div>
               <div className='flex flex-wrap items-center gap-2'>
                 {booking ? <StatusPill value={booking.trang_thai} /> : null}
-                <button type='button' onClick={openVideoCall} title='Bắt đầu video call' aria-label='Bắt đầu video call' className='inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 shadow-sm transition hover:bg-blue-50'>
-                  <VideoIcon />
-                </button>
+                {canChat && (
+                  <button type='button' onClick={openVideoCall} title='Bắt đầu video call' aria-label='Bắt đầu video call' className='inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-white text-blue-700 shadow-sm transition hover:bg-blue-50'>
+                    <VideoIcon />
+                  </button>
+                )}
               </div>
             </div>
             <div className='h-[58vh] min-h-[430px] overflow-y-auto bg-[radial-gradient(circle_at_15%_0%,#ECFDF5_0,transparent_32%),linear-gradient(180deg,#F8FAFC_0%,#FFFFFF_100%)] p-5'>
@@ -252,7 +264,7 @@ export default function ExpertChatRoomPage() {
                         <div className={`flex items-start gap-2.5 px-1.5 ${mine ? 'justify-end' : 'justify-start'} ${showHeader ? 'mt-2.5' : 'mt-0.5'}`}>
                           {!mine && (
                             <div className={`w-9 flex-shrink-0 ${showHeader ? 'pt-[18px]' : ''}`}>
-                              {showAvatar && <Avatar name={msg.sender_name} size='sm' />}
+                              {showAvatar && <Avatar name={msg.sender_name} size='sm' src={msg.sender_avatar} />}
                             </div>
                           )}
                           <div className={`flex min-w-0 max-w-[68%] flex-col ${mine ? 'items-end' : 'items-start'}`}>
@@ -311,7 +323,7 @@ export default function ExpertChatRoomPage() {
                           </div>
                           {mine && (
                             <div className='w-9 flex-shrink-0'>
-                              {showAvatar && <Avatar name={msg.sender_name} size='sm' />}
+                              {showAvatar && <Avatar name={msg.sender_name} size='sm' src={msg.sender_avatar} />}
                             </div>
                           )}
                         </div>
@@ -326,18 +338,18 @@ export default function ExpertChatRoomPage() {
               <input ref={fileInputRef} type='file' accept='image/*' multiple className='hidden' onChange={(e) => uploadFiles(e.target.files)} />
               <Field label='Nội dung tư vấn' error={errors.text}>
                 <div className='relative'>
-                  <textarea ref={textareaRef} className={`${inputClass} min-h-14 resize-y overflow-y-auto py-4 pl-14 pr-16 leading-6`} rows={1} value={text} onChange={(event) => { setText(event.target.value); setErrors({}) }} onInput={resizeComposer} onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') send() }} placeholder={uploading ? 'Đang tải ảnh lên...' : 'Nhập phản hồi cho khách hàng... Ctrl/Cmd + Enter để gửi nhanh'} />
+                  <textarea ref={textareaRef} className={`${inputClass} min-h-14 resize-y overflow-y-auto py-4 pl-14 pr-16 leading-6 disabled:bg-slate-50 disabled:cursor-not-allowed`} rows={1} value={text} onChange={(event) => { setText(event.target.value); setErrors({}) }} onInput={resizeComposer} onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') send() }} disabled={uploading || !canChat} placeholder={booking?.trang_thai === 'hoan_thanh' ? 'Booking đã hoàn thành nên không thể nhắn tin' : !canChat ? 'Chưa thể nhắn tin lúc này...' : uploading ? 'Đang tải ảnh lên...' : 'Nhập phản hồi cho khách hàng... Ctrl/Cmd + Enter để gửi nhanh'} />
                   <button
                     type='button'
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
+                    disabled={uploading || !canChat}
                     aria-label='Đính kèm ảnh'
                     title='Đính kèm ảnh'
-                    className='absolute left-3 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-wait disabled:opacity-60'
+                    className='absolute left-3 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60'
                   >
                     <svg viewBox='0 0 24 24' className='h-5 w-5'><path fill='currentColor' d='M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z'/></svg>
                   </button>
-                  <button type='button' onClick={send} disabled={sending || uploading} aria-label='Gửi tin nhắn' className='absolute right-3 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-xl bg-[#2563EB] text-white shadow-lg shadow-blue-100 transition-colors duration-200 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60'>
+                  <button type='button' onClick={send} disabled={sending || uploading || !canChat || !text.trim()} aria-label='Gửi tin nhắn' className='absolute right-3 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-xl bg-[#2563EB] text-white shadow-lg shadow-blue-100 transition-colors duration-200 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60'>
                     <SendIcon />
                   </button>
                 </div>

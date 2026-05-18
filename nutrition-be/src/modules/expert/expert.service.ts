@@ -48,9 +48,10 @@ export class ExpertService {
   private async assertBooking(accountId: number | undefined, bookingId: number) {
     const ctx = await this.context(accountId);
     const [booking] = await this.dataSource.query(
-      `SELECT lh.*, customer.ho_ten AS customer_name, customer.email AS customer_email, gdv.ten_goi, gdv.loai_goi
+      `SELECT lh.*, customer.ho_ten AS customer_name, customer.email AS customer_email, gdv.ten_goi, gdv.loai_goi, hsc.anh_dai_dien_url AS customer_avatar
        FROM lich_hen lh
        JOIN tai_khoan customer ON customer.id = lh.tai_khoan_id
+       LEFT JOIN ho_so_customer hsc ON hsc.tai_khoan_id = customer.id
        JOIN goi_dich_vu gdv ON gdv.id = lh.goi_dich_vu_id
        WHERE lh.id = ? AND lh.chuyen_gia_id = ?`,
       [bookingId, ctx.expertId],
@@ -389,8 +390,8 @@ export class ExpertService {
     if (query.to) { where.push('lh.ngay_hen <= ?'); params.push(query.to); }
     if (query.search) { where.push('(customer.ho_ten LIKE ? OR lh.ma_lich_hen LIKE ? OR gdv.ten_goi LIKE ?)'); params.push(`%${query.search}%`, `%${query.search}%`, `%${query.search}%`); }
     return this.dataSource.query(
-      `SELECT lh.*, customer.ho_ten AS customer_name, customer.email AS customer_email, gdv.ten_goi, gdv.loai_goi
-       FROM lich_hen lh JOIN tai_khoan customer ON customer.id = lh.tai_khoan_id JOIN goi_dich_vu gdv ON gdv.id = lh.goi_dich_vu_id
+      `SELECT lh.*, customer.ho_ten AS customer_name, customer.email AS customer_email, gdv.ten_goi, gdv.loai_goi, hsc.anh_dai_dien_url AS customer_avatar
+       FROM lich_hen lh JOIN tai_khoan customer ON customer.id = lh.tai_khoan_id LEFT JOIN ho_so_customer hsc ON hsc.tai_khoan_id = customer.id JOIN goi_dich_vu gdv ON gdv.id = lh.goi_dich_vu_id
        WHERE ${where.join(' AND ')} ORDER BY lh.ngay_hen DESC, lh.gio_bat_dau DESC`,
       params,
     );
@@ -578,10 +579,10 @@ export class ExpertService {
     const params: unknown[] = [ctx.expertId];
     if (query.search) { where.push('(customer.ho_ten LIKE ? OR lh.ma_lich_hen LIKE ? OR gdv.ten_goi LIKE ?)'); params.push(`%${query.search}%`, `%${query.search}%`, `%${query.search}%`); }
     return this.dataSource.query(
-      `SELECT lh.id AS booking_id, lh.ma_lich_hen, lh.trang_thai, customer.ho_ten AS customer_name, gdv.ten_goi,
+      `SELECT lh.id AS booking_id, lh.ma_lich_hen, lh.trang_thai, customer.ho_ten AS customer_name, gdv.ten_goi, hsc.anh_dai_dien_url AS customer_avatar,
               MAX(msg.tao_luc) AS last_message_at,
               SUM(CASE WHEN msg.nguoi_gui_id <> ? AND msg.da_doc_luc IS NULL THEN 1 ELSE 0 END) AS unread
-       FROM lich_hen lh JOIN tai_khoan customer ON customer.id = lh.tai_khoan_id JOIN goi_dich_vu gdv ON gdv.id = lh.goi_dich_vu_id
+       FROM lich_hen lh JOIN tai_khoan customer ON customer.id = lh.tai_khoan_id LEFT JOIN ho_so_customer hsc ON hsc.tai_khoan_id = customer.id JOIN goi_dich_vu gdv ON gdv.id = lh.goi_dich_vu_id
        LEFT JOIN tin_nhan msg ON msg.lich_hen_id = lh.id
        WHERE ${where.join(' AND ')} GROUP BY lh.id ORDER BY COALESCE(last_message_at, lh.tao_luc) DESC`,
       [ctx.accountId, ...params],

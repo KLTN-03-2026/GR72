@@ -95,11 +95,15 @@ export default function ExpertChatsPage() {
                   {/* Avatar */}
                   <div style={{
                     width: 48, height: 48, borderRadius: '50%', flexShrink: 0,
-                    background: '#e0e7ff', color: '#6366f1',
+                    background: chat.customer_avatar ? 'transparent' : '#e0e7ff', color: '#6366f1',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 18, fontWeight: 700, position: 'relative',
                   }}>
-                    {String(chat.customer_name ?? 'K').charAt(0).toUpperCase()}
+                    {chat.customer_avatar ? (
+                      <img src={chat.customer_avatar} alt='avatar' style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                    ) : (
+                      String(chat.customer_name ?? 'K').charAt(0).toUpperCase()
+                    )}
                     {unread > 0 && (
                       <span style={{
                         position: 'absolute', top: -2, right: -2, minWidth: 20, height: 20,

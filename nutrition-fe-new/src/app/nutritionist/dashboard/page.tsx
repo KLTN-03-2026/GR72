@@ -94,6 +94,65 @@ export default function NutritionistDashboardPage() {
             />
           </div>
 
+          {/* Pending bookings */}
+          <Card style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#0f172a' }}>🔔 Yêu cầu đặt lịch mới</h2>
+                <p style={{ margin: '2px 0 0', fontSize: 13, color: '#64748b' }}>
+                  Các booking đang chờ bạn xác nhận.
+                </p>
+              </div>
+              <Link href='/nutritionist/bookings'>
+                <UserButton size='sm' variant='primary'>Xử lý ngay <ChevronRight size={12} /></UserButton>
+              </Link>
+            </div>
+
+            {data.pendingBookings?.length ? (
+              <div style={{ display: 'grid', gap: 10 }}>
+                {data.pendingBookings.map((row: Data) => (
+                  <Link key={row.id} href='/nutritionist/bookings' style={{ textDecoration: 'none' }}>
+                    <div style={{
+                      padding: 14, background: '#fffbeb', borderRadius: 12, border: '1px solid #fde68a',
+                      display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', transition: 'all 0.2s',
+                    }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#fef3c7'; e.currentTarget.style.transform = 'translateX(4px)' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = '#fffbeb'; e.currentTarget.style.transform = 'translateX(0)' }}
+                    >
+                      <div style={{
+                        width: 44, height: 44, borderRadius: 12, background: '#fef3c7', color: '#d97706',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}>
+                        <AlertCircle size={20} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>
+                            {row.ma_lich_hen}
+                          </p>
+                          <StatusBadge value={row.trang_thai} />
+                        </div>
+                        <p style={{ margin: '4px 0 0', fontSize: 14, color: '#475569' }}>
+                          <strong>{row.customer_name}</strong> · {row.ten_goi}
+                        </p>
+                        <p style={{ margin: '2px 0 0', fontSize: 12, color: '#94a3b8' }}>
+                          {String(row.ngay_hen).slice(0, 10)} · {row.gio_bat_dau}
+                        </p>
+                      </div>
+                      <ChevronRight size={18} style={{ color: '#d97706', flexShrink: 0 }} />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <UserEmptyState
+                icon={CheckCircle}
+                title='Không có yêu cầu mới'
+                description='Bạn đã xử lý hết tất cả các yêu cầu đặt lịch.'
+              />
+            )}
+          </Card>
+
           {/* Next bookings */}
           <Card>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>

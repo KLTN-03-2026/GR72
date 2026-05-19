@@ -147,11 +147,13 @@ export class CustomerService {
                 FROM goi_da_mua gdm
                 WHERE gdm.tai_khoan_id = ?
                   AND gdm.goi_dich_vu_id = gdv.id
-                  AND gdm.trang_thai IN ('dang_hieu_luc', 'het_luot', 'cho_thanh_toan')
+                  AND gdm.trang_thai IN ('dang_hieu_luc', 'cho_thanh_toan')
                   AND (
                     gdm.trang_thai = 'cho_thanh_toan'
-                    OR gdm.het_han_luc IS NULL
-                    OR gdm.het_han_luc >= NOW()
+                    OR (
+                      (gdm.het_han_luc IS NULL OR gdm.het_han_luc >= NOW())
+                      AND gdm.so_luot_con_lai > 0
+                    )
                   )
               ) AS da_so_huu,
               EXISTS(
@@ -160,8 +162,9 @@ export class CustomerService {
                 JOIN goi_dich_vu gdv2 ON gdv2.id = gdm2.goi_dich_vu_id
                 WHERE gdm2.tai_khoan_id = ?
                   AND gdv2.loai_goi = gdv.loai_goi
-                  AND gdm2.trang_thai IN ('dang_hieu_luc', 'het_luot')
+                  AND gdm2.trang_thai = 'dang_hieu_luc'
                   AND (gdm2.het_han_luc IS NULL OR gdm2.het_han_luc >= NOW())
+                  AND gdm2.so_luot_con_lai > 0
               ) AS da_co_goi_cung_loai`
       : `,
               0 AS da_so_huu,
@@ -308,8 +311,9 @@ export class CustomerService {
          FROM goi_da_mua
          WHERE tai_khoan_id = ?
            AND goi_dich_vu_id = ?
-           AND trang_thai IN ('dang_hieu_luc', 'het_luot')
+           AND trang_thai = 'dang_hieu_luc'
            AND (het_han_luc IS NULL OR het_han_luc >= NOW())
+           AND so_luot_con_lai > 0
          LIMIT 1`,
         [userId, packageId],
       );
@@ -323,8 +327,9 @@ export class CustomerService {
          JOIN goi_dich_vu gdv ON gdv.id = gdm.goi_dich_vu_id
          WHERE gdm.tai_khoan_id = ?
            AND gdv.loai_goi = ?
-           AND gdm.trang_thai IN ('dang_hieu_luc', 'het_luot')
+           AND gdm.trang_thai = 'dang_hieu_luc'
            AND (gdm.het_han_luc IS NULL OR gdm.het_han_luc >= NOW())
+           AND gdm.so_luot_con_lai > 0
          LIMIT 1`,
         [userId, pkg.loai_goi],
       );
@@ -762,9 +767,18 @@ export class CustomerService {
       );
 
       await manager.query(
+        `UPDATE goi_da_mua 
+         SET so_luot_con_lai = so_luot_con_lai - 1, 
+             so_luot_da_dung = so_luot_da_dung + 1, 
+             cap_nhat_luc = ? 
+         WHERE id = ?`,
+        [now, purchaseId],
+      );
+
+      await manager.query(
         `INSERT INTO lich_su_su_dung_goi (goi_da_mua_id, lich_hen_id, loai_su_kien, so_luot_thay_doi, so_luot_con_lai_sau, ghi_chu, tao_luc)
-         VALUES (?, ?, 'giu_luot', 0, ?, ?, ?)`,
-        [purchaseId, result.insertId, lockedPurchase.so_luot_con_lai, 'Dat lich thanh cong', now],
+         VALUES (?, ?, 'giu_luot', -1, ?, ?, ?)`,
+        [purchaseId, result.insertId, lockedPurchase.so_luot_con_lai - 1, 'Dat lich thanh cong', now],
       );
 
       await manager.query(

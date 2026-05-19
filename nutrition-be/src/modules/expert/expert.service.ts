@@ -184,8 +184,9 @@ export class ExpertService {
       [ctx.expertId],
     );
     const nextBookings = await this.listBookings(accountId, { status: 'da_xac_nhan' });
+    const pendingBookings = await this.listBookings(accountId, { status: 'cho_xac_nhan' });
     const notifications = await this.getNotificationSummary(accountId);
-    return { profile, booking, review, commission, nextBookings: nextBookings.slice(0, 5), notifications };
+    return { profile, booking, review, commission, nextBookings: nextBookings.slice(0, 5), pendingBookings: pendingBookings.slice(0, 5), notifications };
   }
 
   async getRevenueOverview(accountId: number | undefined, query: Dict) {

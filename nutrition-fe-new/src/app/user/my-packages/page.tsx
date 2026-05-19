@@ -69,9 +69,13 @@ export default function MyPackagesPage() {
                 </div>
               </div>
               <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid #f1f5f9' }}>
-                <Link href={`/user/experts?packagePurchaseId=${row.id}`}>
-                  <UserButton variant='primary' size='sm'>Chọn chuyên gia</UserButton>
-                </Link>
+                {row.runtime_status === 'dang_hieu_luc' ? (
+                  <Link href={`/user/experts?packagePurchaseId=${row.id}`}>
+                    <UserButton variant='primary' size='sm'>Chọn chuyên gia</UserButton>
+                  </Link>
+                ) : (
+                  <UserButton variant='secondary' size='sm' disabled>Đã hết lượt / hết hạn</UserButton>
+                )}
               </div>
             </Card>
           ))}

@@ -5,6 +5,7 @@ import { Wallet, TrendingUp, Calendar, Download, FileText, Hash, Package, CheckC
 import { SectionHeader, Card, UserStatCard, UserButton, UserNotice, UserEmptyState, StatusBadge, money } from '@/components/user/user-ui'
 import { expertGet } from '@/lib/expert-api'
 import { statusLabel } from '@/lib/i18n'
+import * as XLSX from 'xlsx'
 
 type Row = Record<string, any>
 
@@ -37,15 +38,43 @@ export default function EarningsPage() {
   useEffect(() => { load() }, [])
 
   async function exportFile() {
-    if (!data?.period?.id) {
-      setMessage('Tháng này chưa có kỳ hoa hồng để export sao kê.')
+    if (!data?.period?.id || !data?.lines?.length) {
+      setMessage('Tháng này chưa có dữ liệu để export sao kê.')
       setMsgTone('info')
       return
     }
     setExporting(true)
     try {
-      const result = await expertGet<Row>(`/earnings/${data.period.id}/export`)
-      setMessage(`✅ Đã tạo file sao kê: ${result.file_url}`)
+      // Create Excel file directly on frontend using xlsx
+      const dataRows = data.lines.map((row: any) => ({
+        'Mã Lịch Hẹn': row.ma_lich_hen,
+        'Tên Gói': row.ten_goi,
+        'Ngày Hẹn': String(row.ngay_hen).slice(0, 10),
+        'Trạng Thái': row.trang_thai,
+        'Doanh Thu Hợp Lệ (VNĐ)': row.doanh_thu_hop_le,
+        'Tỷ Lệ Hoa Hồng (%)': row.ty_le_hoa_hong,
+        'Số Tiền Hoa Hồng (VNĐ)': row.so_tien_hoa_hong
+      }))
+      
+      const worksheet = XLSX.utils.json_to_sheet(dataRows)
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Sao Ke')
+      
+      // Auto-size columns for better visibility
+      const wscols = [
+        { wch: 15 }, // Mã Lịch Hẹn
+        { wch: 30 }, // Tên Gói
+        { wch: 15 }, // Ngày Hẹn
+        { wch: 15 }, // Trạng Thái
+        { wch: 25 }, // Doanh Thu Hợp Lệ
+        { wch: 20 }, // Tỷ Lệ
+        { wch: 25 }, // Số Tiền Hoa Hồng
+      ]
+      worksheet['!cols'] = wscols
+      
+      XLSX.writeFile(workbook, `Sao_Ke_Doanh_Thu_${data.period.thang}_${data.period.nam}.xlsx`)
+      
+      setMessage('✅ Đã tải file sao kê thành công.')
       setMsgTone('success')
     } catch (e: any) {
       setMessage(e.message ?? 'Lỗi export')

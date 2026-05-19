@@ -11,6 +11,7 @@ import {
 } from '@/components/admin/admin-ui'
 import { RevenueLineChart } from '@/components/admin/admin-charts'
 import { adminGet } from '@/lib/admin-api'
+import * as XLSX from 'xlsx'
 
 type Summary = Record<string, number>
 type Row = Record<string, any>
@@ -105,10 +106,34 @@ export default function RevenuePage() {
   useEffect(() => { load(activeRange) }, [activeRange])
 
   async function exportReport() {
+    if (!series || series.length === 0) {
+      setMessage('Không có dữ liệu doanh thu để export.')
+      setTone('info')
+      return
+    }
     setExporting(true)
     try {
-      const result = await adminGet<{ file_url: string }>(`/revenue/export${rangeToQuery(activeRange)}`)
-      setMessage(`✅ Đã tạo file: ${result.file_url}`)
+      // Generate Excel using xlsx
+      const dataRows = series.map((row: any) => ({
+        'Ngày': String(row.date).slice(0, 10),
+        'Số Giao Dịch': row.bookings || 0,
+        'Doanh Thu (VNĐ)': row.revenue || 0
+      }))
+      
+      const worksheet = XLSX.utils.json_to_sheet(dataRows)
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Bao Cao Doanh Thu')
+      
+      const wscols = [
+        { wch: 15 }, // Ngày
+        { wch: 15 }, // Số Giao Dịch
+        { wch: 20 }, // Doanh Thu
+      ]
+      worksheet['!cols'] = wscols
+      
+      XLSX.writeFile(workbook, `Bao_Cao_Doanh_Thu_${activeRange}.xlsx`)
+      
+      setMessage('✅ Đã tải báo cáo doanh thu thành công.')
       setTone('success')
     } catch (e: any) {
       setMessage(e.message ?? 'Lỗi export')

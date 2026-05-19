@@ -53,8 +53,8 @@ export default function PackagesPage() {
   }
 
   function getBlockedReason(row: Row): string {
-    if (row.da_so_huu) return 'Bạn đã có gói này (đang hiệu lực hoặc đang chờ thanh toán).'
-    if (row.da_co_goi_cung_loai) return 'Bạn đang có gói cùng loại còn hiệu lực.'
+    if (row.da_so_huu) return 'Gói này đang chờ thanh toán. Vui lòng hoàn tất đơn hiện tại.'
+    if (row.da_co_goi_cung_loai) return 'Bạn đang sử dụng gói này và vẫn còn lượt tư vấn.'
     return ''
   }
 

@@ -147,21 +147,14 @@ export class CustomerService {
                 FROM goi_da_mua gdm
                 WHERE gdm.tai_khoan_id = ?
                   AND gdm.goi_dich_vu_id = gdv.id
-                  AND gdm.trang_thai IN ('dang_hieu_luc', 'cho_thanh_toan')
-                  AND (
-                    gdm.trang_thai = 'cho_thanh_toan'
-                    OR (
-                      (gdm.het_han_luc IS NULL OR gdm.het_han_luc >= NOW())
-                      AND gdm.so_luot_con_lai > 0
-                    )
-                  )
+                  AND gdm.trang_thai = 'cho_thanh_toan'
+                  AND (gdm.het_han_luc IS NULL OR gdm.het_han_luc >= NOW())
               ) AS da_so_huu,
               EXISTS(
                 SELECT 1
                 FROM goi_da_mua gdm2
-                JOIN goi_dich_vu gdv2 ON gdv2.id = gdm2.goi_dich_vu_id
                 WHERE gdm2.tai_khoan_id = ?
-                  AND gdv2.loai_goi = gdv.loai_goi
+                  AND gdm2.goi_dich_vu_id = gdv.id
                   AND gdm2.trang_thai = 'dang_hieu_luc'
                   AND (gdm2.het_han_luc IS NULL OR gdm2.het_han_luc >= NOW())
                   AND gdm2.so_luot_con_lai > 0
@@ -169,6 +162,7 @@ export class CustomerService {
       : `,
               0 AS da_so_huu,
               0 AS da_co_goi_cung_loai`;
+
 
     const rows = await this.dataSource.query(
       `SELECT gdv.*${ownershipColumns},
@@ -306,6 +300,7 @@ export class CustomerService {
         };
       }
 
+      // Chỉ chặn nếu chính gói này đang còn hiệu lực và còn lượt
       const activeSamePackage = await manager.query(
         `SELECT id
          FROM goi_da_mua
@@ -318,23 +313,7 @@ export class CustomerService {
         [userId, packageId],
       );
       if (activeSamePackage.length) {
-        throw new BadRequestException('Ban da so huu goi nay va van con hieu luc');
-      }
-
-      const activeSameType = await manager.query(
-        `SELECT gdm.id
-         FROM goi_da_mua gdm
-         JOIN goi_dich_vu gdv ON gdv.id = gdm.goi_dich_vu_id
-         WHERE gdm.tai_khoan_id = ?
-           AND gdv.loai_goi = ?
-           AND gdm.trang_thai = 'dang_hieu_luc'
-           AND (gdm.het_han_luc IS NULL OR gdm.het_han_luc >= NOW())
-           AND gdm.so_luot_con_lai > 0
-         LIMIT 1`,
-        [userId, pkg.loai_goi],
-      );
-      if (activeSameType.length) {
-        throw new BadRequestException('Ban dang co goi cung loai con hieu luc. Vui long su dung het hoac doi den khi het han.');
+        throw new BadRequestException('Ban da so huu goi nay va van con hieu luc va luot su dung');
       }
 
       const price = Number(pkg.gia_khuyen_mai ?? pkg.gia ?? 0);

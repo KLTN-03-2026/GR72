@@ -116,8 +116,9 @@ export default function RevenuePage() {
       // Generate Excel using xlsx
       const dataRows = series.map((row: any) => ({
         'Ngày': String(row.date).slice(0, 10),
-        'Số Giao Dịch': row.bookings || 0,
-        'Doanh Thu (VNĐ)': row.revenue || 0
+        'Số Giao Dịch Thành Công': Number(row.bookings ?? 0),
+        'Tổng Giao Dịch': Number(row.payment_count ?? 0),
+        'Doanh Thu (VNĐ)': Number(row.revenue ?? 0),
       }))
       
       const worksheet = XLSX.utils.json_to_sheet(dataRows)
@@ -226,10 +227,13 @@ export default function RevenuePage() {
           </div>
 
           {/* Secondary stats */}
-          <div className='mb-5 grid gap-3 sm:grid-cols-3'>
+          <div className='mb-5 grid gap-3 sm:grid-cols-3 xl:grid-cols-6'>
             <MetricBox icon={BarChart3} label='Doanh thu TB/ngày' value={money(avgDaily)} caption={`${series.length} ngày dữ liệu`} />
             <MetricBox icon={TrendingUp} label='Ngày cao điểm' value={peakDay ? money(peakDay.revenue) : '—'} caption={peakDay ? String(peakDay.date).slice(0, 10) : 'chưa có'} />
             <MetricBox icon={Receipt} label='Tỉ lệ refund' value={summary.grossRevenue ? `${((summary.refundedRevenue / summary.grossRevenue) * 100).toFixed(1)}%` : '0%'} caption='trên doanh thu gộp' />
+            <MetricBox icon={Calendar} label='Giao dịch hôm nay' value={String(summary.transactionsToday ?? 0)} caption='thanh toán thành công' tone='blue' />
+            <MetricBox icon={Calendar} label='Giao dịch tháng này' value={String(summary.transactionsThisMonth ?? 0)} caption={new Date().toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })} tone='green' />
+            <MetricBox icon={Calendar} label='Giao dịch năm nay' value={String(summary.transactionsThisYear ?? 0)} caption={String(new Date().getFullYear())} tone='orange' />
           </div>
 
           {/* Trend chart */}
@@ -431,22 +435,27 @@ function KpiCard({ icon: Icon, label, value, delta, tone, hint, inversePositive 
   )
 }
 
-function MetricBox({ icon: Icon, label, value, caption }: {
+function MetricBox({ icon: Icon, label, value, caption, tone }: {
   icon: React.ComponentType<{ size?: number; className?: string }>
   label: string
   value: string
   caption?: string
+  tone?: 'blue' | 'green' | 'orange'
 }) {
+  const iconBg = tone === 'blue' ? 'bg-blue-100' : tone === 'green' ? 'bg-emerald-100' : tone === 'orange' ? 'bg-orange-100' : 'bg-slate-100'
+  const iconColor = tone === 'blue' ? 'text-blue-600' : tone === 'green' ? 'text-emerald-600' : tone === 'orange' ? 'text-orange-600' : 'text-slate-600'
+  const valuColor = tone === 'blue' ? 'text-blue-700' : tone === 'green' ? 'text-emerald-700' : tone === 'orange' ? 'text-orange-700' : 'text-slate-900'
   return (
     <div className='flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4'>
-      <div className='flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-slate-100'>
-        <Icon size={18} className='text-slate-600' />
+      <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
+        <Icon size={18} className={iconColor} />
       </div>
       <div className='min-w-0 flex-1'>
         <p className='text-xs font-semibold uppercase tracking-wide text-slate-500'>{label}</p>
-        <p className='mt-0.5 truncate text-base font-bold text-slate-900'>{value}</p>
+        <p className={`mt-0.5 truncate text-base font-bold ${valuColor}`}>{value}</p>
         {caption && <p className='text-xs text-slate-500'>{caption}</p>}
       </div>
     </div>
   )
 }
+

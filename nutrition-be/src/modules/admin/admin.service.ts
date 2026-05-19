@@ -660,6 +660,14 @@ export class AdminService {
       `SELECT COALESCE(SUM(ct.so_tien_hoa_hong), 0) AS payableCommission FROM chi_tiet_hoa_hong ct WHERE ct.trang_thai <> 'da_huy' AND ${commissionDate.where}`,
       commissionDate.params,
     );
+    // Số giao dịch theo ngày / tháng / năm (cố định, không phụ thuộc filter)
+    const [txnCounts] = await this.dataSource.query(
+      `SELECT
+        SUM(CASE WHEN DATE(tao_luc) = CURDATE() THEN 1 ELSE 0 END) AS transactionsToday,
+        SUM(CASE WHEN YEAR(tao_luc) = YEAR(CURDATE()) AND MONTH(tao_luc) = MONTH(CURDATE()) THEN 1 ELSE 0 END) AS transactionsThisMonth,
+        SUM(CASE WHEN YEAR(tao_luc) = YEAR(CURDATE()) THEN 1 ELSE 0 END) AS transactionsThisYear
+       FROM thanh_toan WHERE trang_thai = 'thanh_cong'`,
+    );
     return {
       grossRevenue: Number(summary.grossRevenue ?? 0),
       refundedRevenue: Number(summary.refundedRevenue ?? 0),
@@ -668,6 +676,9 @@ export class AdminService {
       refundedPayments: Number(summary.refundedPayments ?? 0),
       completedBookings: Number(booking.completedBookings ?? 0),
       payableCommission: Number(commission.payableCommission ?? 0),
+      transactionsToday: Number(txnCounts.transactionsToday ?? 0),
+      transactionsThisMonth: Number(txnCounts.transactionsThisMonth ?? 0),
+      transactionsThisYear: Number(txnCounts.transactionsThisYear ?? 0),
     };
   }
 
@@ -701,12 +712,20 @@ export class AdminService {
 
   async getRevenueTimeseries(query: PaginationQuery) {
     const { where, params } = this.paymentDateWhere(query, 'tt');
-    return this.dataSource.query(
-      `SELECT DATE(tt.tao_luc) AS date, COALESCE(SUM(CASE WHEN tt.trang_thai = 'thanh_cong' THEN tt.so_tien ELSE 0 END), 0) AS revenue,
+    const rows = await this.dataSource.query(
+      `SELECT DATE(tt.tao_luc) AS date,
+              COALESCE(SUM(CASE WHEN tt.trang_thai = 'thanh_cong' THEN tt.so_tien ELSE 0 END), 0) AS revenue,
+              SUM(CASE WHEN tt.trang_thai = 'thanh_cong' THEN 1 ELSE 0 END) AS bookings,
               COUNT(*) AS payment_count
        FROM thanh_toan tt WHERE ${where} GROUP BY DATE(tt.tao_luc) ORDER BY date ASC`,
       params,
     );
+    return rows.map((r: Record<string, unknown>) => ({
+      ...r,
+      bookings: Number(r.bookings ?? 0),
+      payment_count: Number(r.payment_count ?? 0),
+      revenue: Number(r.revenue ?? 0),
+    }));
   }
 
   async exportRevenue(query: PaginationQuery, actorId?: number) {
